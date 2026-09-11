@@ -47,7 +47,7 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
             runtime.discovery_service if runtime else None,
         )
     elif selected_page == PAGE_NICHES:
-        render_niches()
+        render_niches(runtime.discovery_service if runtime else None)
     elif selected_page == PAGE_CONCEPTS:
         render_concepts()
     elif selected_page == PAGE_ARTWORK_REVIEW:

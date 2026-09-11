@@ -101,27 +101,52 @@ class StageExecutionRepository:
             raise ConcurrencyError(f"Stage execution is no longer claimable: {execution_id}")
         return StageExecution.model_validate(document)
 
+    def set_input_data(
+        self,
+        execution_id: str,
+        expected_version: int,
+        input_data: dict,
+    ) -> StageExecution:
+        """Persist the exact input snapshot before a stage's external or expensive work begins."""
+
+        document = self._collection.find_one_and_update(
+            {"execution_id": execution_id, "version": expected_version},
+            {
+                "$set": {"input_data": input_data, "updated_at": utc_now()},
+                "$inc": {"version": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if document is None:
+            raise ConcurrencyError(f"Stage input changed before execution: {execution_id}")
+        return StageExecution.model_validate(document)
+
     def complete(
         self,
         execution_id: str,
         expected_version: int,
         output_data: dict,
         output_summary: str,
+        *,
+        input_data: dict | None = None,
     ) -> StageExecution:
         """Persist a successful output while preserving the exact structured result."""
 
+        set_values = {
+            "status": StageStatus.COMPLETED.value,
+            "progress_current": 1,
+            "progress_total": 1,
+            "output_data": output_data,
+            "output_summary": output_summary,
+            "completed_at": utc_now(),
+            "updated_at": utc_now(),
+        }
+        if input_data is not None:
+            set_values["input_data"] = input_data
         document = self._collection.find_one_and_update(
             {"execution_id": execution_id, "version": expected_version},
             {
-                "$set": {
-                    "status": StageStatus.COMPLETED.value,
-                    "progress_current": 1,
-                    "progress_total": 1,
-                    "output_data": output_data,
-                    "output_summary": output_summary,
-                    "completed_at": utc_now(),
-                    "updated_at": utc_now(),
-                },
+                "$set": set_values,
                 "$inc": {"version": 1},
             },
             return_document=ReturnDocument.AFTER,

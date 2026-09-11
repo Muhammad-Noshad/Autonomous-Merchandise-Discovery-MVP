@@ -104,6 +104,7 @@ class RunRepository:
         *,
         current_stage_number: int | None = None,
         last_error: str | None = None,
+        completed_stages: int | None = None,
     ) -> WorkflowRun:
         """Update state only when the caller still owns the version it read."""
 
@@ -113,6 +114,8 @@ class RunRepository:
             "last_error": last_error,
             "updated_at": utc_now(),
         }
+        if completed_stages is not None:
+            set_values["completed_stages"] = completed_stages
         document = self._collection.find_one_and_update(
             {"run_id": run_id, "version": expected_version},
             {"$set": set_values, "$inc": {"version": 1}},

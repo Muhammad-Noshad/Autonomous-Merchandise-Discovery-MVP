@@ -18,6 +18,12 @@ class IntersectionRepository:
         if intersections:
             self._collection.insert_many([to_document(item) for item in intersections])
 
+    def replace_for_run(self, run_id: str, intersections: list[IdentityIntersection]) -> None:
+        """Replace one run's candidate snapshot so stage retries remain idempotent."""
+
+        self._collection.delete_many({"run_id": run_id})
+        self.insert_many(intersections)
+
     def list_for_run(self, run_id: str) -> list[IdentityIntersection]:
         """Return intersections in generation order for one run."""
 

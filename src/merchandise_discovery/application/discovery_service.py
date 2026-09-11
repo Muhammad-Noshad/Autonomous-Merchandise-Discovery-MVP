@@ -6,8 +6,12 @@ syntax. Those concerns remain behind the entrypoint and repository boundaries.
 
 from dataclasses import dataclass
 
+from merchandise_discovery.domain.models.artifacts import IdentityIntersection
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
+from merchandise_discovery.infrastructure.mongo.repositories.intersection_repository import (
+    IntersectionRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
@@ -29,9 +33,11 @@ class DiscoveryService:
         self,
         run_repository: RunRepository,
         stage_repository: StageExecutionRepository,
+        intersection_repository: IntersectionRepository | None = None,
     ):
         self._runs = run_repository
         self._stages = stage_repository
+        self._intersections = intersection_repository
 
     def create_run(
         self,
@@ -73,3 +79,10 @@ class DiscoveryService:
         if run is None:
             return None
         return RunSnapshot(run=run, stages=self._stages.list_for_run(run_id))
+
+    def list_intersections(self, run_id: str) -> list[IdentityIntersection]:
+        """Return persisted discovery candidates without exposing the repository to the UI."""
+
+        if self._intersections is None:
+            return []
+        return self._intersections.list_for_run(run_id)

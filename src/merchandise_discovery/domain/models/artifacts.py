@@ -33,9 +33,12 @@ class IdentityIntersection(BaseModel):
     intersection_id: str = Field(default_factory=lambda: str(uuid4()))
     run_id: str
     identities: list[str]
+    source_seed_ids: list[str] = Field(default_factory=list)
     experience_hypotheses: list[str] = Field(default_factory=list)
     coherence_score: float | None = Field(default=None, ge=0, le=10)
     eligible_for_research: bool = False
+    filter_reason: str | None = None
+    metadata: dict = Field(default_factory=dict)
 
 
 class Niche(BaseModel):
@@ -137,4 +140,3 @@ class HumanReview(BaseModel):
     notes: str | None = None
     reviewer: str
     reviewed_at: datetime = Field(default_factory=utc_now)
-

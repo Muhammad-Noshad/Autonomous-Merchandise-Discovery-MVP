@@ -8,10 +8,7 @@ import argparse
 from uuid import uuid4
 
 from merchandise_discovery.application.runtime import build_runtime
-from merchandise_discovery.application.stage_executor import (
-    StageNotImplementedError,
-    UnavailableStageExecutor,
-)
+from merchandise_discovery.application.stage_executor import StageNotImplementedError
 from merchandise_discovery.shared.configuration import load_settings
 
 
@@ -40,23 +37,37 @@ def main() -> None:
             print("No pending runs.")
             return
 
-        execution = runtime.workflow_orchestrator.start_next_stage(run.run_id)
-        if execution is None:
-            print(f"Run claimed with no runnable stages: {run.run_id}")
-            return
+        while True:
+            execution = runtime.workflow_orchestrator.start_next_stage(run.run_id)
+            if execution is None:
+                print(f"Run completed all available stages: {run.run_id}")
+                return
 
-        try:
-            result = UnavailableStageExecutor().execute(run, execution)
-        except StageNotImplementedError as error:
-            runtime.workflow_orchestrator.fail_stage_and_run(run, execution, str(error))
-            print(f"Run failed explicitly: {run.run_id} — {error}")
-            return
-
-        runtime.stage_repository.complete(
-            execution.execution_id,
-            execution.version,
-            result.output_data,
-            result.output_summary,
-        )
+            active_execution = execution
+            try:
+                input_data = runtime.stage_executor.prepare(run, execution)
+                active_execution = runtime.stage_repository.set_input_data(
+                    execution.execution_id,
+                    execution.version,
+                    input_data,
+                )
+                result = runtime.stage_executor.execute(run, active_execution, input_data)
+                runtime.stage_repository.complete(
+                    active_execution.execution_id,
+                    active_execution.version,
+                    result.output_data,
+                    result.output_summary,
+                    input_data=result.input_data,
+                )
+                run = runtime.workflow_orchestrator.complete_stage_and_run(run, active_execution)
+                print(f"Stage {active_execution.stage_number} completed for run {run.run_id}.")
+            except (StageNotImplementedError, ValueError) as error:
+                runtime.workflow_orchestrator.fail_stage_and_run(
+                    run,
+                    active_execution,
+                    str(error),
+                )
+                print(f"Run failed explicitly: {run.run_id} — {error}")
+                return
     finally:
         runtime.close()

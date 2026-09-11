@@ -11,9 +11,14 @@ from pymongo import MongoClient
 from pymongo.database import Database
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
+from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
+from merchandise_discovery.infrastructure.mongo.repositories.intersection_repository import (
+    IntersectionRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
+from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
@@ -28,8 +33,11 @@ class ApplicationRuntime:
     database: Database
     run_repository: RunRepository
     stage_repository: StageExecutionRepository
+    seed_repository: SeedRepository
+    intersection_repository: IntersectionRepository
     discovery_service: DiscoveryService
     workflow_orchestrator: WorkflowOrchestrator
+    stage_executor: DiscoveryStageExecutor
 
     def close(self) -> None:
         """Release the MongoDB connection pool when the process boundary shuts down."""
@@ -44,15 +52,29 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
     try:
         run_repository = RunRepository(database.runs)
         stage_repository = StageExecutionRepository(database.stage_executions)
-        discovery_service = DiscoveryService(run_repository, stage_repository)
+        seed_repository = SeedRepository(database.seeds)
+        intersection_repository = IntersectionRepository(database.intersections)
+        discovery_service = DiscoveryService(
+            run_repository,
+            stage_repository,
+            intersection_repository,
+        )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
+        stage_executor = DiscoveryStageExecutor(
+            seed_repository,
+            intersection_repository,
+            stage_repository,
+        )
         return ApplicationRuntime(
             client=client,
             database=database,
             run_repository=run_repository,
             stage_repository=stage_repository,
+            seed_repository=seed_repository,
+            intersection_repository=intersection_repository,
             discovery_service=discovery_service,
             workflow_orchestrator=workflow_orchestrator,
+            stage_executor=stage_executor,
         )
     except Exception:
         # If dependency assembly fails after the client connects, do not leak its socket pool.

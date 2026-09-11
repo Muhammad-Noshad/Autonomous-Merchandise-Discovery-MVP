@@ -58,3 +58,21 @@ class WorkflowOrchestrator:
             current_stage_number=execution.stage_number,
             last_error=error_message,
         )
+
+    def complete_stage_and_run(
+        self,
+        run: WorkflowRun,
+        execution: StageExecution,
+    ) -> WorkflowRun:
+        """Advance durable run progress after a stage succeeds, or close the final run."""
+
+        completed_stages = min(run.completed_stages + 1, run.total_stages)
+        is_final_stage = execution.stage_number >= run.total_stages
+        return self._runs.update_status(
+            run.run_id,
+            expected_version=run.version,
+            status=RunStatus.COMPLETED if is_final_stage else RunStatus.RUNNING,
+            current_stage_number=None if is_final_stage else execution.stage_number + 1,
+            last_error=None,
+            completed_stages=completed_stages,
+        )

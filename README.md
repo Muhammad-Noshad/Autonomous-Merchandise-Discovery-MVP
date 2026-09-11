@@ -4,7 +4,7 @@ This repository contains the modular MVP for discovering merchandise niches, val
 
 ## Current chunk
 
-Chunks one and two establish the project boundaries, fixture-backed Streamlit entrypoint, MongoDB persistence contracts, and repository layer. The workflow stages, MongoDB queries, and provider implementations remain intentionally isolated so they can be implemented and moved independently.
+Chunks one through four establish the project boundaries, MongoDB-backed run lifecycle, deterministic discovery funnel, and repository/provider boundaries. Research, concept, artwork, and approval stages remain intentionally isolated so they can be implemented and moved independently.
 
 ## Local setup
 

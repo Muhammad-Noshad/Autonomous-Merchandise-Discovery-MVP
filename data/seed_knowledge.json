@@ -1,0 +1,170 @@
+[
+  {
+    "seed_id": "audience_remote_workers",
+    "category": "audience",
+    "name": "Remote workers",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": ["decompression", "focus", "humor"],
+      "dimensions": [
+        {"type": "routine", "value": "blurred work-home boundaries"},
+        {"type": "tension", "value": "camera fatigue and context switching"},
+        {"type": "language", "value": "closing the laptop"}
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_night_shift_nurses",
+    "category": "audience",
+    "name": "Night-shift nurses",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["decompression", "care", "humor"],
+      "dimensions": [
+        {"type": "routine", "value": "sleep inversion"},
+        {"type": "tension", "value": "high-responsibility fatigue"},
+        {"type": "language", "value": "dark humor after a long shift"}
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_first_time_parents",
+    "category": "audience",
+    "name": "First-time parents",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["care", "humor", "ritual"],
+      "dimensions": [
+        {"type": "routine", "value": "micro-breaks between responsibilities"},
+        {"type": "tension", "value": "sleep deprivation and identity shift"},
+        {"type": "language", "value": "celebrating tiny wins"}
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_teachers",
+    "category": "audience",
+    "name": "Teachers",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": ["care", "humor", "decompression"],
+      "dimensions": [
+        {"type": "routine", "value": "classroom improvisation"},
+        {"type": "tension", "value": "emotional labor"},
+        {"type": "language", "value": "after-school decompression"}
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_home_gardeners",
+    "category": "interest",
+    "name": "Home gardeners",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": ["ritual", "focus", "decompression"],
+      "dimensions": [
+        {"type": "ritual", "value": "slow care rituals"},
+        {"type": "outcome", "value": "visible progress"},
+        {"type": "language", "value": "growth takes time"}
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_pet_rescuers",
+    "category": "interest",
+    "name": "Pet rescuers",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["care", "humor", "decompression"],
+      "dimensions": [
+        {"type": "ritual", "value": "chaotic affection"},
+        {"type": "outcome", "value": "comfort through animals"},
+        {"type": "language", "value": "rescue is a verb"}
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_tabletop_gamers",
+    "category": "interest",
+    "name": "Tabletop gamers",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["humor", "focus", "decompression"],
+      "dimensions": [
+        {"type": "ritual", "value": "shared rules and rituals"},
+        {"type": "outcome", "value": "playful escapism"},
+        {"type": "language", "value": "one more round"}
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_amateur_bakers",
+    "category": "interest",
+    "name": "Amateur bakers",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": ["ritual", "focus", "care"],
+      "dimensions": [
+        {"type": "ritual", "value": "measured creativity"},
+        {"type": "outcome", "value": "small wins"},
+        {"type": "language", "value": "let it proof"}
+      ]
+    }
+  },
+  {
+    "seed_id": "value_practical_minimalists",
+    "category": "value",
+    "name": "Practical minimalists",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["focus", "ritual"],
+      "dimensions": [
+        {"type": "preference", "value": "useful objects"},
+        {"type": "tension", "value": "anti-clutter"},
+        {"type": "language", "value": "keep it simple"}
+      ]
+    }
+  },
+  {
+    "seed_id": "value_sustainability_shoppers",
+    "category": "value",
+    "name": "Sustainability-minded shoppers",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": ["care", "ritual"],
+      "dimensions": [
+        {"type": "preference", "value": "buy less and choose well"},
+        {"type": "tension", "value": "responsible consumption"},
+        {"type": "language", "value": "repair over replace"}
+      ]
+    }
+  },
+  {
+    "seed_id": "value_humor_first_optimists",
+    "category": "value",
+    "name": "Humor-first optimists",
+    "metadata": {
+      "priority": 6,
+      "affinity_tags": ["humor", "decompression"],
+      "dimensions": [
+        {"type": "preference", "value": "inside jokes"},
+        {"type": "tension", "value": "finding lightness under pressure"},
+        {"type": "language", "value": "laughing through it"}
+      ]
+    }
+  },
+  {
+    "seed_id": "value_neurodivergent_creatives",
+    "category": "value",
+    "name": "Neurodivergent creatives",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["focus", "decompression"],
+      "dimensions": [
+        {"type": "preference", "value": "sensory control"},
+        {"type": "tension", "value": "protecting creative focus"},
+        {"type": "language", "value": "quiet is productive"}
+      ]
+    }
+  }
+]
