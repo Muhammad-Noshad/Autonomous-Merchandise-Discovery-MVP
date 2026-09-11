@@ -20,6 +20,14 @@ from merchandise_discovery.domain.stages import stage_09_concept_generation as s
 from merchandise_discovery.domain.stages import stage_10_concept_critique as stage_10
 from merchandise_discovery.domain.stages import stage_11_similarity_ip_check as stage_11
 from merchandise_discovery.domain.stages import stage_12_final_selection as stage_12
+from merchandise_discovery.domain.stages import stage_13_design_brief as stage_13
+from merchandise_discovery.domain.stages import stage_14_prompt_compilation as stage_14
+from merchandise_discovery.domain.stages import stage_15_artwork_generation as stage_15
+from merchandise_discovery.domain.stages import stage_16_artwork_critique as stage_16
+from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
+    ArtworkRepository,
+)
+from merchandise_discovery.infrastructure.mongo.repositories.brief_repository import BriefRepository
 from merchandise_discovery.infrastructure.mongo.repositories.concept_repository import (
     ConceptRepository,
 )
@@ -34,12 +42,13 @@ from merchandise_discovery.infrastructure.mongo.repositories.seed_repository imp
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+from merchandise_discovery.infrastructure.providers.image_provider import ImageProvider
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
 
 class DiscoveryStageExecutor:
-    """Load, run, and persist Stages 1-8 without coupling domain code to MongoDB."""
+    """Load, run, and persist Stages 1-16 without coupling domain code to MongoDB."""
 
     def __init__(
         self,
@@ -50,6 +59,9 @@ class DiscoveryStageExecutor:
         evidence_repository: EvidenceRepository,
         research_provider: ResearchProvider,
         concept_repository: ConceptRepository,
+        brief_repository: BriefRepository,
+        artwork_repository: ArtworkRepository,
+        image_provider: ImageProvider,
     ):
         self._seeds = seed_repository
         self._intersections = intersection_repository
@@ -58,6 +70,9 @@ class DiscoveryStageExecutor:
         self._evidence = evidence_repository
         self._research_provider = research_provider
         self._concepts = concept_repository
+        self._briefs = brief_repository
+        self._artworks = artwork_repository
+        self._image_provider = image_provider
 
     def prepare(self, run: WorkflowRun, stage: StageExecution) -> dict:
         """Build a serializable input payload from run configuration and prior stage output."""
@@ -144,6 +159,21 @@ class DiscoveryStageExecutor:
                 concepts=concepts,
                 max_finalists=max(1, run.config.max_researched_niches),
             ).model_dump(mode="python")
+        if stage.stage_number == 13:
+            prior = stage_12.FinalSelectionOutput.model_validate(previous.output_data)
+            return stage_13.DesignBriefInput(concepts=prior.finalists).model_dump(mode="python")
+        if stage.stage_number == 14:
+            prior = stage_13.DesignBriefOutput.model_validate(previous.output_data)
+            return stage_14.PromptCompilationInput(briefs=prior.briefs).model_dump(mode="python")
+        if stage.stage_number == 15:
+            prior = stage_14.PromptCompilationOutput.model_validate(previous.output_data)
+            return stage_15.ArtworkGenerationInput(
+                prompts=prior.prompts,
+                artwork_variants_per_concept=run.config.artwork_variants_per_concept,
+            ).model_dump(mode="python")
+        if stage.stage_number == 16:
+            prior = stage_15.ArtworkGenerationOutput.model_validate(previous.output_data)
+            return stage_16.ArtworkCritiqueInput(artworks=prior.artworks).model_dump(mode="python")
         raise StageNotImplementedError(
             f"Stage {stage.stage_number} ({stage.stage_name}) has no registered handler yet."
         )
@@ -220,6 +250,26 @@ class DiscoveryStageExecutor:
             output = stage_12.execute(input_model)
             self._concepts.replace_for_run(run.run_id, output.concepts)
             summary = f"Selected {len(output.finalists)} concept finalists."
+        elif stage.stage_number == 13:
+            input_model = stage_13.DesignBriefInput.model_validate(input_data)
+            output = stage_13.execute(input_model)
+            self._briefs.replace_for_run(run.run_id, output.briefs)
+            summary = f"Created {len(output.briefs)} structured design briefs."
+        elif stage.stage_number == 14:
+            input_model = stage_14.PromptCompilationInput.model_validate(input_data)
+            output = stage_14.execute(input_model)
+            summary = f"Compiled {len(output.prompts)} constrained artwork prompts."
+        elif stage.stage_number == 15:
+            input_model = stage_15.ArtworkGenerationInput.model_validate(input_data)
+            output = stage_15.execute(input_model, self._image_provider)
+            self._artworks.replace_for_run(run.run_id, output.artworks)
+            summary = f"Generated {len(output.artworks)} artwork candidates."
+        elif stage.stage_number == 16:
+            input_model = stage_16.ArtworkCritiqueInput.model_validate(input_data)
+            output = stage_16.execute(input_model)
+            self._artworks.replace_for_run(run.run_id, output.artworks)
+            accepted = sum(item.decision.value == "accept" for item in output.artworks)
+            summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
         else:
             raise StageNotImplementedError(
                 f"Stage {stage.stage_number} ({stage.stage_name}) has no registered handler yet."

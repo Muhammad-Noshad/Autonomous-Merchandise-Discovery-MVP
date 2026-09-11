@@ -14,6 +14,10 @@ from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
+from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
+    ArtworkRepository,
+)
+from merchandise_discovery.infrastructure.mongo.repositories.brief_repository import BriefRepository
 from merchandise_discovery.infrastructure.mongo.repositories.concept_repository import (
     ConceptRepository,
 )
@@ -29,6 +33,7 @@ from merchandise_discovery.infrastructure.mongo.repositories.seed_repository imp
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+from merchandise_discovery.infrastructure.providers.image_provider import FixtureImageProvider
 from merchandise_discovery.infrastructure.providers.research_provider import FixtureResearchProvider
 from merchandise_discovery.shared.configuration import Settings
 
@@ -46,6 +51,8 @@ class ApplicationRuntime:
     niche_repository: NicheRepository
     evidence_repository: EvidenceRepository
     concept_repository: ConceptRepository
+    brief_repository: BriefRepository
+    artwork_repository: ArtworkRepository
     discovery_service: DiscoveryService
     workflow_orchestrator: WorkflowOrchestrator
     stage_executor: DiscoveryStageExecutor
@@ -68,11 +75,14 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         niche_repository = NicheRepository(database.niches)
         evidence_repository = EvidenceRepository(database.evidence)
         concept_repository = ConceptRepository(database.concepts)
+        brief_repository = BriefRepository(database.briefs)
+        artwork_repository = ArtworkRepository(database.artworks)
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,
             intersection_repository,
             concept_repository,
+            artwork_repository=artwork_repository,
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
         stage_executor = DiscoveryStageExecutor(
@@ -83,6 +93,9 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             evidence_repository,
             FixtureResearchProvider(),
             concept_repository,
+            brief_repository,
+            artwork_repository,
+            FixtureImageProvider(),
         )
         return ApplicationRuntime(
             client=client,
@@ -94,6 +107,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             niche_repository=niche_repository,
             evidence_repository=evidence_repository,
             concept_repository=concept_repository,
+            brief_repository=brief_repository,
+            artwork_repository=artwork_repository,
             discovery_service=discovery_service,
             workflow_orchestrator=workflow_orchestrator,
             stage_executor=stage_executor,

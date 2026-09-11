@@ -22,6 +22,24 @@ class ArtworkRepository:
         )
         return artwork
 
+    def replace_for_run(self, run_id: str, artworks: list[Artwork]) -> None:
+        """Replace one run's artwork snapshot so generation retries do not duplicate variants."""
+
+        self._collection.delete_many({"run_id": run_id})
+        if artworks:
+            self._collection.insert_many([to_document(artwork) for artwork in artworks])
+
+    def list_for_run(self, run_id: str) -> list[Artwork]:
+        """Return artwork candidates in generation order for the review page."""
+
+        return [
+            artwork
+            for document in self._collection.find({"run_id": run_id}).sort(
+                [("created_at", 1), ("artwork_id", 1)]
+            )
+            if (artwork := from_document(Artwork, document)) is not None
+        ]
+
     def list_for_concept(self, concept_id: str) -> list[Artwork]:
         """Return artwork attempts in creation order for side-by-side review."""
 
@@ -32,4 +50,3 @@ class ArtworkRepository:
             )
             if (artwork := from_document(Artwork, document)) is not None
         ]
-

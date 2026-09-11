@@ -6,9 +6,16 @@ syntax. Those concerns remain behind the entrypoint and repository boundaries.
 
 from dataclasses import dataclass
 
-from merchandise_discovery.domain.models.artifacts import IdentityIntersection, MerchandiseConcept
+from merchandise_discovery.domain.models.artifacts import (
+    Artwork,
+    IdentityIntersection,
+    MerchandiseConcept,
+)
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
+from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
+    ArtworkRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.concept_repository import (
     ConceptRepository,
 )
@@ -38,11 +45,13 @@ class DiscoveryService:
         stage_repository: StageExecutionRepository,
         intersection_repository: IntersectionRepository | None = None,
         concept_repository: ConceptRepository | None = None,
+        artwork_repository: ArtworkRepository | None = None,
     ):
         self._runs = run_repository
         self._stages = stage_repository
         self._intersections = intersection_repository
         self._concepts = concept_repository
+        self._artworks = artwork_repository
 
     def create_run(
         self,
@@ -98,3 +107,10 @@ class DiscoveryService:
         if self._concepts is None:
             return []
         return self._concepts.list_for_run(run_id)
+
+    def list_artworks(self, run_id: str) -> list[Artwork]:
+        """Return persisted artwork candidates for the review page."""
+
+        if self._artworks is None:
+            return []
+        return self._artworks.list_for_run(run_id)

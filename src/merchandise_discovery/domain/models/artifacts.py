@@ -127,6 +127,8 @@ class Artwork(BaseModel):
     critique: dict = Field(default_factory=dict)
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
+    mime_type: str | None = None
+    file_size_bytes: int | None = Field(default=None, ge=0)
     created_at: datetime = Field(default_factory=utc_now)
 
 
