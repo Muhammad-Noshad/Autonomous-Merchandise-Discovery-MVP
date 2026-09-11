@@ -10,7 +10,10 @@ from datetime import datetime
 from merchandise_discovery.application.discovery_service import RunSnapshot
 from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
+from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
 from merchandise_discovery.ui.fixtures import RunFixture, RunListItemFixture, StageFixture
+
+STAGE_PURPOSES = {definition.number: definition.purpose for definition in STAGE_DEFINITIONS}
 
 
 def _format_duration(stage: StageExecution) -> str:
@@ -81,12 +84,14 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         StageFixture(
             number=stage.stage_number,
             name=stage.stage_name,
-            summary=stage.progress_message or "Persisted workflow stage.",
+            summary=STAGE_PURPOSES.get(stage.stage_number, "Persisted workflow stage."),
             status=stage.status,
             duration=_format_duration(stage),
             progress=_progress_percent(stage),
             output_summary=stage.output_summary or "Stage output will appear after execution.",
             inputs={str(key): str(value) for key, value in stage.input_data.items()},
+            input_payload=stage.input_data,
+            output_payload=stage.output_data,
             metrics={"Attempt": str(stage.attempt_number), "State version": str(stage.version)},
             artifacts=[str(item) for item in stage.output_data.get("artifacts", [])]
             if isinstance(stage.output_data.get("artifacts", []), list)

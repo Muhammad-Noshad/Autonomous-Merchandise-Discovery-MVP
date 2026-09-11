@@ -18,6 +18,8 @@ def test_snapshot_adapter_preserves_persisted_stage_state() -> None:
         progress_current=2,
         progress_total=4,
         attempt_number=2,
+        input_data={"seed_limit": 5},
+        output_data={"selected_seeds": [{"seed_id": "seed-1"}]},
         error_message="Provider unavailable",
     )
 
@@ -27,6 +29,9 @@ def test_snapshot_adapter_preserves_persisted_stage_state() -> None:
     assert fixture.stages[0].progress == 50
     assert fixture.stages[0].metrics["Attempt"] == "2"
     assert fixture.stages[0].error_message == "Provider unavailable"
+    assert fixture.stages[0].summary.startswith("Select high-value audience")
+    assert fixture.stages[0].input_payload == {"seed_limit": 5}
+    assert fixture.stages[0].output_payload == {"selected_seeds": [{"seed_id": "seed-1"}]}
 
 
 def test_workflow_adapter_calculates_history_progress() -> None:

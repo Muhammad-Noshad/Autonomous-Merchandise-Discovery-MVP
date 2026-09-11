@@ -29,12 +29,26 @@ def render_detail_panel(stage: StageFixture) -> None:
 
     details_tab, evidence_tab, artifacts_tab = st.tabs(["Details", "Evidence", "Artifacts"])
     with details_tab:
-        st.markdown("**Inputs**")
+        st.markdown("**What this stage does**")
+        st.write(stage.summary)
+
+        st.markdown("**Input summary**")
         for label, value in stage.inputs.items():
             st.write(f"**{label}:** {value}")
+        if stage.input_payload:
+            st.markdown("**Input snapshot**")
+            st.json(stage.input_payload, expanded=False)
+        else:
+            st.info("No input snapshot was persisted for this stage.")
 
         st.markdown("**Output summary**")
         st.info(stage.output_summary)
+
+        if stage.output_payload:
+            st.markdown("**Output snapshot**")
+            st.json(stage.output_payload, expanded=False)
+        else:
+            st.info("No output snapshot is available until this stage executes.")
 
         if stage.metrics:
             st.markdown("**Decision signals**")

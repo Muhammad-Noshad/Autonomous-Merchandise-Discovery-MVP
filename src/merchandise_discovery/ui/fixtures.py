@@ -30,6 +30,10 @@ class StageFixture(BaseModel):
     progress: int = Field(default=0, ge=0, le=100)
     output_summary: str
     inputs: dict[str, str] = Field(default_factory=dict)
+    # Preserve structured snapshots so the UI can explain decisions without flattening every
+    # future field into a manually maintained display string.
+    input_payload: dict[str, object] = Field(default_factory=dict)
+    output_payload: dict[str, object] = Field(default_factory=dict)
     metrics: dict[str, str] = Field(default_factory=dict)
     evidence: list[EvidenceFixture] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)

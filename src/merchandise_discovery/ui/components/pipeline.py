@@ -1,4 +1,8 @@
-"""GitHub-style pipeline and stage summary components."""
+"""GitHub-style pipeline and stage summary components.
+
+The pipeline owns presentation only. Stage purpose and execution snapshots arrive through the
+stable UI fixture model, which keeps this component independent from MongoDB and stage internals.
+"""
 
 import streamlit as st
 
@@ -19,11 +23,11 @@ def _status_icon(status: StageStatus) -> str:
     """Map persisted stage status to a compact, familiar pipeline marker."""
 
     return {
-        StageStatus.COMPLETED: "✅",
-        StageStatus.RUNNING: "◉",
-        StageStatus.FAILED: "⛔",
-        StageStatus.SKIPPED: "—",
-        StageStatus.PENDING: "○",
+        StageStatus.COMPLETED: "\u2705",
+        StageStatus.RUNNING: "\u25c9",
+        StageStatus.FAILED: "\u26d4",
+        StageStatus.SKIPPED: "\u2014",
+        StageStatus.PENDING: "\u25cb",
     }[status]
 
 
@@ -39,16 +43,55 @@ def _status_color(status: StageStatus) -> str:
     }[status]
 
 
-def _render_stage_preview(stage: StageFixture) -> None:
-    """Render compact details inside an expanded stage without exposing private model reasoning."""
+def _render_output_signal(payload: dict[str, object]) -> None:
+    """Summarize common collection outputs before the raw snapshot is shown."""
 
-    st.caption(stage.output_summary)
+    collection_labels = {
+        "selected_seeds": "Selected seeds",
+        "identities": "Expanded identities",
+        "intersections": "Intersections",
+        "all_intersections": "Candidate intersections",
+        "accepted": "Accepted candidates",
+        "rejected": "Rejected candidates",
+        "evidence": "Evidence records",
+        "concepts": "Concepts",
+        "artifacts": "Artifacts",
+    }
+    signals = [
+        f"{label}: {len(payload[key])}"
+        for key, label in collection_labels.items()
+        if isinstance(payload.get(key), list)
+    ]
+    if signals:
+        st.caption(" \u00b7 ".join(signals))
+
+
+def _render_stage_preview(stage: StageFixture) -> None:
+    """Render purpose, progress, decision signals, and persisted stage snapshots."""
+
+    st.markdown("**Purpose**")
+    st.write(stage.summary)
+    st.markdown("**Result**")
+    st.info(stage.output_summary)
     if stage.progress and stage.status == StageStatus.RUNNING:
-        st.progress(stage.progress, text=f"Stage progress · {stage.progress}%")
+        st.progress(stage.progress, text=f"Stage progress \u00b7 {stage.progress}%")
     if stage.metrics:
         columns = st.columns(len(stage.metrics))
         for column, (label, value) in zip(columns, stage.metrics.items()):
             column.metric(label, value)
+
+    if stage.input_payload:
+        st.markdown("**Input snapshot**")
+        st.json(stage.input_payload, expanded=False)
+    else:
+        st.caption("No input snapshot was persisted for this stage.")
+
+    if stage.output_payload:
+        st.markdown("**Output snapshot**")
+        _render_output_signal(stage.output_payload)
+        st.json(stage.output_payload, expanded=False)
+    else:
+        st.caption("No output snapshot is available until this stage executes.")
 
 
 def render_pipeline(run: RunFixture) -> None:
@@ -56,7 +99,7 @@ def render_pipeline(run: RunFixture) -> None:
 
     st.markdown('<div class="opus-panel-title">Pipeline</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="opus-panel-subtitle">Expand a stage to inspect its summary, progress, and output.</div>',
+        '<div class="opus-panel-subtitle">Expand a stage to inspect its purpose, inputs, decisions, and output.</div>',
         unsafe_allow_html=True,
     )
 
@@ -71,12 +114,13 @@ def render_pipeline(run: RunFixture) -> None:
 
         icon = _status_icon(stage.status)
         color = _status_color(stage.status)
-        label = f"{icon}  {stage.number:02d} · {stage.name}   ·   {stage.duration}"
+        label = f"{icon}  {stage.number:02d} \u00b7 {stage.name}   \u00b7   {stage.duration}"
         with st.expander(label, expanded=stage.number == run.current_stage_number):
             st.markdown(
                 f'<span style="color:{color}; font-size:0.78rem; font-weight:650;">'
                 f'{stage.status.value.upper()}</span>',
                 unsafe_allow_html=True,
             )
+            if stage.error_message:
+                st.error(stage.error_message)
             _render_stage_preview(stage)
-
