@@ -14,6 +14,9 @@ from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
+from merchandise_discovery.infrastructure.mongo.repositories.concept_repository import (
+    ConceptRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.evidence_repository import (
     EvidenceRepository,
 )
@@ -42,6 +45,7 @@ class ApplicationRuntime:
     intersection_repository: IntersectionRepository
     niche_repository: NicheRepository
     evidence_repository: EvidenceRepository
+    concept_repository: ConceptRepository
     discovery_service: DiscoveryService
     workflow_orchestrator: WorkflowOrchestrator
     stage_executor: DiscoveryStageExecutor
@@ -63,10 +67,12 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         intersection_repository = IntersectionRepository(database.intersections)
         niche_repository = NicheRepository(database.niches)
         evidence_repository = EvidenceRepository(database.evidence)
+        concept_repository = ConceptRepository(database.concepts)
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,
             intersection_repository,
+            concept_repository,
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
         stage_executor = DiscoveryStageExecutor(
@@ -76,6 +82,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             niche_repository,
             evidence_repository,
             FixtureResearchProvider(),
+            concept_repository,
         )
         return ApplicationRuntime(
             client=client,
@@ -86,6 +93,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             intersection_repository=intersection_repository,
             niche_repository=niche_repository,
             evidence_repository=evidence_repository,
+            concept_repository=concept_repository,
             discovery_service=discovery_service,
             workflow_orchestrator=workflow_orchestrator,
             stage_executor=stage_executor,

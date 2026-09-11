@@ -87,6 +87,7 @@ class MerchandiseConcept(BaseModel):
     overall_score: float | None = Field(default=None, ge=0, le=10)
     verdict: ConceptVerdict | None = None
     critique: dict = Field(default_factory=dict)
+    selected: bool = False
     rank: int | None = Field(default=None, ge=1)
 
 

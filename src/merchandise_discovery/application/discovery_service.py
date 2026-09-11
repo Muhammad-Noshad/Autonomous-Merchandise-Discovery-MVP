@@ -6,9 +6,12 @@ syntax. Those concerns remain behind the entrypoint and repository boundaries.
 
 from dataclasses import dataclass
 
-from merchandise_discovery.domain.models.artifacts import IdentityIntersection
+from merchandise_discovery.domain.models.artifacts import IdentityIntersection, MerchandiseConcept
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
+from merchandise_discovery.infrastructure.mongo.repositories.concept_repository import (
+    ConceptRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.intersection_repository import (
     IntersectionRepository,
 )
@@ -34,10 +37,12 @@ class DiscoveryService:
         run_repository: RunRepository,
         stage_repository: StageExecutionRepository,
         intersection_repository: IntersectionRepository | None = None,
+        concept_repository: ConceptRepository | None = None,
     ):
         self._runs = run_repository
         self._stages = stage_repository
         self._intersections = intersection_repository
+        self._concepts = concept_repository
 
     def create_run(
         self,
@@ -86,3 +91,10 @@ class DiscoveryService:
         if self._intersections is None:
             return []
         return self._intersections.list_for_run(run_id)
+
+    def list_concepts(self, run_id: str) -> list[MerchandiseConcept]:
+        """Return persisted concepts for the live concepts page."""
+
+        if self._concepts is None:
+            return []
+        return self._concepts.list_for_run(run_id)
