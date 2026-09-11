@@ -22,6 +22,13 @@ class NicheRepository:
         )
         return niche
 
+    def replace_for_run(self, run_id: str, niches: list[Niche]) -> None:
+        """Replace one run's niche snapshot so retries do not leave stale scores behind."""
+
+        self._collection.delete_many({"run_id": run_id})
+        if niches:
+            self._collection.insert_many([to_document(niche) for niche in niches])
+
     def get_by_id(self, niche_id: str) -> Niche | None:
         """Fetch one niche by stable application ID."""
 

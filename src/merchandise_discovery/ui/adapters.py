@@ -11,7 +11,12 @@ from merchandise_discovery.application.discovery_service import RunSnapshot
 from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
-from merchandise_discovery.ui.fixtures import RunFixture, RunListItemFixture, StageFixture
+from merchandise_discovery.ui.fixtures import (
+    EvidenceFixture,
+    RunFixture,
+    RunListItemFixture,
+    StageFixture,
+)
 
 STAGE_PURPOSES = {definition.number: definition.purpose for definition in STAGE_DEFINITIONS}
 
@@ -51,6 +56,24 @@ def _latest_stages(stages: list[StageExecution]) -> list[StageExecution]:
         if current is None or stage.attempt_number >= current.attempt_number:
             latest[stage.stage_number] = stage
     return [latest[number] for number in sorted(latest)]
+
+
+def _evidence_fixtures(payload: dict) -> list[EvidenceFixture]:
+    """Map Stage 6's serialized evidence into the citations used by the detail panel."""
+
+    records = payload.get("evidence", [])
+    if not isinstance(records, list):
+        return []
+    return [
+        EvidenceFixture(
+            title=str(record.get("title", "Untitled source")),
+            source=str(record.get("source", "Unknown source")),
+            date=str(record.get("retrieved_at", "Not recorded"))[:10],
+            excerpt=str(record.get("excerpt", "No excerpt recorded.")),
+        )
+        for record in records
+        if isinstance(record, dict)
+    ]
 
 
 def workflow_to_list_item(run: WorkflowRun) -> RunListItemFixture:
@@ -93,6 +116,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
             input_payload=stage.input_data,
             output_payload=stage.output_data,
             metrics={"Attempt": str(stage.attempt_number), "State version": str(stage.version)},
+            evidence=_evidence_fixtures(stage.output_data),
             artifacts=[str(item) for item in stage.output_data.get("artifacts", [])]
             if isinstance(stage.output_data.get("artifacts", []), list)
             else [],

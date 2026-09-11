@@ -50,6 +50,7 @@ class Niche(BaseModel):
     run_id: str
     intersection_id: str
     name: str
+    coherence_score: float | None = Field(default=None, ge=0, le=10)
     experience_summary: str | None = None
     opportunity_score: float | None = Field(default=None, ge=0, le=100)
     evidence_count: int = Field(default=0, ge=0)

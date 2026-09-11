@@ -14,14 +14,19 @@ from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
+from merchandise_discovery.infrastructure.mongo.repositories.evidence_repository import (
+    EvidenceRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.intersection_repository import (
     IntersectionRepository,
 )
+from merchandise_discovery.infrastructure.mongo.repositories.niche_repository import NicheRepository
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+from merchandise_discovery.infrastructure.providers.research_provider import FixtureResearchProvider
 from merchandise_discovery.shared.configuration import Settings
 
 
@@ -35,6 +40,8 @@ class ApplicationRuntime:
     stage_repository: StageExecutionRepository
     seed_repository: SeedRepository
     intersection_repository: IntersectionRepository
+    niche_repository: NicheRepository
+    evidence_repository: EvidenceRepository
     discovery_service: DiscoveryService
     workflow_orchestrator: WorkflowOrchestrator
     stage_executor: DiscoveryStageExecutor
@@ -54,6 +61,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         stage_repository = StageExecutionRepository(database.stage_executions)
         seed_repository = SeedRepository(database.seeds)
         intersection_repository = IntersectionRepository(database.intersections)
+        niche_repository = NicheRepository(database.niches)
+        evidence_repository = EvidenceRepository(database.evidence)
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,
@@ -64,6 +73,9 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             seed_repository,
             intersection_repository,
             stage_repository,
+            niche_repository,
+            evidence_repository,
+            FixtureResearchProvider(),
         )
         return ApplicationRuntime(
             client=client,
@@ -72,6 +84,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             stage_repository=stage_repository,
             seed_repository=seed_repository,
             intersection_repository=intersection_repository,
+            niche_repository=niche_repository,
+            evidence_repository=evidence_repository,
             discovery_service=discovery_service,
             workflow_orchestrator=workflow_orchestrator,
             stage_executor=stage_executor,
