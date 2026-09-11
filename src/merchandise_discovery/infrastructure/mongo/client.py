@@ -68,6 +68,10 @@ def ensure_indexes(database) -> None:
     database.stage_executions.create_index(
         [("run_id", ASCENDING), ("stage_number", ASCENDING), ("attempt_number", DESCENDING)]
     )
+    database.stage_logs.create_index([("run_id", ASCENDING), ("created_at", DESCENDING)])
+    database.stage_logs.create_index(
+        [("run_id", ASCENDING), ("stage_number", ASCENDING), ("created_at", DESCENDING)]
+    )
     database.seeds.create_index([("category", ASCENDING), ("name", ASCENDING)])
     database.intersections.create_index([("run_id", ASCENDING), ("intersection_id", ASCENDING)])
     database.niches.create_index([("run_id", ASCENDING), ("niche_id", ASCENDING)])

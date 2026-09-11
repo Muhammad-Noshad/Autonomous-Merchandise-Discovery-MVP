@@ -28,16 +28,21 @@ class WorkflowOrchestrator:
 
         return self._runs.claim_next_available(worker_id)
 
-    def next_runnable_stage(self, run_id: str) -> StageExecution | None:
-        """Find the earliest pending or failed stage, enabling resume after a partial run."""
+    def next_runnable_stage(self, run_id: str, *, max_attempts: int = 3) -> StageExecution | None:
+        """Find the earliest stage that can still be attempted under the retry policy."""
 
-        runnable = self._stages.list_runnable(run_id)
+        runnable = self._stages.list_runnable(run_id, max_attempts=max_attempts)
         return runnable[0] if runnable else None
 
-    def start_next_stage(self, run_id: str) -> StageExecution | None:
+    def start_next_stage(
+        self,
+        run_id: str,
+        *,
+        max_attempts: int = 3,
+    ) -> StageExecution | None:
         """Atomically mark the earliest runnable stage as running for one worker."""
 
-        execution = self.next_runnable_stage(run_id)
+        execution = self.next_runnable_stage(run_id, max_attempts=max_attempts)
         if execution is None:
             return None
         return self._stages.mark_running(execution.execution_id, execution.version)
@@ -47,16 +52,19 @@ class WorkflowOrchestrator:
         run: WorkflowRun,
         execution: StageExecution,
         error_message: str,
+        *,
+        max_attempts: int = 3,
     ) -> None:
-        """Persist stage failure and close the claimed run so unavailable work is never left stuck."""
+        """Persist failure and close the run, recording when no further retry is allowed."""
 
-        self._stages.fail(execution.execution_id, execution.version, error_message)
+        failed_execution = self._stages.fail(execution.execution_id, execution.version, error_message)
         self._runs.update_status(
             run.run_id,
             expected_version=run.version,
             status=RunStatus.FAILED,
             current_stage_number=execution.stage_number,
             last_error=error_message,
+            retry_exhausted=failed_execution.attempt_number >= max_attempts,
         )
 
     def complete_stage_and_run(
@@ -75,4 +83,5 @@ class WorkflowOrchestrator:
             current_stage_number=None if is_final_stage else execution.stage_number + 1,
             last_error=None,
             completed_stages=completed_stages,
+            retry_exhausted=False,
         )

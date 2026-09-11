@@ -21,6 +21,7 @@ class Settings:
     openai_api_key: str | None
     xai_api_key: str | None
     xai_image_model: str
+    max_stage_attempts: int = 3
 
 
 def load_settings() -> Settings:
@@ -33,6 +34,7 @@ def load_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         xai_api_key=os.getenv("XAI_API_KEY"),
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
+        max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
     )
 
 

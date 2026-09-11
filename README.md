@@ -4,7 +4,10 @@ This repository contains the modular MVP for discovering merchandise niches, val
 
 ## Current chunk
 
-Chunks one through four establish the project boundaries, MongoDB-backed run lifecycle, deterministic discovery funnel, and repository/provider boundaries. Research, concept, artwork, and approval stages remain intentionally isolated so they can be implemented and moved independently.
+Chunks one through eight establish the complete deterministic funnel through human approval. Chunk 9
+adds bounded retries, durable stage logs, stage-version provenance, a continuous worker mode, and
+live run-detail polling. The default runtime still uses local fixture providers; no external AI or
+research API is called.
 
 ## Local setup
 
@@ -27,6 +30,22 @@ Verify a configured MongoDB deployment with:
 ```powershell
 python scripts/check_mongodb.py
 ```
+
+Process one queued run with:
+
+```powershell
+python worker.py --once
+```
+
+Keep the worker polling for new runs with:
+
+```powershell
+python worker.py --loop --poll-interval 2
+```
+
+Set `MVP_MAX_STAGE_ATTEMPTS` in `.env` to change the retry ceiling. A failed stage is retried when
+the worker is run again until that ceiling is reached; after that, the run remains failed and is no
+longer reclaimed automatically.
 
 When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same health check and
 initialization automatically. MongoDB databases are created lazily, so the app creates an

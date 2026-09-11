@@ -84,4 +84,12 @@ def render_detail_panel(stage: StageFixture) -> None:
             st.toast("Retry action will connect to the worker in a later chunk.")
     with action_right:
         if st.button("⋯  View logs", use_container_width=True):
-            st.toast("Stage logs will be connected to persisted executions in a later chunk.")
+            st.session_state[f"show-logs-{stage.number}"] = True
+
+    if st.session_state.get(f"show-logs-{stage.number}"):
+        with st.expander("Stage execution log", expanded=True):
+            if stage.logs:
+                for message in stage.logs:
+                    st.caption(message)
+            else:
+                st.info("No persisted events are available for this stage yet.")

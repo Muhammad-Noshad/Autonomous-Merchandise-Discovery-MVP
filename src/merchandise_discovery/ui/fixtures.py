@@ -38,6 +38,7 @@ class StageFixture(BaseModel):
     evidence: list[EvidenceFixture] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
     error_message: str | None = None
+    logs: list[str] = Field(default_factory=list)
 
 
 class RunFixture(BaseModel):

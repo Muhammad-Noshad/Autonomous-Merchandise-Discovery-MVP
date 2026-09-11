@@ -59,3 +59,31 @@ def render_run_detail(
             run.stages[-1],
         )
         render_detail_panel(selected_stage)
+
+
+def render_run_detail_with_polling(
+    run_id: str,
+    discovery_service: DiscoveryService | None = None,
+) -> None:
+    """Refresh live MongoDB detail snapshots without moving durable state into Streamlit.
+
+    Streamlit fragments provide the MVP's lightweight push-like experience by re-running only the
+    detail view. The fallback keeps the same page usable on older Streamlit versions and exposes a
+    manual refresh control instead of requiring an HTTP/SSE server.
+    """
+
+    if discovery_service is None or not hasattr(st, "fragment"):
+        if st.button("Refresh now", key=f"refresh-run-{run_id}"):
+            st.rerun()
+        render_run_detail(run_id, discovery_service)
+        return
+
+    st.caption("Live status refreshes automatically every 3 seconds.")
+    if st.button("Refresh now", key=f"refresh-run-{run_id}"):
+        st.rerun()
+
+    @st.fragment(run_every="3s")
+    def render_live_snapshot() -> None:
+        render_run_detail(run_id, discovery_service)
+
+    render_live_snapshot()

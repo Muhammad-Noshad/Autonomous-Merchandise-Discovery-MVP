@@ -37,6 +37,9 @@ from merchandise_discovery.infrastructure.mongo.repositories.seed_repository imp
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+from merchandise_discovery.infrastructure.mongo.repositories.stage_log_repository import (
+    StageLogRepository,
+)
 from merchandise_discovery.infrastructure.providers.image_provider import FixtureImageProvider
 from merchandise_discovery.infrastructure.providers.research_provider import FixtureResearchProvider
 from merchandise_discovery.shared.configuration import Settings
@@ -50,6 +53,8 @@ class ApplicationRuntime:
     database: Database
     run_repository: RunRepository
     stage_repository: StageExecutionRepository
+    stage_log_repository: StageLogRepository
+    max_stage_attempts: int
     seed_repository: SeedRepository
     intersection_repository: IntersectionRepository
     niche_repository: NicheRepository
@@ -76,6 +81,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
     try:
         run_repository = RunRepository(database.runs)
         stage_repository = StageExecutionRepository(database.stage_executions)
+        stage_log_repository = StageLogRepository(database.stage_logs)
         seed_repository = SeedRepository(database.seeds)
         intersection_repository = IntersectionRepository(database.intersections)
         niche_repository = NicheRepository(database.niches)
@@ -90,6 +96,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             intersection_repository,
             concept_repository,
             artwork_repository=artwork_repository,
+            stage_log_repository=stage_log_repository,
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
         review_service = ReviewService(run_repository, artwork_repository, review_repository)
@@ -110,6 +117,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             database=database,
             run_repository=run_repository,
             stage_repository=stage_repository,
+            stage_log_repository=stage_log_repository,
+            max_stage_attempts=settings.max_stage_attempts,
             seed_repository=seed_repository,
             intersection_repository=intersection_repository,
             niche_repository=niche_repository,

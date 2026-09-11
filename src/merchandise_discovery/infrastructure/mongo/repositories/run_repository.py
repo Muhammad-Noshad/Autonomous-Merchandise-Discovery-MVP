@@ -67,6 +67,7 @@ class RunRepository:
             worker_id,
             statuses=[RunStatus.PENDING.value, RunStatus.FAILED.value],
             set_initial_stage=False,
+            exclude_exhausted=True,
         )
 
     def _claim_next(
@@ -75,6 +76,7 @@ class RunRepository:
         *,
         statuses: list[str],
         set_initial_stage: bool,
+        exclude_exhausted: bool = False,
     ) -> WorkflowRun | None:
         """Share atomic claim mechanics while preserving the pending-run compatibility method."""
 
@@ -85,8 +87,12 @@ class RunRepository:
         }
         if set_initial_stage:
             set_values["current_stage_number"] = 1
+        query = {"status": {"$in": statuses}}
+        if exclude_exhausted:
+            # `$ne` also allows older documents created before this field existed to resume.
+            query["retry_exhausted"] = {"$ne": True}
         document = self._collection.find_one_and_update(
-            {"status": {"$in": statuses}},
+            query,
             {
                 "$set": set_values,
                 "$inc": {"version": 1},
@@ -105,6 +111,7 @@ class RunRepository:
         current_stage_number: int | None = None,
         last_error: str | None = None,
         completed_stages: int | None = None,
+        retry_exhausted: bool | None = None,
     ) -> WorkflowRun:
         """Update state only when the caller still owns the version it read."""
 
@@ -116,6 +123,8 @@ class RunRepository:
         }
         if completed_stages is not None:
             set_values["completed_stages"] = completed_stages
+        if retry_exhausted is not None:
+            set_values["retry_exhausted"] = retry_exhausted
         document = self._collection.find_one_and_update(
             {"run_id": run_id, "version": expected_version},
             {"$set": set_values, "$inc": {"version": 1}},

@@ -4,14 +4,19 @@ This layer coordinates use cases; it should not contain Streamlit rendering or r
 syntax. Those concerns remain behind the entrypoint and repository boundaries.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from merchandise_discovery.domain.models.artifacts import (
     Artwork,
     IdentityIntersection,
     MerchandiseConcept,
 )
-from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
+from merchandise_discovery.domain.models.workflow import (
+    RunConfig,
+    StageExecution,
+    StageLog,
+    WorkflowRun,
+)
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
 from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
     ArtworkRepository,
@@ -26,6 +31,9 @@ from merchandise_discovery.infrastructure.mongo.repositories.run_repository impo
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+from merchandise_discovery.infrastructure.mongo.repositories.stage_log_repository import (
+    StageLogRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +42,7 @@ class RunSnapshot:
 
     run: WorkflowRun
     stages: list[StageExecution]
+    logs: list[StageLog] = field(default_factory=list)
 
 
 class DiscoveryService:
@@ -46,12 +55,14 @@ class DiscoveryService:
         intersection_repository: IntersectionRepository | None = None,
         concept_repository: ConceptRepository | None = None,
         artwork_repository: ArtworkRepository | None = None,
+        stage_log_repository: StageLogRepository | None = None,
     ):
         self._runs = run_repository
         self._stages = stage_repository
         self._intersections = intersection_repository
         self._concepts = concept_repository
         self._artworks = artwork_repository
+        self._stage_logs = stage_log_repository
 
     def create_run(
         self,
@@ -71,7 +82,10 @@ class DiscoveryService:
         self._runs.create(run)
         self._stages.create_for_run(
             run.run_id,
-            [(definition.number, definition.name, definition.optional) for definition in STAGE_DEFINITIONS],
+            [
+                (definition.number, definition.name, definition.optional, definition.version)
+                for definition in STAGE_DEFINITIONS
+            ],
             enable_optional=run.config.enable_similarity_ip_check,
         )
         return run
@@ -92,7 +106,8 @@ class DiscoveryService:
         run = self._runs.get_by_id(run_id)
         if run is None:
             return None
-        return RunSnapshot(run=run, stages=self._stages.list_for_run(run_id))
+        logs = self._stage_logs.list_for_run(run_id) if self._stage_logs else []
+        return RunSnapshot(run=run, stages=self._stages.list_for_run(run_id), logs=logs)
 
     def list_intersections(self, run_id: str) -> list[IdentityIntersection]:
         """Return persisted discovery candidates without exposing the repository to the UI."""

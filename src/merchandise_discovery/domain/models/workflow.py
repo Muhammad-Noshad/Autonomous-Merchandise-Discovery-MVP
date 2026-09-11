@@ -1,4 +1,4 @@
-"""Typed records for durable workflow and stage execution state.
+"""Typed records for durable workflow, stage execution, and audit-log state.
 
 These models are the contract between application services, repositories, workers, and the UI.
 Persisted records intentionally keep raw input/output payloads so a run can be audited or resumed
@@ -44,6 +44,7 @@ class WorkflowRun(BaseModel):
     current_stage_number: int | None = Field(default=None, ge=1, le=17)
     triggered_by: str = "system"
     claimed_by: str | None = None
+    retry_exhausted: bool = False
     version: int = Field(default=0, ge=0)
     last_error: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
@@ -74,3 +75,22 @@ class StageExecution(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     version: int = Field(default=0, ge=0)
+
+
+class StageLog(BaseModel):
+    """One append-only, human-readable event emitted while a run is processed.
+
+    StageExecution stores the latest state and output for a stage. Logs are separate so retries do
+    not overwrite the explanation of what happened during an earlier attempt.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    log_id: str = Field(default_factory=lambda: str(uuid4()))
+    run_id: str
+    stage_number: int | None = Field(default=None, ge=1, le=17)
+    execution_id: str | None = None
+    level: str = Field(default="info", min_length=1, max_length=20)
+    message: str = Field(min_length=1, max_length=2_000)
+    context: dict = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)

@@ -18,25 +18,31 @@ class StageExecutionRepository:
     def create_for_run(
         self,
         run_id: str,
-        definitions: list[tuple[int, str, bool]],
+        definitions: list[tuple],
         *,
         enable_optional: bool = False,
     ) -> list[StageExecution]:
         """Create initial records and make optional stages queueable only when enabled."""
 
-        executions = [
-            StageExecution(
-                run_id=run_id,
-                stage_number=number,
-                stage_name=name,
-                status=(
-                    StageStatus.PENDING
-                    if not optional or enable_optional
-                    else StageStatus.SKIPPED
-                ),
+        executions = []
+        for definition in definitions:
+            number, name, optional = definition[:3]
+            # Preserve compatibility with three-item callers while letting the stage registry
+            # persist an explicit implementation version for future replay comparisons.
+            stage_version = definition[3] if len(definition) > 3 else "0.1.0"
+            executions.append(
+                StageExecution(
+                    run_id=run_id,
+                    stage_number=number,
+                    stage_name=name,
+                    stage_version=stage_version,
+                    status=(
+                        StageStatus.PENDING
+                        if not optional or enable_optional
+                        else StageStatus.SKIPPED
+                    ),
+                )
             )
-            for number, name, optional in definitions
-        ]
         if executions:
             self._collection.insert_many([to_document(execution) for execution in executions])
         return executions
@@ -63,8 +69,11 @@ class StageExecutionRepository:
             if (execution := from_document(StageExecution, document)) is not None
         ]
 
-    def list_runnable(self, run_id: str) -> list[StageExecution]:
-        """Return pending or failed stages in order so a worker can resume the earliest gap."""
+    def list_runnable(self, run_id: str, *, max_attempts: int = 3) -> list[StageExecution]:
+        """Return eligible pending/failed stages, excluding attempts at the retry ceiling."""
+
+        if max_attempts < 1:
+            raise ValueError("Maximum stage attempts must be at least 1.")
 
         return [
             execution
@@ -72,6 +81,7 @@ class StageExecutionRepository:
                 {
                     "run_id": run_id,
                     "status": {"$in": [StageStatus.PENDING.value, StageStatus.FAILED.value]},
+                    "attempt_number": {"$lt": max_attempts},
                 }
             ).sort([("stage_number", 1), ("attempt_number", 1)])
             if (execution := from_document(StageExecution, document)) is not None

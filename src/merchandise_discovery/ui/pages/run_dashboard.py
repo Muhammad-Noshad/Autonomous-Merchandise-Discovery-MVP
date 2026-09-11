@@ -19,7 +19,7 @@ from merchandise_discovery.ui.pages.artwork_review import render_artwork_review
 from merchandise_discovery.ui.pages.concepts import render_concepts
 from merchandise_discovery.ui.pages.niches import render_niches
 from merchandise_discovery.ui.pages.run_create import render_run_create
-from merchandise_discovery.ui.pages.run_detail import render_run_detail
+from merchandise_discovery.ui.pages.run_detail import render_run_detail_with_polling
 from merchandise_discovery.ui.pages.run_list import render_run_list
 from merchandise_discovery.ui.theme import apply_theme
 
@@ -42,7 +42,7 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
     elif selected_page == PAGE_CREATE_RUN:
         render_run_create(runtime.discovery_service if runtime else None)
     elif selected_page == PAGE_RUN_DETAIL:
-        render_run_detail(
+        render_run_detail_with_polling(
             st.session_state.get("selected_run_id", run.run_id),
             runtime.discovery_service if runtime else None,
         )

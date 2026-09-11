@@ -95,6 +95,10 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
 
     run = snapshot.run
     stages = _latest_stages(snapshot.stages)
+    logs_by_stage: dict[int, list[str]] = {}
+    for log in snapshot.logs:
+        if log.stage_number is not None:
+            logs_by_stage.setdefault(log.stage_number, []).append(log.message)
     current_stage = run.current_stage_number or next(
         (
             stage.stage_number
@@ -121,6 +125,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
             if isinstance(stage.output_data.get("artifacts", []), list)
             else [],
             error_message=stage.error_message,
+            logs=logs_by_stage.get(stage.stage_number, []),
         )
         for stage in stages
     ]

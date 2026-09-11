@@ -11,6 +11,7 @@ class StageDefinition:
     name: str
     purpose: str
     optional: bool = False
+    version: str = "0.1.0"
 
 
 STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (

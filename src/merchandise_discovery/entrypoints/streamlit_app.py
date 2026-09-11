@@ -29,6 +29,7 @@ def _initialize_configured_runtime(mongodb_uri: str, mongodb_database: str) -> A
         openai_api_key=None,
         xai_api_key=None,
         xai_image_model="grok-imagine-image",
+        max_stage_attempts=3,
     )
     return build_runtime(settings)
 

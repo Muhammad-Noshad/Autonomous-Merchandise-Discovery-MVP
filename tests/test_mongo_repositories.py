@@ -94,7 +94,8 @@ def test_run_repository_can_claim_a_failed_run_for_resume() -> None:
 
     assert claimed == run
     query = collection.find_one_and_update.call_args.args[0]
-    assert query == {"status": {"$in": ["pending", "failed"]}}
+    assert query["status"] == {"$in": ["pending", "failed"]}
+    assert query["retry_exhausted"] == {"$ne": True}
     assert "current_stage_number" not in collection.find_one_and_update.call_args.args[1]["$set"]
 
 
@@ -126,6 +127,25 @@ def test_stage_repository_initializes_optional_stage_as_skipped() -> None:
     assert len(inserted_documents) == 2
     assert executions[0].status.value == "pending"
     assert executions[1].status.value == "skipped"
+
+
+def test_stage_repository_persists_registry_version_and_retry_ceiling() -> None:
+    """Stage records carry implementation provenance and Mongo filters exhausted attempts out."""
+
+    collection = Mock()
+    repository = StageExecutionRepository(collection)
+    definitions = [(1, "First", False, "1.2.0")]
+    cursor = Mock()
+    cursor.sort.return_value = cursor
+    cursor.__iter__ = Mock(return_value=iter([]))
+    collection.find.return_value = cursor
+
+    executions = repository.create_for_run("run-1", definitions)
+    repository.list_runnable("run-1", max_attempts=3)
+
+    assert executions[0].stage_version == "1.2.0"
+    query = collection.find.call_args.args[0]
+    assert query["attempt_number"] == {"$lt": 3}
 
 
 def test_stage_repository_lists_attempts_in_pipeline_order() -> None:
