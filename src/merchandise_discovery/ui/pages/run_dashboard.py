@@ -1,29 +1,42 @@
-"""Composition root for the fixture-backed discovery run dashboard."""
+"""UI composition root for the fixture-backed discovery workspace."""
 
 import streamlit as st
 
-from merchandise_discovery.ui.components.details import render_detail_panel
-from merchandise_discovery.ui.components.layout import render_run_header, render_sidebar
-from merchandise_discovery.ui.components.pipeline import render_pipeline
+from merchandise_discovery.ui.components.layout import (
+    PAGE_ARTWORK_REVIEW,
+    PAGE_CONCEPTS,
+    PAGE_CREATE_RUN,
+    PAGE_NICHES,
+    PAGE_RUN_DETAIL,
+    PAGE_RUNS,
+    render_sidebar,
+)
 from merchandise_discovery.ui.fixtures import get_demo_run
+from merchandise_discovery.ui.pages.artwork_review import render_artwork_review
+from merchandise_discovery.ui.pages.concepts import render_concepts
+from merchandise_discovery.ui.pages.niches import render_niches
+from merchandise_discovery.ui.pages.run_create import render_run_create
+from merchandise_discovery.ui.pages.run_detail import render_run_detail
+from merchandise_discovery.ui.pages.run_list import render_run_list
 from merchandise_discovery.ui.theme import apply_theme
 
 
 def render_run_dashboard() -> None:
-    """Render the client-facing UI shell using a stable fixture until persistence is connected."""
+    """Route the dashboard shell to the selected fixture-backed workspace page."""
 
     apply_theme()
     run = get_demo_run()
-    render_sidebar(run)
-    render_run_header(run)
-    st.divider()
+    selected_page = render_sidebar(run)
 
-    pipeline_column, detail_column = st.columns([1.62, 1.0], gap="large")
-    with pipeline_column:
-        render_pipeline(run)
-    with detail_column:
-        selected_stage = next(
-            stage for stage in run.stages if stage.number == run.current_stage_number
-        )
-        render_detail_panel(selected_stage)
-
+    if selected_page == PAGE_RUNS:
+        render_run_list()
+    elif selected_page == PAGE_CREATE_RUN:
+        render_run_create()
+    elif selected_page == PAGE_RUN_DETAIL:
+        render_run_detail(st.session_state.get("selected_run_id", run.run_id))
+    elif selected_page == PAGE_NICHES:
+        render_niches()
+    elif selected_page == PAGE_CONCEPTS:
+        render_concepts()
+    elif selected_page == PAGE_ARTWORK_REVIEW:
+        render_artwork_review()

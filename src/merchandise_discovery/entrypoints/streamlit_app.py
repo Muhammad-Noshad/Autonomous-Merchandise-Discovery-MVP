@@ -44,11 +44,11 @@ def render_database_status() -> None:
     settings = load_settings()
     with st.sidebar:
         if not settings.mongodb_uri:
-            st.caption("Persistence: fixture mode (MONGODB_URI not configured)")
+            st.error("MongoDB not configured — showing fixture data.")
             return
 
         try:
-            _, database = _initialize_configured_database(
+            _, _database = _initialize_configured_database(
                 settings.mongodb_uri,
                 settings.mongodb_database,
             )
@@ -59,7 +59,8 @@ def render_database_status() -> None:
             st.error("MongoDB unavailable — showing fixture data.")
             return
 
-        st.success(f"MongoDB connected · {database.name}")
+        # A successful connection is intentionally silent; the dashboard only needs to interrupt
+        # the demo when persistence is unavailable.
 
 
 def main() -> None:

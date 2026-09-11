@@ -1,26 +1,67 @@
-"""Shared shell components for navigation, headers, and progress summaries."""
+"""Shared shell components for navigation, headers, and progress summaries.
+
+Navigation state is intentionally limited to Streamlit session state. It controls which fixture
+page is visible, while actual workflow state will continue to belong to application services and
+MongoDB repositories.
+"""
 
 import streamlit as st
 
 from merchandise_discovery.ui.fixtures import RunFixture
 
+PAGE_RUNS = "Runs"
+PAGE_CREATE_RUN = "Create Run"
+PAGE_RUN_DETAIL = "Run Detail"
+PAGE_NICHES = "Niches"
+PAGE_CONCEPTS = "Concepts"
+PAGE_ARTWORK_REVIEW = "Artwork Review"
+PAGE_OPTIONS = [
+    PAGE_RUNS,
+    PAGE_CREATE_RUN,
+    PAGE_RUN_DETAIL,
+    PAGE_NICHES,
+    PAGE_CONCEPTS,
+    PAGE_ARTWORK_REVIEW,
+]
 
-def render_sidebar(run: RunFixture) -> None:
-    """Render navigation and recent-run context without owning workflow state."""
+
+def navigate_to(page: str, run_id: str | None = None) -> None:
+    """Queue a route change for the next rerun, avoiding writes to an active widget state."""
+
+    st.session_state["pending_page"] = page
+    if run_id is not None:
+        st.session_state["pending_run_id"] = run_id
+    st.rerun()
+
+
+def render_sidebar(run: RunFixture) -> str:
+    """Render navigation and recent-run context, returning the selected page key."""
+
+    # Button callbacks can happen after the radio widget has been instantiated. Apply queued route
+    # changes before creating that widget on the next run so Streamlit accepts the state update.
+    pending_page = st.session_state.pop("pending_page", None)
+    if pending_page is not None:
+        st.session_state["active_page"] = pending_page
+    pending_run_id = st.session_state.pop("pending_run_id", None)
+    if pending_run_id is not None:
+        st.session_state["selected_run_id"] = pending_run_id
 
     with st.sidebar:
-        st.markdown("## ◈ Discovery")
+        st.markdown("## Discovery")
         st.caption("Internal merchandise intelligence")
         st.divider()
 
-        for label in ["Runs", "Niches", "Concepts", "Artwork Review"]:
-            is_active = label == "Runs"
-            color = "#C4B5FD" if is_active else "rgba(255,255,255,0.60)"
-            st.markdown(
-                f'<div style="color:{color}; padding:0.48rem 0; font-weight:{650 if is_active else 450};">'
-                f'{"◉" if is_active else "○"}&nbsp;&nbsp;{label}</div>',
-                unsafe_allow_html=True,
-            )
+        # The create action sits above the radio widget so its click can safely update the widget's
+        # session-state value before Streamlit instantiates it during the rerun.
+        if st.button("+ New run", use_container_width=True):
+            navigate_to(PAGE_CREATE_RUN)
+
+        selected_page = st.radio(
+            "Workspace",
+            PAGE_OPTIONS,
+            key="active_page",
+            label_visibility="collapsed",
+        )
 
         st.divider()
         st.markdown("**Recent runs**")
@@ -42,12 +83,13 @@ def render_sidebar(run: RunFixture) -> None:
 
         st.divider()
         st.caption("MVP fixture mode")
+        return selected_page
 
 
 def render_run_header(run: RunFixture) -> None:
     """Render the run identity, status, and high-level completion summary."""
 
-    st.markdown('<div class="opus-breadcrumb">Runs &nbsp;›&nbsp; #017</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="opus-breadcrumb">Runs &nbsp;›&nbsp; #{run.run_id}</div>', unsafe_allow_html=True)
     header_left, header_right = st.columns([0.74, 0.26])
     with header_left:
         st.title(f"Run #{run.run_id}")
@@ -73,4 +115,3 @@ def render_run_header(run: RunFixture) -> None:
             f'Est. {run.estimated_remaining} remaining</div>',
             unsafe_allow_html=True,
         )
-

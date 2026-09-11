@@ -57,6 +57,56 @@ class RunFixture(BaseModel):
         return min(max(self.completed_stages / self.total_stages, 0.0), 1.0)
 
 
+class RunListItemFixture(BaseModel):
+    """Summary data needed by the run listing before live repository reads are connected."""
+
+    run_id: str
+    title: str
+    status: RunStatus
+    progress: int = Field(ge=0, le=100)
+    updated: str
+    triggered_by: str
+
+
+def get_demo_runs() -> list[RunListItemFixture]:
+    """Return representative run summaries for the navigation/listing UI."""
+
+    return [
+        RunListItemFixture(
+            run_id="017",
+            title="Autonomous merchandise discovery pipeline",
+            status=RunStatus.RUNNING,
+            progress=35,
+            updated="12 minutes ago",
+            triggered_by="manual review",
+        ),
+        RunListItemFixture(
+            run_id="016",
+            title="Remote workers and decompression rituals",
+            status=RunStatus.COMPLETED,
+            progress=100,
+            updated="2 hours ago",
+            triggered_by="manual review",
+        ),
+        RunListItemFixture(
+            run_id="015",
+            title="Weekend makers and workshop identity",
+            status=RunStatus.COMPLETED,
+            progress=100,
+            updated="1 day ago",
+            triggered_by="scheduled demo",
+        ),
+        RunListItemFixture(
+            run_id="014",
+            title="Pet owners after demanding shifts",
+            status=RunStatus.FAILED,
+            progress=58,
+            updated="2 days ago",
+            triggered_by="manual review",
+        ),
+    ]
+
+
 def get_demo_run() -> RunFixture:
     """Return a representative in-progress run with evidence and artwork metadata."""
 
@@ -167,4 +217,3 @@ def get_demo_run() -> RunFixture:
         current_stage_number=7,
         stages=stages,
     )
-
