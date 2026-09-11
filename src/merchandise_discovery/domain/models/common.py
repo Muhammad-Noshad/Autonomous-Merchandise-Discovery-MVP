@@ -21,3 +21,27 @@ class StageStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class ConceptVerdict(str, Enum):
+    """Allowed outcomes from the concept critique stage."""
+
+    KEEP = "keep"
+    REJECT = "reject"
+
+
+class ArtworkDecision(str, Enum):
+    """Allowed outcomes from artwork quality assurance."""
+
+    ACCEPT = "accept"
+    REJECT = "reject"
+    REGENERATE = "regenerate"
+
+
+class ApprovalDecision(str, Enum):
+    """Allowed final human-review decisions."""
+
+    APPROVE = "approve"
+    REJECT = "reject"
+    REGENERATE = "regenerate"
+    REQUEST_ADJUSTMENT = "request_adjustment"
