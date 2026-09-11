@@ -22,6 +22,7 @@ def utc_now() -> datetime:
 class RunConfig(BaseModel):
     """Small, configurable funnel limits used by the MVP demo run."""
 
+    seed_source: str = Field(default="mvp_seed_library", min_length=1)
     max_intersections: int = Field(default=10, ge=1, le=5000)
     max_researched_niches: int = Field(default=3, ge=1, le=100)
     concepts_per_niche: int = Field(default=5, ge=1, le=50)
@@ -73,4 +74,3 @@ class StageExecution(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     version: int = Field(default=0, ge=0)
-

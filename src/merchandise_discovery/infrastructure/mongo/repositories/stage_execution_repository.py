@@ -52,6 +52,17 @@ class StageExecutionRepository:
             ),
         )
 
+    def list_for_run(self, run_id: str) -> list[StageExecution]:
+        """Return all stage attempts for a run in pipeline order for detail and audit views."""
+
+        return [
+            execution
+            for document in self._collection.find({"run_id": run_id}).sort(
+                [("stage_number", 1), ("attempt_number", -1)]
+            )
+            if (execution := from_document(StageExecution, document)) is not None
+        ]
+
     def list_runnable(self, run_id: str) -> list[StageExecution]:
         """Return pending or failed stages in order so a worker can resume the earliest gap."""
 

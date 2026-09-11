@@ -89,7 +89,17 @@ def render_sidebar(run: RunFixture) -> str:
 def render_run_header(run: RunFixture) -> None:
     """Render the run identity, status, and high-level completion summary."""
 
-    st.markdown(f'<div class="opus-breadcrumb">Runs &nbsp;›&nbsp; #{run.run_id}</div>', unsafe_allow_html=True)
+    status_color = {
+        "completed": "#22C55E",
+        "running": "#8B5CF6",
+        "failed": "#EF4444",
+        "pending": "rgba(255,255,255,0.50)",
+        "cancelled": "rgba(255,255,255,0.50)",
+    }[run.status.value]
+    st.markdown(
+        f'<div class="opus-breadcrumb">Runs &nbsp;›&nbsp; #{run.run_id}</div>',
+        unsafe_allow_html=True,
+    )
     header_left, header_right = st.columns([0.74, 0.26])
     with header_left:
         st.title(f"Run #{run.run_id}")
@@ -99,7 +109,8 @@ def render_run_header(run: RunFixture) -> None:
     with header_right:
         st.markdown(
             '<div style="text-align:right; padding-top:0.9rem;">'
-            '<span class="opus-status">●&nbsp; In progress</span></div>',
+            f'<span class="opus-status" style="border-color:{status_color}; color:{status_color};">'
+            f'●&nbsp; {run.status.value.title()}</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -112,6 +123,8 @@ def render_run_header(run: RunFixture) -> None:
     with progress_right:
         st.markdown(
             f'<div style="text-align:right; color:rgba(255,255,255,0.60); padding-top:0.25rem;">'
-            f'Est. {run.estimated_remaining} remaining</div>',
+            f'{run.estimated_remaining} remaining</div>',
             unsafe_allow_html=True,
         )
+    if run.last_error:
+        st.error(run.last_error)

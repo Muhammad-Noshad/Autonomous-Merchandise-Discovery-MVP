@@ -7,6 +7,8 @@ the same component can later receive summaries from a run-list application servi
 import streamlit as st
 
 from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.workflow import WorkflowRun
+from merchandise_discovery.ui.adapters import workflow_to_list_item
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 from merchandise_discovery.ui.fixtures import RunListItemFixture, get_demo_runs
 
@@ -19,6 +21,7 @@ def _status_color(status: RunStatus) -> str:
         RunStatus.RUNNING: "#8B5CF6",
         RunStatus.FAILED: "#EF4444",
         RunStatus.PENDING: "rgba(255,255,255,0.50)",
+        RunStatus.CANCELLED: "rgba(255,255,255,0.50)",
     }[status]
 
 
@@ -46,8 +49,8 @@ def _render_run_row(run: RunListItemFixture) -> None:
                 navigate_to(PAGE_RUN_DETAIL, run.run_id)
 
 
-def render_run_list() -> None:
-    """Render the run history landing page using stable demo summaries."""
+def render_run_list(runs: list[WorkflowRun] | None = None) -> None:
+    """Render run history from persisted aggregates or an explicit fixture fallback."""
 
     st.markdown('<div class="opus-breadcrumb">Workspace</div>', unsafe_allow_html=True)
     st.title("Runs")
@@ -57,10 +60,21 @@ def render_run_list() -> None:
     with toolbar_left:
         st.markdown("### Run history")
     with toolbar_right:
-        st.selectbox("Filter", ["All runs", "In progress", "Completed", "Failed"], label_visibility="collapsed")
+        selected_filter = st.selectbox(
+            "Filter",
+            ["All runs", "In progress", "Completed", "Failed"],
+            label_visibility="collapsed",
+        )
 
-    for run in get_demo_runs():
+    run_items = get_demo_runs() if runs is None else [workflow_to_list_item(run) for run in runs]
+    if selected_filter != "All runs":
+        status = selected_filter.lower().replace(" ", "_")
+        run_items = [run for run in run_items if run.status.value == status]
+
+    for run in run_items:
         _render_run_row(run)
 
-    st.info("These are demo runs for the MVP shell. Live run history will be loaded from MongoDB in a later chunk.")
-
+    if runs is None:
+        st.info("These are demo runs for the MVP shell. Live run history will be loaded from MongoDB in a later chunk.")
+    elif not run_items:
+        st.info("No runs match this filter.")

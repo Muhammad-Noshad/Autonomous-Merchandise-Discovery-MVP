@@ -24,6 +24,8 @@ def render_detail_panel(stage: StageFixture) -> None:
         unsafe_allow_html=True,
     )
     st.caption(stage.summary)
+    if stage.error_message:
+        st.error(stage.error_message)
 
     details_tab, evidence_tab, artifacts_tab = st.tabs(["Details", "Evidence", "Artifacts"])
     with details_tab:
@@ -64,4 +66,3 @@ def render_detail_panel(stage: StageFixture) -> None:
     with action_right:
         if st.button("⋯  View logs", use_container_width=True):
             st.toast("Stage logs will be connected to persisted executions in a later chunk.")
-

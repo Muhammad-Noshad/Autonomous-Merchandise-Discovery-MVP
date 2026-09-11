@@ -33,6 +33,7 @@ class StageFixture(BaseModel):
     metrics: dict[str, str] = Field(default_factory=dict)
     evidence: list[EvidenceFixture] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
+    error_message: str | None = None
 
 
 class RunFixture(BaseModel):
@@ -49,6 +50,7 @@ class RunFixture(BaseModel):
     version: str
     current_stage_number: int
     stages: list[StageFixture]
+    last_error: str | None = None
 
     @property
     def completion_ratio(self) -> float:

@@ -11,7 +11,7 @@ import logging
 import streamlit as st
 from pymongo.errors import PyMongoError
 
-from merchandise_discovery.infrastructure.mongo.client import initialize_database
+from merchandise_discovery.application.runtime import ApplicationRuntime, build_runtime
 from merchandise_discovery.shared.configuration import Settings, load_settings
 from merchandise_discovery.shared.errors import ConfigurationError
 from merchandise_discovery.ui.pages.run_dashboard import render_run_dashboard
@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 @st.cache_resource(show_spinner=False)
-def _initialize_configured_database(mongodb_uri: str, mongodb_database: str):
-    """Cache one MongoDB client per database configuration without caching provider secrets."""
+def _initialize_configured_runtime(mongodb_uri: str, mongodb_database: str) -> ApplicationRuntime:
+    """Cache one application runtime per database configuration without caching provider secrets."""
 
     settings = Settings(
         mongodb_uri=mongodb_uri,
@@ -30,11 +30,11 @@ def _initialize_configured_database(mongodb_uri: str, mongodb_database: str):
         xai_api_key=None,
         xai_image_model="grok-imagine-image",
     )
-    return initialize_database(settings)
+    return build_runtime(settings)
 
 
-def render_database_status() -> None:
-    """Initialize configured MongoDB and show a safe persistence status in the sidebar.
+def render_database_status() -> ApplicationRuntime | None:
+    """Initialize configured MongoDB and show only a safe failure status in the sidebar.
 
     Missing MongoDB configuration is valid for the visual MVP, so the app stays usable in fixture
     mode. A configured but unavailable database is surfaced explicitly while avoiding credentials
@@ -45,10 +45,10 @@ def render_database_status() -> None:
     with st.sidebar:
         if not settings.mongodb_uri:
             st.error("MongoDB not configured — showing fixture data.")
-            return
+            return None
 
         try:
-            _, _database = _initialize_configured_database(
+            runtime = _initialize_configured_runtime(
                 settings.mongodb_uri,
                 settings.mongodb_database,
             )
@@ -57,10 +57,11 @@ def render_database_status() -> None:
             # the exception class. The URI itself is deliberately excluded from the browser.
             logger.warning("MongoDB initialization failed: %s", type(error).__name__)
             st.error("MongoDB unavailable — showing fixture data.")
-            return
+            return None
 
         # A successful connection is intentionally silent; the dashboard only needs to interrupt
         # the demo when persistence is unavailable.
+        return runtime
 
 
 def main() -> None:
@@ -71,5 +72,5 @@ def main() -> None:
         page_icon="🛍️",
         layout="wide",
     )
-    render_database_status()
-    render_run_dashboard()
+    runtime = render_database_status()
+    render_run_dashboard(runtime)

@@ -1,7 +1,10 @@
 """UI composition root for the fixture-backed discovery workspace."""
 
 import streamlit as st
+from pymongo.errors import PyMongoError
 
+from merchandise_discovery.application.runtime import ApplicationRuntime
+from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import (
     PAGE_ARTWORK_REVIEW,
     PAGE_CONCEPTS,
@@ -21,19 +24,28 @@ from merchandise_discovery.ui.pages.run_list import render_run_list
 from merchandise_discovery.ui.theme import apply_theme
 
 
-def render_run_dashboard() -> None:
-    """Route the dashboard shell to the selected fixture-backed workspace page."""
+def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
+    """Route the shell to live MongoDB pages or an explicit fixture fallback."""
 
     apply_theme()
     run = get_demo_run()
     selected_page = render_sidebar(run)
 
     if selected_page == PAGE_RUNS:
-        render_run_list()
+        if runtime is None:
+            render_run_list()
+        else:
+            try:
+                render_run_list(runtime.discovery_service.list_runs())
+            except (PyMongoError, RepositoryError):
+                st.error("Run history could not be loaded from MongoDB.")
     elif selected_page == PAGE_CREATE_RUN:
-        render_run_create()
+        render_run_create(runtime.discovery_service if runtime else None)
     elif selected_page == PAGE_RUN_DETAIL:
-        render_run_detail(st.session_state.get("selected_run_id", run.run_id))
+        render_run_detail(
+            st.session_state.get("selected_run_id", run.run_id),
+            runtime.discovery_service if runtime else None,
+        )
     elif selected_page == PAGE_NICHES:
         render_niches()
     elif selected_page == PAGE_CONCEPTS:

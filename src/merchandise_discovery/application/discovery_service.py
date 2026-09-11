@@ -4,12 +4,22 @@ This layer coordinates use cases; it should not contain Streamlit rendering or r
 syntax. Those concerns remain behind the entrypoint and repository boundaries.
 """
 
-from merchandise_discovery.domain.models.workflow import RunConfig, WorkflowRun
+from dataclasses import dataclass
+
+from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
+
+
+@dataclass(frozen=True)
+class RunSnapshot:
+    """A run aggregate plus its stage attempts, assembled for application callers."""
+
+    run: WorkflowRun
+    stages: list[StageExecution]
 
 
 class DiscoveryService:
@@ -50,3 +60,16 @@ class DiscoveryService:
         """Return the persisted run state for dashboard reads."""
 
         return self._runs.get_by_id(run_id)
+
+    def list_runs(self, limit: int = 50) -> list[WorkflowRun]:
+        """Return bounded run history without exposing repository details to the UI."""
+
+        return self._runs.list_recent(limit)
+
+    def get_run_snapshot(self, run_id: str) -> RunSnapshot | None:
+        """Load one run and all its stage attempts as a consistent application-level view."""
+
+        run = self._runs.get_by_id(run_id)
+        if run is None:
+            return None
+        return RunSnapshot(run=run, stages=self._stages.list_for_run(run_id))

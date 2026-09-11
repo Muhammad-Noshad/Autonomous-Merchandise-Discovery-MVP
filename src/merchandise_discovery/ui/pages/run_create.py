@@ -1,15 +1,40 @@
-"""Fixture-backed run creation page.
+"""Run creation page for the persisted discovery workflow.
 
-The form defines the inputs that will later be passed to DiscoveryService. Submission is intentionally
-non-persistent in this UI chunk, making the interaction safe to demonstrate before worker execution
-and repository wiring are connected.
+The form owns input collection only. It converts validated values into `RunConfig` and delegates run
+creation to `DiscoveryService`, keeping persistence and stage initialization outside Streamlit.
 """
 
 import streamlit as st
+from pymongo.errors import PyMongoError
+
+from merchandise_discovery.application.discovery_service import DiscoveryService
+from merchandise_discovery.domain.models.workflow import RunConfig
+from merchandise_discovery.shared.errors import RepositoryError
+from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 
 
-def render_run_create() -> None:
-    """Render a demo configuration form for originating a new discovery run."""
+def build_run_config(
+    seed_source: str,
+    intersections: int,
+    niches: int,
+    concepts: int,
+    artwork_variants: int,
+    similarity_check: bool,
+) -> RunConfig:
+    """Convert form primitives into the typed service contract used to create a run."""
+
+    return RunConfig(
+        seed_source=seed_source.lower().replace(" ", "_"),
+        max_intersections=intersections,
+        max_researched_niches=niches,
+        concepts_per_niche=concepts,
+        artwork_variants_per_concept=artwork_variants,
+        enable_similarity_ip_check=similarity_check,
+    )
+
+
+def render_run_create(discovery_service: DiscoveryService | None = None) -> None:
+    """Render a configuration form and create a persisted run when a service is available."""
 
     st.markdown('<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>', unsafe_allow_html=True)
     st.title("Create a discovery run")
@@ -23,7 +48,7 @@ def render_run_create() -> None:
         )
         seed_source = st.selectbox(
             "Seed source",
-            ["MVP seed library", "Upload seed file (coming soon)", "Custom seed list (coming soon)"],
+            ["MVP seed library"],
         )
 
         st.markdown("### Funnel limits")
@@ -36,18 +61,31 @@ def render_run_create() -> None:
         similarity_check = st.checkbox("Enable similarity/IP screening", value=False)
         submitted = st.form_submit_button("Create demo run", use_container_width=True)
 
-    if submitted:
-        # Keep the draft visible after reruns so the client can see exactly what would be handed to
-        # DiscoveryService; this record is not presented as a persisted run yet.
-        st.session_state["last_run_draft"] = {
-            "title": title,
-            "seed_source": seed_source,
-            "intersections": intersections,
-            "niches": niches,
-            "concepts": concepts,
-            "artwork_variants": artwork_variants,
-            "similarity_check": similarity_check,
-        }
-        st.success("Demo run configuration captured.")
-        st.info("Worker execution and MongoDB persistence will be connected in the workflow chunk.")
+    if not submitted:
+        return
+    if discovery_service is None:
+        st.error("MongoDB is required to create a persisted run.")
+        return
+    if not title.strip():
+        st.error("Run name is required.")
+        return
 
+    try:
+        run = discovery_service.create_run(
+            title=title.strip(),
+            config=build_run_config(
+                seed_source,
+                intersections,
+                niches,
+                concepts,
+                artwork_variants,
+                similarity_check,
+            ),
+            triggered_by="manual",
+        )
+    except (PyMongoError, RepositoryError, ValueError) as error:
+        st.error(f"Run could not be created: {error}")
+        return
+
+    st.session_state["created_run_id"] = run.run_id
+    navigate_to(PAGE_RUN_DETAIL, run.run_id)
