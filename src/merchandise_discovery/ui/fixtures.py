@@ -113,6 +113,76 @@ def get_demo_runs() -> list[RunListItemFixture]:
     ]
 
 
+def _demo_output_payload(number: int, evidence: list[EvidenceFixture]) -> dict[str, object]:
+    """Return compact representative output for fixture-mode stage visual validation."""
+
+    seed = {
+        "seed_id": "fixture-seed-1",
+        "category": "Audience",
+        "name": "Pet owners after demanding shifts",
+        "metadata": {"priority": 9},
+    }
+    intersection = {
+        "intersection_id": "fixture-intersection-1",
+        "identities": ["Pet owners", "Demanding shifts"],
+        "coherence_score": 8.6,
+        "experience_hypotheses": ["Humor and pets help people decompress after work."],
+        "metadata": {"shared_tags": ["decompression", "humor"]},
+    }
+    niche = {
+        "niche_id": "fixture-niche-1",
+        "name": "Pet owners + Demanding shifts",
+        "evidence_count": 3,
+        "opportunity_score": 88,
+    }
+    concept = {
+        "concept_id": "fixture-concept-1",
+        "phrase": "Reset Mode",
+        "description": "A specific, experience-led phrase about decompressing after demanding shifts.",
+        "overall_score": 8.4,
+        "selected": True,
+        "rank": 1,
+    }
+    brief = {
+        "brief_id": "fixture-brief-1",
+        "concept_id": "fixture-concept-1",
+        "exact_phrase": "Reset Mode",
+        "target_audience": "People sharing the researched experience",
+        "main_subject": "A simple symbolic object representing a personal reset ritual",
+        "illustration_style": "Clean editorial illustration",
+        "composition": "Centered subject with clear negative space",
+        "constraints": ["No logos", "Exact phrase spelling", "Legible at merchandise scale"],
+    }
+    artwork = {
+        "artwork_id": "fixture-artwork-1",
+        "concept_id": "fixture-concept-1",
+        "mime_type": "image/png",
+        "width": 1024,
+        "height": 1024,
+        "file_size_bytes": 128000,
+        "source_url": "https://fixture.local/artwork/fixture-concept-1/1.png",
+    }
+    return {
+        1: {"selected_seeds": [seed], "selection_reasons": {"fixture-seed-1": "High priority audience seed."}},
+        2: {"identities": [{"value": "Pet owners", "category": "Audience", "dimension_type": "core", "source_seed_name": seed["name"], "affinity_tags": ["pets", "care"]}]},
+        3: {"intersections": [intersection]},
+        4: {"intersections": [intersection]},
+        5: {"accepted": [intersection], "rejected": [{**intersection, "filter_reason": "Rejected as a duplicate identity combination."}]},
+        6: {"niches": [niche], "evidence": [item.model_dump() for item in evidence]},
+        7: {"signals": [{"niche_id": niche["niche_id"], "confidence": 0.91, "repeated_language": ["specific humor", "decompress after work"], "frustrations": ["Demanding days leave little room to reset."], "rituals": ["Pet-based decompression"], "emotional_signals": ["relief", "belonging"], "experience_summary": "A recognizable decompression ritual creates a strong merchandise opportunity."}]},
+        8: {"scores": [{"niche_id": niche["niche_id"], "evidence_strength": 30, "experience_clarity": 25, "audience_fit": 18, "differentiation": 17, "overall_score": 90, "rationale": "Three evidence records and repeated experience signals support the score."}]},
+        9: {"concepts": [concept]},
+        10: {"evaluations": [{"concept_id": concept["concept_id"], "authenticity": 8.5, "clarity": 8.8, "wearability": 9, "commercial_potential": 8.2, "overall_score": 8.6, "verdict": "keep", "weaknesses": []}]},
+        11: {"checks": [{"concept_id": concept["concept_id"], "risk_level": "low", "reason": "No duplicate phrase was found in the current run."}], "survivors": [concept], "rejected": []},
+        12: {"finalists": [concept], "rejected": []},
+        13: {"briefs": [brief]},
+        14: {"prompts": [{"concept_id": concept["concept_id"], "prompt": 'Exact text: "Reset Mode". Clean editorial merchandise artwork, centered subject, readable typography, no logos.'}]},
+        15: {"artworks": [artwork]},
+        16: {"evaluations": [{"artwork_id": artwork["artwork_id"], "readability": 9, "composition": 9, "quality": 9, "alignment": 9, "decision": "accept", "checks": {"supported_mime_type": True, "minimum_dimensions": True, "square_merchandise_ratio": True}, "issues": []}]},
+        17: {"approval_status": "Awaiting human approval", "artworks_ready": 1},
+    }.get(number, {})
+
+
 def get_demo_run() -> RunFixture:
     """Return a representative in-progress run with evidence and artwork metadata."""
 
@@ -195,6 +265,7 @@ def get_demo_run() -> RunFixture:
                     "Source context": "Prior stage output",
                     "Execution mode": "MVP fixture",
                 },
+                output_payload=_demo_output_payload(number, evidence),
                 metrics=(
                     {
                         "Evidence sources": "3",

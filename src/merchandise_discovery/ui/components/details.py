@@ -35,20 +35,25 @@ def render_detail_panel(stage: StageFixture) -> None:
         st.markdown("**Input summary**")
         for label, value in stage.inputs.items():
             st.write(f"**{label}:** {value}")
-        if stage.input_payload:
-            st.markdown("**Input snapshot**")
-            st.json(stage.input_payload, expanded=False)
-        else:
+        if not stage.inputs and not stage.input_payload:
             st.info("No input snapshot was persisted for this stage.")
 
         st.markdown("**Output summary**")
         st.info(stage.output_summary)
 
-        if stage.output_payload:
-            st.markdown("**Output snapshot**")
-            st.json(stage.output_payload, expanded=False)
-        else:
+        if not stage.output_payload:
             st.info("No output snapshot is available until this stage executes.")
+
+        if stage.input_payload or stage.output_payload:
+            # Raw payloads remain available for audit/debug work, but they are intentionally
+            # collapsed so the client-facing details panel leads with human-readable decisions.
+            with st.expander("Audit payload · raw", expanded=False):
+                if stage.input_payload:
+                    st.markdown("**Input snapshot**")
+                    st.json(stage.input_payload, expanded=False)
+                if stage.output_payload:
+                    st.markdown("**Output snapshot**")
+                    st.json(stage.output_payload, expanded=False)
 
         if stage.metrics:
             st.markdown("**Decision signals**")
