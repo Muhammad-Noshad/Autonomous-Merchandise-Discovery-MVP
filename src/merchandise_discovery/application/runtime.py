@@ -40,8 +40,17 @@ from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_rep
 from merchandise_discovery.infrastructure.mongo.repositories.stage_log_repository import (
     StageLogRepository,
 )
-from merchandise_discovery.infrastructure.providers.image_provider import FixtureImageProvider
-from merchandise_discovery.infrastructure.providers.research_provider import FixtureResearchProvider
+from merchandise_discovery.infrastructure.providers.image_provider import (
+    FixtureImageProvider,
+    XAIImageProvider,
+)
+from merchandise_discovery.infrastructure.providers.reasoning_provider import (
+    OpenAIReasoningProvider,
+)
+from merchandise_discovery.infrastructure.providers.research_provider import (
+    FixtureResearchProvider,
+    OpenAIWebResearchProvider,
+)
 from merchandise_discovery.shared.configuration import Settings
 
 
@@ -55,6 +64,7 @@ class ApplicationRuntime:
     stage_repository: StageExecutionRepository
     stage_log_repository: StageLogRepository
     max_stage_attempts: int
+    provider_modes: dict[str, str]
     seed_repository: SeedRepository
     intersection_repository: IntersectionRepository
     niche_repository: NicheRepository
@@ -100,17 +110,48 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
         review_service = ReviewService(run_repository, artwork_repository, review_repository)
+        live_mode = settings.provider_mode == "live"
+        research_provider = (
+            OpenAIWebResearchProvider(
+                settings.openai_api_key,
+                settings.openai_reasoning_model,
+                input_price_per_million=settings.openai_input_price_per_million,
+                output_price_per_million=settings.openai_output_price_per_million,
+            )
+            if live_mode and settings.openai_api_key
+            else FixtureResearchProvider()
+        )
+        reasoning_provider = (
+            OpenAIReasoningProvider(
+                settings.openai_api_key,
+                settings.openai_reasoning_model,
+                input_price_per_million=settings.openai_input_price_per_million,
+                output_price_per_million=settings.openai_output_price_per_million,
+            )
+            if live_mode and settings.openai_api_key
+            else None
+        )
+        image_provider = (
+            XAIImageProvider(
+                settings.xai_api_key,
+                settings.xai_image_model,
+                settings.xai_image_price,
+            )
+            if live_mode and settings.xai_api_key
+            else FixtureImageProvider()
+        )
         stage_executor = DiscoveryStageExecutor(
             seed_repository,
             intersection_repository,
             stage_repository,
             niche_repository,
             evidence_repository,
-            FixtureResearchProvider(),
+            research_provider,
             concept_repository,
             brief_repository,
             artwork_repository,
-            FixtureImageProvider(),
+            image_provider,
+            reasoning_provider=reasoning_provider,
         )
         return ApplicationRuntime(
             client=client,
@@ -119,6 +160,11 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             stage_repository=stage_repository,
             stage_log_repository=stage_log_repository,
             max_stage_attempts=settings.max_stage_attempts,
+            provider_modes={
+                "research": "openai web search" if live_mode and settings.openai_api_key else "fixture",
+                "reasoning": "openai structured outputs" if live_mode and settings.openai_api_key else "fixture",
+                "image": "xAI image generation" if live_mode and settings.xai_api_key else "fixture",
+            },
             seed_repository=seed_repository,
             intersection_repository=intersection_repository,
             niche_repository=niche_repository,

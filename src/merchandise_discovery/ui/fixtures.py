@@ -56,6 +56,9 @@ class RunFixture(BaseModel):
     current_stage_number: int
     stages: list[StageFixture]
     last_error: str | None = None
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    cost_is_estimate: bool = False
 
     @property
     def completion_ratio(self) -> float:

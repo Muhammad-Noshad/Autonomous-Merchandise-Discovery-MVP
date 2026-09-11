@@ -29,7 +29,7 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
 
     apply_theme()
     run = get_demo_run()
-    selected_page = render_sidebar(run)
+    selected_page = render_sidebar(run, runtime.provider_modes if runtime else None)
 
     if selected_page == PAGE_RUNS:
         if runtime is None:

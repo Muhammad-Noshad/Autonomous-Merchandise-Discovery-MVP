@@ -11,6 +11,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from merchandise_discovery.domain.models.common import RunStatus, StageStatus
+from merchandise_discovery.domain.models.usage import UsageMetrics
 
 
 def utc_now() -> datetime:
@@ -75,6 +76,7 @@ class StageExecution(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     version: int = Field(default=0, ge=0)
+    usage: UsageMetrics = Field(default_factory=UsageMetrics)
 
 
 class StageLog(BaseModel):

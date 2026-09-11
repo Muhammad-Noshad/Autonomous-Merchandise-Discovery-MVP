@@ -4,6 +4,7 @@ from pymongo import ReturnDocument
 from pymongo.collection import Collection
 
 from merchandise_discovery.domain.models.common import StageStatus
+from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, utc_now
 from merchandise_discovery.infrastructure.mongo.serialization import from_document, to_document
 from merchandise_discovery.shared.errors import ConcurrencyError
@@ -139,6 +140,7 @@ class StageExecutionRepository:
         output_summary: str,
         *,
         input_data: dict | None = None,
+        usage: UsageMetrics | None = None,
     ) -> StageExecution:
         """Persist a successful output while preserving the exact structured result."""
 
@@ -153,6 +155,8 @@ class StageExecutionRepository:
         }
         if input_data is not None:
             set_values["input_data"] = input_data
+        if usage is not None:
+            set_values["usage"] = usage.model_dump(mode="python")
         document = self._collection.find_one_and_update(
             {"execution_id": execution_id, "version": expected_version},
             {

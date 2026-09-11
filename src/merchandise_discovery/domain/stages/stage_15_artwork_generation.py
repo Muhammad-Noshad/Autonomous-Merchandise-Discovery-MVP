@@ -3,6 +3,7 @@
 from pydantic import BaseModel, Field
 
 from merchandise_discovery.domain.models.artifacts import Artwork
+from merchandise_discovery.domain.models.usage import UsageMetrics, combine_usage
 from merchandise_discovery.domain.stages.stage_14_prompt_compilation import PromptCompilation
 from merchandise_discovery.infrastructure.providers.image_provider import (
     ImageGenerationRequest,
@@ -21,6 +22,7 @@ class ArtworkGenerationOutput(BaseModel):
     """Generated artwork metadata linked to concept, brief, and prompt."""
 
     artworks: list[Artwork]
+    usage: UsageMetrics = Field(default_factory=UsageMetrics)
 
 
 def execute(
@@ -30,6 +32,7 @@ def execute(
     """Generate only finalist variants and retain every provider reference for review."""
 
     artworks: list[Artwork] = []
+    usages: list[UsageMetrics] = []
     for prompt in input_data.prompts:
         for variant_number in range(1, input_data.artwork_variants_per_concept + 1):
             generated = provider.generate(
@@ -40,6 +43,7 @@ def execute(
                     variant_number=variant_number,
                 )
             )
+            usages.append(generated.usage)
             artworks.append(
                 Artwork(
                     run_id=prompt.run_id,
@@ -54,4 +58,4 @@ def execute(
                     file_size_bytes=generated.file_size_bytes,
                 )
             )
-    return ArtworkGenerationOutput(artworks=artworks)
+    return ArtworkGenerationOutput(artworks=artworks, usage=combine_usage(*usages))

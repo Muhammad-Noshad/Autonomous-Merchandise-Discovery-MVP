@@ -46,6 +46,13 @@ def _render_artwork_card(
             f"Concept {artwork.concept_id} · {artwork.mime_type or 'Unknown format'} · "
             f"{artwork.width or '—'} × {artwork.height or '—'}"
         )
+        if artwork.source_url:
+            # Hosted provider URLs make real images inspectable during the demo; a broken URL must
+            # not prevent the reviewer from seeing metadata and recording a decision.
+            try:
+                st.image(artwork.source_url, caption="Generated artwork", width=420)
+            except (OSError, RuntimeError, ValueError):
+                st.warning("The provider image could not be previewed; use the reference link below.")
         metrics = [
             ("Readability", _qa_value(artwork, "readability")),
             ("Composition", _qa_value(artwork, "composition")),

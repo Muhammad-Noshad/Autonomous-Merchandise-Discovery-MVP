@@ -86,6 +86,7 @@ def _process_one(runtime, worker_id: str) -> bool:
                 result.output_data,
                 result.output_summary,
                 input_data=result.input_data,
+                usage=result.usage,
             )
             _log_event(
                 runtime,

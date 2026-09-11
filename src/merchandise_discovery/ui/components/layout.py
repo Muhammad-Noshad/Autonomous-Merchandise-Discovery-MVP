@@ -34,7 +34,7 @@ def navigate_to(page: str, run_id: str | None = None) -> None:
     st.rerun()
 
 
-def render_sidebar(run: RunFixture) -> str:
+def render_sidebar(run: RunFixture, provider_modes: dict[str, str] | None = None) -> str:
     """Render navigation and recent-run context, returning the selected page key."""
 
     # Button callbacks can happen after the radio widget has been instantiated. Apply queued route
@@ -82,7 +82,15 @@ def render_sidebar(run: RunFixture) -> str:
             )
 
         st.divider()
-        st.caption("MVP fixture mode")
+        if provider_modes and any(value != "fixture" for value in provider_modes.values()):
+            active = " · ".join(
+                f"{name}: {provider}"
+                for name, provider in provider_modes.items()
+                if provider != "fixture"
+            )
+            st.caption(f"Live providers · {active}")
+        else:
+            st.caption("MVP fixture providers")
         return selected_page
 
 
@@ -126,5 +134,11 @@ def render_run_header(run: RunFixture) -> None:
             f'{run.estimated_remaining} remaining</div>',
             unsafe_allow_html=True,
         )
+    usage_left, usage_right = st.columns(2)
+    with usage_left:
+        st.metric("Tokens consumed", f"{run.total_tokens:,}")
+    with usage_right:
+        suffix = " (est.)" if run.cost_is_estimate else ""
+        st.metric("Estimated API cost", f"${run.estimated_cost_usd:.6f}{suffix}")
     if run.last_error:
         st.error(run.last_error)

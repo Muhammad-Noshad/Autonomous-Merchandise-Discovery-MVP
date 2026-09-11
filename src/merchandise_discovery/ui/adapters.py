@@ -95,6 +95,9 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
 
     run = snapshot.run
     stages = _latest_stages(snapshot.stages)
+    total_tokens = sum(stage.usage.total_tokens for stage in stages)
+    estimated_cost = round(sum(stage.usage.estimated_cost_usd for stage in stages), 8)
+    cost_is_estimate = any(stage.usage.cost_is_estimate for stage in stages)
     logs_by_stage: dict[int, list[str]] = {}
     for log in snapshot.logs:
         if log.stage_number is not None:
@@ -119,7 +122,15 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
             inputs={str(key): str(value) for key, value in stage.input_data.items()},
             input_payload=stage.input_data,
             output_payload=stage.output_data,
-            metrics={"Attempt": str(stage.attempt_number), "State version": str(stage.version)},
+            metrics={
+                "Attempt": str(stage.attempt_number),
+                "State version": str(stage.version),
+                "Provider": stage.usage.provider,
+                "Model": stage.usage.model,
+                "Tokens": f"{stage.usage.total_tokens:,}",
+                "Est. cost": f"${stage.usage.estimated_cost_usd:.6f}"
+                + (" · estimated" if stage.usage.cost_is_estimate else ""),
+            },
             evidence=_evidence_fixtures(stage.output_data),
             artifacts=[str(item) for item in stage.output_data.get("artifacts", [])]
             if isinstance(stage.output_data.get("artifacts", []), list)
@@ -142,4 +153,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         current_stage_number=current_stage,
         stages=stage_fixtures,
         last_error=run.last_error,
+        total_tokens=total_tokens,
+        estimated_cost_usd=estimated_cost,
+        cost_is_estimate=cost_is_estimate,
     )

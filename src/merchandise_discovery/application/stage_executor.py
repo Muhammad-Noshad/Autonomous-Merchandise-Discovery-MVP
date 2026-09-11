@@ -5,9 +5,10 @@ an explicit unavailable implementation so claimed runs fail visibly; later chunk
 handlers one stage at a time.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
+from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 
 
@@ -22,6 +23,7 @@ class StageResult:
     input_data: dict
     output_data: dict
     output_summary: str
+    usage: UsageMetrics = field(default_factory=UsageMetrics)
 
 
 class StageExecutor(Protocol):

@@ -47,6 +47,12 @@ Set `MVP_MAX_STAGE_ATTEMPTS` in `.env` to change the retry ceiling. A failed sta
 the worker is run again until that ceiling is reached; after that, the run remains failed and is no
 longer reclaimed automatically.
 
+Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live mode,
+`OPENAI_API_KEY` enables OpenAI web search and structured outputs for Stages 6, 9, 10, and 13, while
+`XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys continue to use the
+fixture provider. Token costs are estimated from the configured OpenAI rates; xAI image costs are
+estimated from the configured per-image rate.
+
 When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same health check and
 initialization automatically. MongoDB databases are created lazily, so the app creates an
 `_app_metadata` infrastructure collection and the workflow indexes; the configured database then

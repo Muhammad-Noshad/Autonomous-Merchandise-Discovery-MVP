@@ -1,12 +1,15 @@
-"""Executor for the deterministic discovery and research stages.
+"""Executor for discovery stages and optional provider-backed reasoning.
 
 The executor owns orchestration concerns: loading prior stage outputs, supplying repositories and
 providers to stage functions, and persisting artifact snapshots. Each stage module remains
 independently portable and provider dependencies are injected here.
 """
 
+import json
+
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
 from merchandise_discovery.domain.models.common import StageStatus
+from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages import stage_01_seed_discovery as stage_01
 from merchandise_discovery.domain.stages import stage_02_identity_expansion as stage_02
@@ -43,6 +46,7 @@ from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_rep
     StageExecutionRepository,
 )
 from merchandise_discovery.infrastructure.providers.image_provider import ImageProvider
+from merchandise_discovery.infrastructure.providers.reasoning_provider import ReasoningProvider
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
@@ -62,6 +66,7 @@ class DiscoveryStageExecutor:
         brief_repository: BriefRepository,
         artwork_repository: ArtworkRepository,
         image_provider: ImageProvider,
+        reasoning_provider: ReasoningProvider | None = None,
     ):
         self._seeds = seed_repository
         self._intersections = intersection_repository
@@ -73,6 +78,26 @@ class DiscoveryStageExecutor:
         self._briefs = brief_repository
         self._artworks = artwork_repository
         self._image_provider = image_provider
+        self._reasoning_provider = reasoning_provider
+
+    def _reason(self, stage_name: str, input_data: dict, response_model):
+        """Call structured reasoning while keeping prompts and SDK details outside stage modules."""
+
+        if self._reasoning_provider is None:
+            return None, UsageMetrics()
+        response = self._reasoning_provider.complete_structured(
+            system_prompt=(
+                "You are a merchandise discovery specialist. Return only the requested structured "
+                "output, preserve supplied IDs, do not invent citations, and keep recommendations "
+                "specific to the observed audience experience."
+            ),
+            user_prompt=(
+                f"Execute {stage_name}. Validate the following stage input and produce the requested "
+                f"Pydantic output. Input JSON:\n{json.dumps(input_data, default=str)}"
+            ),
+            response_model=response_model,
+        )
+        return response.output, response.usage
 
     def prepare(self, run: WorkflowRun, stage: StageExecution) -> dict:
         """Build a serializable input payload from run configuration and prior stage output."""
@@ -181,6 +206,7 @@ class DiscoveryStageExecutor:
     def execute(self, run: WorkflowRun, stage: StageExecution, input_data: dict) -> StageResult:
         """Run one supported stage and retain exact input/output payloads for auditability."""
 
+        usage = UsageMetrics()
         if stage.stage_number == 1:
             input_model = stage_01.SeedDiscoveryInput.model_validate(input_data)
             seeds = self._seeds.list_all()
@@ -212,6 +238,7 @@ class DiscoveryStageExecutor:
         elif stage.stage_number == 6:
             input_model = stage_06.NicheResearchInput.model_validate(input_data)
             output = stage_06.execute(input_model, self._research_provider, run_id=run.run_id)
+            usage = output.usage
             self._niches.replace_for_run(run.run_id, output.niches)
             self._evidence.replace_for_run(run.run_id, output.evidence)
             summary = (
@@ -229,12 +256,35 @@ class DiscoveryStageExecutor:
             summary = f"Scored and ranked {len(output.scores)} researched niches."
         elif stage.stage_number == 9:
             input_model = stage_09.ConceptGenerationInput.model_validate(input_data)
-            output = stage_09.execute(input_model)
+            provider_output, usage = self._reason(
+                "Stage 9 merchandise concept generation",
+                input_data,
+                stage_09.ConceptGenerationOutput,
+            )
+            output = provider_output or stage_09.execute(input_model)
+            if provider_output:
+                allowed_niches = {niche.niche_id for niche in input_model.niches}
+                output = output.model_copy(
+                    update={
+                        "concepts": [
+                            concept.model_copy(update={"run_id": run.run_id})
+                            for concept in output.concepts
+                            if concept.niche_id in allowed_niches
+                        ]
+                    }
+                )
+                if not output.concepts:
+                    raise ValueError("OpenAI concept generation returned no valid niche-linked concepts.")
             self._concepts.replace_for_run(run.run_id, output.concepts)
             summary = f"Generated {len(output.concepts)} merchandise concepts."
         elif stage.stage_number == 10:
             input_model = stage_10.ConceptCritiqueInput.model_validate(input_data)
-            output = stage_10.execute(input_model)
+            provider_output, usage = self._reason(
+                "Stage 10 concept critique",
+                input_data,
+                stage_10.ConceptCritiqueOutput,
+            )
+            output = provider_output or stage_10.execute(input_model)
             self._concepts.replace_for_run(run.run_id, output.concepts)
             summary = f"Critiqued {len(output.evaluations)} merchandise concepts."
         elif stage.stage_number == 11:
@@ -252,7 +302,12 @@ class DiscoveryStageExecutor:
             summary = f"Selected {len(output.finalists)} concept finalists."
         elif stage.stage_number == 13:
             input_model = stage_13.DesignBriefInput.model_validate(input_data)
-            output = stage_13.execute(input_model)
+            provider_output, usage = self._reason(
+                "Stage 13 structured design brief generation",
+                input_data,
+                stage_13.DesignBriefOutput,
+            )
+            output = provider_output or stage_13.execute(input_model)
             self._briefs.replace_for_run(run.run_id, output.briefs)
             summary = f"Created {len(output.briefs)} structured design briefs."
         elif stage.stage_number == 14:
@@ -262,6 +317,7 @@ class DiscoveryStageExecutor:
         elif stage.stage_number == 15:
             input_model = stage_15.ArtworkGenerationInput.model_validate(input_data)
             output = stage_15.execute(input_model, self._image_provider)
+            usage = output.usage
             self._artworks.replace_for_run(run.run_id, output.artworks)
             summary = f"Generated {len(output.artworks)} artwork candidates."
         elif stage.stage_number == 16:
@@ -279,4 +335,5 @@ class DiscoveryStageExecutor:
             input_data=input_model.model_dump(mode="python"),
             output_data=output.model_dump(mode="python"),
             output_summary=summary,
+            usage=usage,
         )

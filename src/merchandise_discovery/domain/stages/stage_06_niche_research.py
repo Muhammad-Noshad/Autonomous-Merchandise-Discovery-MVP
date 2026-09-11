@@ -12,6 +12,7 @@ from merchandise_discovery.domain.models.artifacts import (
     Niche,
     ResearchEvidence,
 )
+from merchandise_discovery.domain.models.usage import UsageMetrics, combine_usage
 from merchandise_discovery.infrastructure.providers.research_provider import (
     ResearchDocument,
     ResearchProvider,
@@ -32,6 +33,7 @@ class NicheResearchOutput(BaseModel):
     niches: list[Niche]
     evidence: list[ResearchEvidence]
     selected_intersection_ids: list[str]
+    usage: UsageMetrics = Field(default_factory=UsageMetrics)
 
 
 def _ordered_targets(input_data: NicheResearchInput) -> list[IdentityIntersection]:
@@ -77,6 +79,7 @@ def execute(
     niches: list[Niche] = []
     evidence: list[ResearchEvidence] = []
     selected_ids: list[str] = []
+    usages: list[UsageMetrics] = []
     for intersection in _ordered_targets(input_data):
         niche = Niche(
             run_id=run_id,
@@ -84,13 +87,16 @@ def execute(
             name=" + ".join(intersection.identities),
             coherence_score=intersection.coherence_score,
         )
-        documents = provider.search(
+        search_result = provider.search(
             ResearchRequest(
                 query=" ".join(intersection.identities),
                 identities=tuple(intersection.identities),
                 hypotheses=tuple(intersection.experience_hypotheses),
             )
         )
+        documents = search_result.documents if hasattr(search_result, "documents") else search_result
+        if hasattr(search_result, "usage"):
+            usages.append(search_result.usage)
         niche_evidence = [
             _to_evidence(document, run_id=run_id, niche_id=niche.niche_id)
             for document in documents
@@ -103,4 +109,5 @@ def execute(
         niches=niches,
         evidence=evidence,
         selected_intersection_ids=selected_ids,
+        usage=combine_usage(*usages),
     )
