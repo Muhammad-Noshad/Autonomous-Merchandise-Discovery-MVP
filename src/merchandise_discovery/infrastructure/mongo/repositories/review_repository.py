@@ -28,3 +28,14 @@ class ReviewRepository:
             )
             if (review := from_document(HumanReview, document)) is not None
         ]
+
+    def list_for_run(self, run_id: str) -> list[HumanReview]:
+        """Return all immutable review records for one workflow run."""
+
+        return [
+            review
+            for document in self._collection.find({"run_id": run_id}).sort(
+                [("reviewed_at", -1), ("review_id", 1)]
+            )
+            if (review := from_document(HumanReview, document)) is not None
+        ]

@@ -12,6 +12,7 @@ from pymongo.database import Database
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
+from merchandise_discovery.application.review_service import ReviewService
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
 from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
@@ -28,6 +29,9 @@ from merchandise_discovery.infrastructure.mongo.repositories.intersection_reposi
     IntersectionRepository,
 )
 from merchandise_discovery.infrastructure.mongo.repositories.niche_repository import NicheRepository
+from merchandise_discovery.infrastructure.mongo.repositories.review_repository import (
+    ReviewRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
@@ -53,7 +57,9 @@ class ApplicationRuntime:
     concept_repository: ConceptRepository
     brief_repository: BriefRepository
     artwork_repository: ArtworkRepository
+    review_repository: ReviewRepository
     discovery_service: DiscoveryService
+    review_service: ReviewService
     workflow_orchestrator: WorkflowOrchestrator
     stage_executor: DiscoveryStageExecutor
 
@@ -77,6 +83,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         concept_repository = ConceptRepository(database.concepts)
         brief_repository = BriefRepository(database.briefs)
         artwork_repository = ArtworkRepository(database.artworks)
+        review_repository = ReviewRepository(database.reviews)
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,
@@ -85,6 +92,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             artwork_repository=artwork_repository,
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
+        review_service = ReviewService(run_repository, artwork_repository, review_repository)
         stage_executor = DiscoveryStageExecutor(
             seed_repository,
             intersection_repository,
@@ -109,7 +117,9 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             concept_repository=concept_repository,
             brief_repository=brief_repository,
             artwork_repository=artwork_repository,
+            review_repository=review_repository,
             discovery_service=discovery_service,
+            review_service=review_service,
             workflow_orchestrator=workflow_orchestrator,
             stage_executor=stage_executor,
         )

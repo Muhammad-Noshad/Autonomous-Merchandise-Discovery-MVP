@@ -1,7 +1,7 @@
 """Command-line entrypoint for the background workflow worker.
 
-Chunk 3 implements one safe claim/dispatch cycle. Until stage handlers are registered, the cycle
-records an explicit failure rather than leaving a run in an ambiguous running state.
+The worker executes automated stages and stops cleanly at Stage 17, where the browser owns human
+approval. This prevents a pending reviewer decision from being misreported as an unavailable stage.
 """
 
 import argparse
@@ -38,9 +38,13 @@ def main() -> None:
             return
 
         while True:
+            next_execution = runtime.workflow_orchestrator.next_runnable_stage(run.run_id)
+            if next_execution is not None and next_execution.stage_number == 17:
+                print(f"Run awaiting human approval: {run.run_id}")
+                return
             execution = runtime.workflow_orchestrator.start_next_stage(run.run_id)
             if execution is None:
-                print(f"Run completed all available stages: {run.run_id}")
+                print(f"Run completed all automated stages: {run.run_id}")
                 return
 
             active_execution = execution

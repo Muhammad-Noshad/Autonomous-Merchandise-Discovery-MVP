@@ -29,6 +29,11 @@ class ArtworkRepository:
         if artworks:
             self._collection.insert_many([to_document(artwork) for artwork in artworks])
 
+    def get_by_id(self, artwork_id: str) -> Artwork | None:
+        """Fetch one artwork so the application can enforce run ownership before review."""
+
+        return from_document(Artwork, self._collection.find_one({"artwork_id": artwork_id}))
+
     def list_for_run(self, run_id: str) -> list[Artwork]:
         """Return artwork candidates in generation order for the review page."""
 

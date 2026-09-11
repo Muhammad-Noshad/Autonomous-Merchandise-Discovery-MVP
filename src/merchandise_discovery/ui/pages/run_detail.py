@@ -55,6 +55,7 @@ def render_run_detail(
         render_pipeline(run)
     with detail_column:
         selected_stage = next(
-            stage for stage in run.stages if stage.number == run.current_stage_number
+            (stage for stage in run.stages if stage.number == run.current_stage_number),
+            run.stages[-1],
         )
         render_detail_panel(selected_stage)
