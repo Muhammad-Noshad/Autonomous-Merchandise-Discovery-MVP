@@ -8,9 +8,10 @@ import streamlit as st
 from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
-from merchandise_discovery.application.runtime import ApplicationRuntime
+from merchandise_discovery.application.runtime import ApplicationRuntime, build_runtime
 from merchandise_discovery.application.stage_runner import execute_stage
 from merchandise_discovery.domain.models.workflow import RunConfig
+from merchandise_discovery.shared.configuration import load_settings
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 
@@ -48,6 +49,20 @@ def render_run_create(
         discovery_service = runtime.discovery_service
     elif isinstance(runtime_or_service, DiscoveryService):
         discovery_service = runtime_or_service
+
+    if runtime is None and discovery_service is None:
+        runtime = st.session_state.get("application_runtime")
+        if runtime is not None:
+            discovery_service = runtime.discovery_service
+        else:
+            try:
+                settings = load_settings()
+                if settings.mongodb_uri:
+                    runtime = build_runtime(settings)
+                    st.session_state["application_runtime"] = runtime
+                    discovery_service = runtime.discovery_service
+            except Exception:
+                pass
 
     st.markdown('<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>', unsafe_allow_html=True)
     st.title("Create a discovery run")
@@ -115,7 +130,7 @@ def render_run_create(
 
                 stage_num = execution.stage_number
                 if stage_num == 1:
-                    st.write("🚀 Running Stage 1: Seed Discovery (Calling OpenAI API gpt-4o-mini for reasoning)...")
+                    st.write("🌙 Running Stage 1: Autonomous Seed Discovery (Luna evaluating candidates via OpenAI gpt-4o-mini)...")
                 else:
                     st.write(f"🚀 Running Stage {stage_num:02d}: {execution.stage_name}...")
 

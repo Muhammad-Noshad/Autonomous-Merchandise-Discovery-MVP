@@ -17,20 +17,36 @@ class SeedDiscoveryInput(BaseModel):
 
 
 class SeedAnalysis(BaseModel):
-    """Structured evaluation of a candidate seed from OpenAI reasoning."""
+    """Structured evaluation of a candidate seed from Luna reasoning."""
 
     seed_id: str
     seed_name: str
     category: str
-    merchandise_potential: str
-    target_audience_appeal: str
-    selection_reason: str
+    self_identification_strength: str = Field(
+        default="",
+        description="How strongly people self-identify with this group",
+    )
+    community_language: str = Field(
+        default="",
+        description="In-group phrases, vocabulary, jokes, or shared memes",
+    )
+    merchandise_potential: str = Field(
+        description="Analysis of commercial merchandise potential (apparel, mugs, prints, gifts)",
+    )
+    target_audience_appeal: str = Field(
+        description="Key emotional drivers, shared rituals, or cultural tensions",
+    )
+    selection_reason: str = Field(
+        description="Luna's strategic rationale for prioritizing this seed for discovery",
+    )
 
 
 class Stage1ReasoningOutput(BaseModel):
-    """Structured response model for OpenAI Stage 1 evaluation."""
+    """Structured response model for Luna Stage 1 seed discovery evaluation."""
 
-    executive_summary: str
+    executive_summary: str = Field(
+        description="Luna's strategic executive summary of the selected seed portfolio",
+    )
     evaluations: list[SeedAnalysis]
 
 

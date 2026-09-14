@@ -62,22 +62,23 @@ def _log_stage_01_results(
     output: stage_01.SeedDiscoveryOutput,
     usage: UsageMetrics,
 ) -> None:
-    """Log Stage 1 OpenAI execution results to console and persisted text log files."""
+    """Log Stage 1 Luna reasoning execution results to console and persisted text log files."""
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    agent_model = f"Luna ({usage.model})" if usage.provider != "fixture" else "Deterministic baseline"
     header = (
         f"\n{'='*80}\n"
-        f"🎯 STAGE 1: AUTONOMOUS SEED DISCOVERY EXECUTION\n"
+        f"🌙 STAGE 1: LUNA AUTONOMOUS SEED DISCOVERY\n"
         f"Timestamp: {timestamp}\n"
         f"Run ID: #{run.run_id} · '{run.title}'\n"
-        f"Provider: {usage.provider} · Model: {usage.model}\n"
+        f"Cognitive Agent: Luna · Provider: {usage.provider} · Model: {usage.model}\n"
         f"Tokens: Input={usage.input_tokens}, Output={usage.output_tokens}, Total={usage.total_tokens}\n"
         f"Estimated Cost: ${usage.estimated_cost_usd:.6f} USD\n"
         f"Selected Seeds Count: {len(output.selected_seeds)}\n"
         f"{'-'*80}\n"
-        f"EXECUTIVE SUMMARY:\n{output.executive_summary or 'Deterministic baseline selection.'}\n"
+        f"LUNA'S EXECUTIVE STRATEGY SUMMARY:\n{output.executive_summary or 'Deterministic baseline selection.'}\n"
         f"{'-'*80}\n"
-        f"SELECTED SEEDS & STRATEGIC REASONING:\n"
+        f"SELECTED SEEDS & LUNA'S STRATEGIC REASONING:\n"
     )
     seed_lines = []
     eval_by_id = {e.get("seed_id"): e for e in output.evaluations if isinstance(e, dict)}
@@ -86,12 +87,18 @@ def _log_stage_01_results(
         eval_item = eval_by_id.get(seed.seed_id)
         potential = eval_item.get("merchandise_potential", "") if eval_item else ""
         appeal = eval_item.get("target_audience_appeal", "") if eval_item else ""
+        identity_strength = eval_item.get("self_identification_strength", "") if eval_item else ""
+        community_lang = eval_item.get("community_language", "") if eval_item else ""
 
         entry = (
             f"  {i:02d}. [{seed.category.upper()}] {seed.name} (Priority: {seed.metadata.get('priority', 0)})\n"
             f"      Seed ID: {seed.seed_id}\n"
-            f"      Strategic Rationale: {reason}\n"
+            f"      Luna's Rationale: {reason}\n"
         )
+        if identity_strength:
+            entry += f"      Self-Identification Strength: {identity_strength}\n"
+        if community_lang:
+            entry += f"      Community Language / Slang: {community_lang}\n"
         if potential:
             entry += f"      Merchandise Potential: {potential}\n"
         if appeal:
@@ -294,20 +301,25 @@ class DiscoveryStageExecutor:
                     for s in candidates
                 ]
                 system_prompt = (
-                    "You are an expert merchandise discovery analyst and creative strategist. "
-                    "Evaluate the candidate seed groups deterministically based on commercial merchandise "
-                    "viability, emotional audience resonance, print-on-demand appeal, and cultural relevance. "
-                    "Maintain strict factual consistency, evaluate every candidate seed, and return valid structured output."
+                    "You are Luna, an autonomous merchandise discovery intelligence and creative strategist. "
+                    "Your role in Stage 1 is Autonomous Seed Discovery: evaluate broad candidate starting points from the knowledge base. "
+                    "In accordance with the discovery architecture, prefer identity groups with: "
+                    "(1) strong self-identification, (2) shared daily experiences and routines, "
+                    "(3) distinct community language and in-group humor, (4) high commercial merchandise and wearability potential, "
+                    "(5) high gift potential, and (6) enough sub-identities to create fertile intersections. "
+                    "Perform a rigorous, deterministic evaluation of every candidate seed and return structured output."
                 )
                 user_prompt = (
-                    f"Deterministically evaluate the following {len(candidates)} candidate seed groups for "
-                    f"autonomous merchandise discovery in run '{run.title}' (ID: {run.run_id}).\n\n"
+                    f"Luna, deterministically evaluate the following {len(candidates)} candidate seed groups for "
+                    f"run '{run.title}' (ID: {run.run_id}):\n\n"
                     f"Candidate seeds JSON:\n{json.dumps(candidate_summary, indent=2)}\n\n"
                     "For each candidate seed, provide:\n"
-                    "1. An insightful evaluation of merchandise potential (apparel, accessories, home goods, gifts).\n"
-                    "2. Target audience emotional resonance and cultural tension.\n"
-                    "3. A concise, strategic selection reason for why this seed was prioritized.\n"
-                    "Also provide a high-level executive summary of the entire seed portfolio."
+                    "1. self_identification_strength: How strongly do people identify with this group?\n"
+                    "2. community_language: Key in-group phrases, vocabulary, jokes, or shared memes.\n"
+                    "3. merchandise_potential: Specific commercial products (apparel, mugs, home decor, desk gifts).\n"
+                    "4. target_audience_appeal: Emotional drivers, shared frustrations, or rituals.\n"
+                    "5. selection_reason: Luna's strategic rationale for prioritizing this seed for discovery.\n\n"
+                    "Also provide Luna's executive strategy summary synthesizing why this seed portfolio was selected."
                 )
                 try:
                     structured_resp = self._reasoning_provider.complete_structured(
@@ -319,17 +331,17 @@ class DiscoveryStageExecutor:
                     reasoning_output = structured_resp.output
                     usage = structured_resp.usage
                 except Exception as err:
-                    logger.warning("Stage 1 OpenAI evaluation failed; falling back to deterministic baseline: %s", err)
+                    logger.warning("Stage 1 Luna evaluation failed; falling back to deterministic baseline: %s", err)
 
             output = stage_01.execute(
                 input_model,
                 seeds,
                 reasoning_output=reasoning_output,
-                model=usage.model if usage.provider != "fixture" else "deterministic",
+                model=f"Luna ({usage.model})" if usage.provider != "fixture" else "deterministic",
             )
             summary = (
-                f"Selected {len(output.selected_seeds)} seed groups with "
-                f"{'OpenAI ' + usage.model if usage.provider != 'fixture' else 'deterministic'} reasoning."
+                f"Selected {len(output.selected_seeds)} seed groups evaluated by Luna "
+                f"({usage.model if usage.provider != 'fixture' else 'deterministic'})."
             )
             _log_stage_01_results(run, output, usage)
         elif stage.stage_number == 2:

@@ -82,15 +82,16 @@ def render_database_status() -> ApplicationRuntime | None:
                 provider_mode=settings.provider_mode,
                 stop_after_stage=settings.stop_after_stage,
             )
-        except (ConfigurationError, PyMongoError) as error:
-            # Keep fixture mode available for demos, but leave an operator-visible server log with
-            # the exception class. The URI itself is deliberately excluded from the browser.
-            logger.warning("MongoDB initialization failed: %s", type(error).__name__)
-            st.error("MongoDB unavailable — showing fixture data.")
-            return None
+        except Exception as error:
+            logger.warning("Cached runtime initialization failed: %s", error)
+            try:
+                runtime = build_runtime(settings)
+            except Exception as direct_error:
+                logger.error("MongoDB direct initialization failed: %s", direct_error)
+                st.error("MongoDB unavailable — showing fixture data.")
+                return None
 
-        # A successful connection is intentionally silent; the dashboard only needs to interrupt
-        # the demo when persistence is unavailable.
+        st.session_state["application_runtime"] = runtime
         return runtime
 
 

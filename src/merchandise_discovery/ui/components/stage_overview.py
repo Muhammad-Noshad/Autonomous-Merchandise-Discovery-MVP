@@ -60,18 +60,18 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
     reasons = payload.get("selection_reasons", {})
     evaluations = _records(payload, "evaluations")
     eval_by_id = {e.get("seed_id"): e for e in evaluations}
-    model = str(payload.get("model", "deterministic"))
-    strategy_label = f"OpenAI ({model})" if "gpt" in model else "Priority baseline"
+    model = str(payload.get("model", "Luna"))
+    strategy_label = f"Luna ({model})" if "gpt" in model or "luna" in model.lower() else "Luna (Priority baseline)"
 
     _metric_row([
         ("Selected seed groups", str(len(seeds))),
-        ("Decision model", strategy_label),
-        ("Evaluated seeds", str(len(evaluations) if evaluations else len(seeds))),
+        ("Executor", "LUNA + SYSTEM"),
+        ("Cognitive Agent", "Luna (OpenAI reasoning)"),
     ])
 
     exec_summary = payload.get("executive_summary")
     if exec_summary:
-        st.info(f"💡 **OpenAI Strategic Portfolio Summary:**\n\n{exec_summary}")
+        st.info(f"🌙 **Luna's Portfolio Strategy Summary:**\n\n{exec_summary}")
 
     _section("Selected seed groups")
     for seed in seeds:
@@ -84,11 +84,15 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
             eval_item = eval_by_id.get(seed_id)
             if eval_item:
                 if eval_item.get("selection_reason"):
-                    st.markdown(f"**Strategic Rationale:** {eval_item['selection_reason']}")
+                    st.markdown(f"🌙 **Luna's Strategic Rationale:** {eval_item['selection_reason']}")
+                if eval_item.get("self_identification_strength"):
+                    st.markdown(f"🏷️ **Self-Identification Strength:** {eval_item['self_identification_strength']}")
+                if eval_item.get("community_language"):
+                    st.markdown(f"💬 **Community Language & Tropes:** {eval_item['community_language']}")
                 if eval_item.get("merchandise_potential"):
                     st.markdown(f"🛍️ **Merchandise Potential:** {eval_item['merchandise_potential']}")
                 if eval_item.get("target_audience_appeal"):
-                    st.markdown(f"🎯 **Audience Appeal:** {eval_item['target_audience_appeal']}")
+                    st.markdown(f"🎯 **Target Audience Appeal:** {eval_item['target_audience_appeal']}")
             elif isinstance(reasons, dict) and seed_id in reasons:
                 st.write(str(reasons[seed_id]))
             else:

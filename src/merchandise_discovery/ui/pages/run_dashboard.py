@@ -3,7 +3,8 @@
 import streamlit as st
 from pymongo.errors import PyMongoError
 
-from merchandise_discovery.application.runtime import ApplicationRuntime
+from merchandise_discovery.application.runtime import ApplicationRuntime, build_runtime
+from merchandise_discovery.shared.configuration import load_settings
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import (
     PAGE_ARTWORK_REVIEW,
@@ -28,6 +29,18 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
     """Route the shell to live MongoDB pages or an explicit fixture fallback."""
 
     apply_theme()
+
+    if runtime is None:
+        runtime = st.session_state.get("application_runtime")
+    if runtime is None:
+        try:
+            settings = load_settings()
+            if settings.mongodb_uri:
+                runtime = build_runtime(settings)
+                st.session_state["application_runtime"] = runtime
+        except Exception:
+            pass
+
     live_runs = None
     default_run_id = ""
 

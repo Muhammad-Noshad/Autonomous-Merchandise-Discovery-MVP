@@ -6,10 +6,13 @@ This keeps tests deterministic and prevents secrets from leaking into UI code.
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from merchandise_discovery.shared.errors import ConfigurationError
+
+ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
 @dataclass(frozen=True)
@@ -33,7 +36,10 @@ class Settings:
 def load_settings() -> Settings:
     """Load environment variables without requiring optional provider credentials at import time."""
 
-    load_dotenv()
+    if ENV_FILE.is_file():
+        load_dotenv(dotenv_path=ENV_FILE, override=True)
+    else:
+        load_dotenv(override=True)
     return Settings(
         mongodb_uri=os.getenv("MONGODB_URI"),
         mongodb_database=os.getenv("MONGODB_DATABASE", "merchandise_discovery"),
@@ -41,7 +47,9 @@ def load_settings() -> Settings:
         xai_api_key=os.getenv("XAI_API_KEY"),
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
         max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
-        openai_reasoning_model=os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini"),
+        openai_reasoning_model=os.getenv(
+            "LUNA_MODEL", os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini")
+        ),
         openai_input_price_per_million=float(os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")),
         openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
         xai_image_price=float(os.getenv("XAI_IMAGE_PRICE", "0.02")),
