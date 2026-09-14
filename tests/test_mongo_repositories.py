@@ -5,9 +5,11 @@ from unittest.mock import Mock
 import pytest
 from pymongo.errors import DuplicateKeyError
 
+from merchandise_discovery.domain.models.artifacts import SeedItem
 from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import WorkflowRun
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
+from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
 )
@@ -129,6 +131,23 @@ def test_run_repository_rejects_lost_optimistic_lock() -> None:
             expected_version=3,
             status=RunStatus.COMPLETED,
         )
+
+
+def test_seed_repository_seeds_only_an_empty_collection() -> None:
+    """Startup seeding inserts validated knowledge once and preserves existing records."""
+
+    collection = Mock()
+    collection.find_one.return_value = None
+    repository = SeedRepository(collection)
+    seeds = [SeedItem(category="audience", name="Remote workers")]
+
+    assert repository.seed_if_empty(seeds) is True
+    collection.insert_many.assert_called_once()
+
+    collection.reset_mock()
+    collection.find_one.return_value = {"_id": "existing"}
+    assert repository.seed_if_empty(seeds) is False
+    collection.insert_many.assert_not_called()
 
 
 def test_stage_repository_initializes_optional_stage_as_skipped() -> None:

@@ -67,6 +67,10 @@ initialization automatically. MongoDB databases are created lazily, so the app c
 `_app_metadata` infrastructure collection and the workflow indexes; the configured database then
 appears in Compass or `show dbs`.
 
+At runtime startup, an empty MongoDB `seeds` collection is populated from
+`data/seed_knowledge.json`. Existing seed records are preserved and are not overwritten by later
+application starts.
+
 The current client demo defaults to `MVP_STOP_AFTER_STAGE=1`. Stage 1 is executed and the run is
 persisted as `paused` so later stages do not run until the client approves expanding the funnel.
 The stop boundary is shared by Streamlit and the worker.

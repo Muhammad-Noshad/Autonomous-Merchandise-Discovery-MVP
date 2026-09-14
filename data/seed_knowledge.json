@@ -3,167 +3,1187 @@
     "seed_id": "audience_remote_workers",
     "category": "audience",
     "name": "Remote workers",
+    "parent": "Modern work lifestyles",
     "metadata": {
       "priority": 10,
-      "affinity_tags": ["decompression", "focus", "humor"],
+      "affinity_tags": [
+        "focus",
+        "isolation",
+        "work-life-boundaries",
+        "digital-routines"
+      ],
       "dimensions": [
-        {"type": "routine", "value": "blurred work-home boundaries"},
-        {"type": "tension", "value": "camera fatigue and context switching"},
-        {"type": "language", "value": "closing the laptop"}
+        {
+          "type": "routine",
+          "value": "working from home most weekdays"
+        },
+        {
+          "type": "tension",
+          "value": "blurred work and personal boundaries"
+        },
+        {
+          "type": "language",
+          "value": "camera fatigue"
+        },
+        {
+          "type": "ritual",
+          "value": "closing the laptop at the end of the day"
+        }
       ]
     }
   },
   {
-    "seed_id": "audience_night_shift_nurses",
+    "seed_id": "audience_new_parents",
     "category": "audience",
-    "name": "Night-shift nurses",
-    "metadata": {
-      "priority": 9,
-      "affinity_tags": ["decompression", "care", "humor"],
-      "dimensions": [
-        {"type": "routine", "value": "sleep inversion"},
-        {"type": "tension", "value": "high-responsibility fatigue"},
-        {"type": "language", "value": "dark humor after a long shift"}
-      ]
-    }
-  },
-  {
-    "seed_id": "audience_first_time_parents",
-    "category": "audience",
-    "name": "First-time parents",
-    "metadata": {
-      "priority": 8,
-      "affinity_tags": ["care", "humor", "ritual"],
-      "dimensions": [
-        {"type": "routine", "value": "micro-breaks between responsibilities"},
-        {"type": "tension", "value": "sleep deprivation and identity shift"},
-        {"type": "language", "value": "celebrating tiny wins"}
-      ]
-    }
-  },
-  {
-    "seed_id": "audience_teachers",
-    "category": "audience",
-    "name": "Teachers",
-    "metadata": {
-      "priority": 7,
-      "affinity_tags": ["care", "humor", "decompression"],
-      "dimensions": [
-        {"type": "routine", "value": "classroom improvisation"},
-        {"type": "tension", "value": "emotional labor"},
-        {"type": "language", "value": "after-school decompression"}
-      ]
-    }
-  },
-  {
-    "seed_id": "interest_home_gardeners",
-    "category": "interest",
-    "name": "Home gardeners",
+    "name": "New parents",
+    "parent": "Early family life",
     "metadata": {
       "priority": 10,
-      "affinity_tags": ["ritual", "focus", "decompression"],
+      "affinity_tags": [
+        "caregiving",
+        "sleep-disruption",
+        "shared-responsibility",
+        "adaptation"
+      ],
       "dimensions": [
-        {"type": "ritual", "value": "slow care rituals"},
-        {"type": "outcome", "value": "visible progress"},
-        {"type": "language", "value": "growth takes time"}
+        {
+          "type": "routine",
+          "value": "planning days around feeding and naps"
+        },
+        {
+          "type": "tension",
+          "value": "balancing recovery, care, and personal time"
+        },
+        {
+          "type": "emotion",
+          "value": "tenderness mixed with overwhelm"
+        },
+        {
+          "type": "language",
+          "value": "sleep window"
+        }
       ]
     }
   },
   {
-    "seed_id": "interest_pet_rescuers",
-    "category": "interest",
-    "name": "Pet rescuers",
+    "seed_id": "audience_healthcare_shift_workers",
+    "category": "audience",
+    "name": "Healthcare shift workers",
+    "parent": "Essential work communities",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "service",
+        "fatigue",
+        "teamwork",
+        "resilience"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "working rotating or extended shifts"
+        },
+        {
+          "type": "tension",
+          "value": "recovering energy around irregular hours"
+        },
+        {
+          "type": "behavior",
+          "value": "coordinating closely with coworkers"
+        },
+        {
+          "type": "language",
+          "value": "on call"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_first_time_managers",
+    "category": "audience",
+    "name": "First-time managers",
+    "parent": "Career transition stages",
     "metadata": {
       "priority": 9,
-      "affinity_tags": ["care", "humor", "decompression"],
+      "affinity_tags": [
+        "leadership",
+        "confidence",
+        "communication",
+        "responsibility"
+      ],
       "dimensions": [
-        {"type": "ritual", "value": "chaotic affection"},
-        {"type": "outcome", "value": "comfort through animals"},
-        {"type": "language", "value": "rescue is a verb"}
+        {
+          "type": "routine",
+          "value": "running one-to-one meetings"
+        },
+        {
+          "type": "tension",
+          "value": "balancing authority with approachability"
+        },
+        {
+          "type": "emotion",
+          "value": "pride mixed with uncertainty"
+        },
+        {
+          "type": "language",
+          "value": "managing up"
+        }
       ]
     }
   },
   {
-    "seed_id": "interest_tabletop_gamers",
-    "category": "interest",
-    "name": "Tabletop gamers",
-    "metadata": {
-      "priority": 8,
-      "affinity_tags": ["humor", "focus", "decompression"],
-      "dimensions": [
-        {"type": "ritual", "value": "shared rules and rituals"},
-        {"type": "outcome", "value": "playful escapism"},
-        {"type": "language", "value": "one more round"}
-      ]
-    }
-  },
-  {
-    "seed_id": "interest_amateur_bakers",
-    "category": "interest",
-    "name": "Amateur bakers",
-    "metadata": {
-      "priority": 7,
-      "affinity_tags": ["ritual", "focus", "care"],
-      "dimensions": [
-        {"type": "ritual", "value": "measured creativity"},
-        {"type": "outcome", "value": "small wins"},
-        {"type": "language", "value": "let it proof"}
-      ]
-    }
-  },
-  {
-    "seed_id": "value_practical_minimalists",
-    "category": "value",
-    "name": "Practical minimalists",
-    "metadata": {
-      "priority": 8,
-      "affinity_tags": ["focus", "ritual"],
-      "dimensions": [
-        {"type": "preference", "value": "useful objects"},
-        {"type": "tension", "value": "anti-clutter"},
-        {"type": "language", "value": "keep it simple"}
-      ]
-    }
-  },
-  {
-    "seed_id": "value_sustainability_shoppers",
-    "category": "value",
-    "name": "Sustainability-minded shoppers",
-    "metadata": {
-      "priority": 7,
-      "affinity_tags": ["care", "ritual"],
-      "dimensions": [
-        {"type": "preference", "value": "buy less and choose well"},
-        {"type": "tension", "value": "responsible consumption"},
-        {"type": "language", "value": "repair over replace"}
-      ]
-    }
-  },
-  {
-    "seed_id": "value_humor_first_optimists",
-    "category": "value",
-    "name": "Humor-first optimists",
-    "metadata": {
-      "priority": 6,
-      "affinity_tags": ["humor", "decompression"],
-      "dimensions": [
-        {"type": "preference", "value": "inside jokes"},
-        {"type": "tension", "value": "finding lightness under pressure"},
-        {"type": "language", "value": "laughing through it"}
-      ]
-    }
-  },
-  {
-    "seed_id": "value_neurodivergent_creatives",
-    "category": "value",
-    "name": "Neurodivergent creatives",
+    "seed_id": "audience_multigenerational_caregivers",
+    "category": "audience",
+    "name": "Multigenerational caregivers",
+    "parent": "Family caregiving roles",
     "metadata": {
       "priority": 9,
-      "affinity_tags": ["focus", "decompression"],
+      "affinity_tags": [
+        "caregiving",
+        "coordination",
+        "patience",
+        "family-responsibility"
+      ],
       "dimensions": [
-        {"type": "preference", "value": "sensory control"},
-        {"type": "tension", "value": "protecting creative focus"},
-        {"type": "language", "value": "quiet is productive"}
+        {
+          "type": "routine",
+          "value": "coordinating care across age groups"
+        },
+        {
+          "type": "tension",
+          "value": "limited personal time"
+        },
+        {
+          "type": "behavior",
+          "value": "tracking appointments and household needs"
+        },
+        {
+          "type": "emotion",
+          "value": "devotion with recurring fatigue"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_university_students",
+    "category": "audience",
+    "name": "University students",
+    "parent": "Education life stages",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "learning",
+        "independence",
+        "budget-conscious",
+        "social-transition"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "switching between classes, study, and social time"
+        },
+        {
+          "type": "tension",
+          "value": "managing deadlines with limited money"
+        },
+        {
+          "type": "context",
+          "value": "shared housing or campus life"
+        },
+        {
+          "type": "language",
+          "value": "crunch week"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_freelancers",
+    "category": "audience",
+    "name": "Freelancers",
+    "parent": "Independent work lifestyles",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "independence",
+        "uncertainty",
+        "self-management",
+        "client-work"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "juggling multiple client projects"
+        },
+        {
+          "type": "tension",
+          "value": "uneven income and shifting priorities"
+        },
+        {
+          "type": "behavior",
+          "value": "setting personal schedules"
+        },
+        {
+          "type": "language",
+          "value": "scope creep"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_empty_nesters",
+    "category": "audience",
+    "name": "Empty nesters",
+    "parent": "Later family life transitions",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "renewal",
+        "family-connection",
+        "new-routines",
+        "reflection"
+      ],
+      "dimensions": [
+        {
+          "type": "context",
+          "value": "home life changing after children move out"
+        },
+        {
+          "type": "emotion",
+          "value": "pride mixed with adjustment"
+        },
+        {
+          "type": "preference",
+          "value": "more time for personal interests"
+        },
+        {
+          "type": "ritual",
+          "value": "regular check-ins with adult children"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_night_shift_workers",
+    "category": "audience",
+    "name": "Night-shift workers",
+    "parent": "Nonstandard work schedules",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "sleep-management",
+        "quiet-hours",
+        "routine",
+        "adaptation"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "sleeping during daytime hours"
+        },
+        {
+          "type": "tension",
+          "value": "social schedules rarely match work hours"
+        },
+        {
+          "type": "preference",
+          "value": "low-disruption environments"
+        },
+        {
+          "type": "language",
+          "value": "flip the schedule"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_small_business_owners",
+    "category": "audience",
+    "name": "Small business owners",
+    "parent": "Entrepreneurial communities",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "ownership",
+        "time-pressure",
+        "customer-focus",
+        "resourcefulness"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "switching between operations and customer needs"
+        },
+        {
+          "type": "tension",
+          "value": "many responsibilities with limited bandwidth"
+        },
+        {
+          "type": "behavior",
+          "value": "making frequent practical tradeoffs"
+        },
+        {
+          "type": "language",
+          "value": "wearing many hats"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_long_distance_commuters",
+    "category": "audience",
+    "name": "Long-distance commuters",
+    "parent": "Mobility-centered lifestyles",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "travel-time",
+        "routine",
+        "patience",
+        "personal-time"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "spending substantial time in transit"
+        },
+        {
+          "type": "tension",
+          "value": "work travel reducing personal time"
+        },
+        {
+          "type": "preference",
+          "value": "predictable and efficient routines"
+        },
+        {
+          "type": "ritual",
+          "value": "using commute time to decompress"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "audience_recent_relocators",
+    "category": "audience",
+    "name": "Recent relocators",
+    "parent": "Life transition communities",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "adaptation",
+        "belonging",
+        "exploration",
+        "new-routines"
+      ],
+      "dimensions": [
+        {
+          "type": "context",
+          "value": "settling into a new city or region"
+        },
+        {
+          "type": "tension",
+          "value": "building familiarity and social connection"
+        },
+        {
+          "type": "behavior",
+          "value": "exploring local services and neighborhoods"
+        },
+        {
+          "type": "emotion",
+          "value": "curiosity mixed with homesickness"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_home_cooking",
+    "category": "interest",
+    "name": "Home cooking",
+    "parent": "Food and kitchen interests",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "experimentation",
+        "comfort",
+        "sharing",
+        "skill-building"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "planning and preparing meals at home"
+        },
+        {
+          "type": "preference",
+          "value": "flexible recipes with room to improvise"
+        },
+        {
+          "type": "ritual",
+          "value": "cooking a familiar favorite on busy days"
+        },
+        {
+          "type": "language",
+          "value": "mise en place"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_hiking",
+    "category": "interest",
+    "name": "Hiking",
+    "parent": "Outdoor recreation",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "nature",
+        "movement",
+        "exploration",
+        "quiet"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "planning walks on local trails"
+        },
+        {
+          "type": "tension",
+          "value": "fitting outdoor time around obligations"
+        },
+        {
+          "type": "preference",
+          "value": "scenic routes and manageable pacing"
+        },
+        {
+          "type": "ritual",
+          "value": "checking weather before heading out"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_reading_fiction",
+    "category": "interest",
+    "name": "Reading fiction",
+    "parent": "Literary and storytelling interests",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "imagination",
+        "escape",
+        "reflection",
+        "storytelling"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "reading in small daily pockets"
+        },
+        {
+          "type": "emotion",
+          "value": "absorption in unfamiliar worlds"
+        },
+        {
+          "type": "preference",
+          "value": "character-driven or immersive stories"
+        },
+        {
+          "type": "ritual",
+          "value": "reading before sleep"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_gardening",
+    "category": "interest",
+    "name": "Gardening",
+    "parent": "Home and nature hobbies",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "patience",
+        "growth",
+        "seasonality",
+        "hands-on-care"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "checking plants and soil regularly"
+        },
+        {
+          "type": "tension",
+          "value": "weather and pests disrupting plans"
+        },
+        {
+          "type": "behavior",
+          "value": "learning through observation and adjustment"
+        },
+        {
+          "type": "language",
+          "value": "growing season"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_strength_training",
+    "category": "interest",
+    "name": "Strength training",
+    "parent": "Fitness and movement interests",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "progress",
+        "discipline",
+        "energy",
+        "consistency"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "following repeated training sessions"
+        },
+        {
+          "type": "preference",
+          "value": "measurable progression over novelty"
+        },
+        {
+          "type": "tension",
+          "value": "staying consistent during busy periods"
+        },
+        {
+          "type": "language",
+          "value": "personal best"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_dog_companionship",
+    "category": "interest",
+    "name": "Dog companionship",
+    "parent": "Pet-centered interests",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "companionship",
+        "care",
+        "play",
+        "routine"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "daily walks and feeding"
+        },
+        {
+          "type": "emotion",
+          "value": "affection and responsibility"
+        },
+        {
+          "type": "behavior",
+          "value": "planning around a dog's needs"
+        },
+        {
+          "type": "ritual",
+          "value": "greeting the dog after returning home"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_board_games",
+    "category": "interest",
+    "name": "Board games",
+    "parent": "Social play and strategy",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "strategy",
+        "socializing",
+        "competition",
+        "shared-rituals"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "gathering for casual game sessions"
+        },
+        {
+          "type": "preference",
+          "value": "clear rules with replay value"
+        },
+        {
+          "type": "emotion",
+          "value": "friendly anticipation"
+        },
+        {
+          "type": "language",
+          "value": "house rules"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_photography",
+    "category": "interest",
+    "name": "Photography",
+    "parent": "Creative visual hobbies",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "observation",
+        "creativity",
+        "memory",
+        "craft"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "noticing scenes worth capturing"
+        },
+        {
+          "type": "behavior",
+          "value": "experimenting with composition and light"
+        },
+        {
+          "type": "preference",
+          "value": "authentic moments over staged perfection"
+        },
+        {
+          "type": "language",
+          "value": "golden hour"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_baking",
+    "category": "interest",
+    "name": "Baking",
+    "parent": "Food and craft interests",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "precision",
+        "comfort",
+        "sharing",
+        "patience"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "measuring and preparing ingredients carefully"
+        },
+        {
+          "type": "tension",
+          "value": "small mistakes affecting results"
+        },
+        {
+          "type": "ritual",
+          "value": "sharing fresh bakes with others"
+        },
+        {
+          "type": "language",
+          "value": "proofing time"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_cycling",
+    "category": "interest",
+    "name": "Cycling",
+    "parent": "Active outdoor interests",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "movement",
+        "exploration",
+        "endurance",
+        "independence"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "riding for transport or recreation"
+        },
+        {
+          "type": "preference",
+          "value": "routes with manageable traffic"
+        },
+        {
+          "type": "tension",
+          "value": "weather limiting planned rides"
+        },
+        {
+          "type": "language",
+          "value": "cadence"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_live_music",
+    "category": "interest",
+    "name": "Live music",
+    "parent": "Entertainment and cultural interests",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "energy",
+        "community",
+        "discovery",
+        "shared-experience"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "seeking performances by familiar and new artists"
+        },
+        {
+          "type": "emotion",
+          "value": "excitement in a shared crowd"
+        },
+        {
+          "type": "preference",
+          "value": "memorable atmosphere over polished perfection"
+        },
+        {
+          "type": "ritual",
+          "value": "saving favorite songs after a show"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "interest_collecting_records",
+    "category": "interest",
+    "name": "Record collecting",
+    "parent": "Collecting and music interests",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "discovery",
+        "nostalgia",
+        "curation",
+        "tactile-experience"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "browsing for interesting releases"
+        },
+        {
+          "type": "preference",
+          "value": "physical ownership and careful curation"
+        },
+        {
+          "type": "behavior",
+          "value": "organizing a collection by personal logic"
+        },
+        {
+          "type": "language",
+          "value": "deep cut"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_simplicity",
+    "category": "value",
+    "name": "Simplicity",
+    "parent": "Everyday decision values",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "clarity",
+        "focus",
+        "ease",
+        "intentionality"
+      ],
+      "dimensions": [
+        {
+          "type": "preference",
+          "value": "fewer choices with clear purpose"
+        },
+        {
+          "type": "behavior",
+          "value": "removing unnecessary complexity"
+        },
+        {
+          "type": "tension",
+          "value": "too many options creating friction"
+        },
+        {
+          "type": "language",
+          "value": "keep it simple"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_creativity",
+    "category": "value",
+    "name": "Creativity",
+    "parent": "Self-expression values",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "expression",
+        "curiosity",
+        "originality",
+        "experimentation"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "trying new approaches to familiar tasks"
+        },
+        {
+          "type": "emotion",
+          "value": "energy from making something personal"
+        },
+        {
+          "type": "tension",
+          "value": "routine becoming mentally stale"
+        },
+        {
+          "type": "language",
+          "value": "make it your own"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_community",
+    "category": "value",
+    "name": "Community",
+    "parent": "Social connection values",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": [
+        "belonging",
+        "mutual-support",
+        "participation",
+        "shared-purpose"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "showing up for shared activities"
+        },
+        {
+          "type": "emotion",
+          "value": "warmth from feeling included"
+        },
+        {
+          "type": "tension",
+          "value": "disconnection despite busy social environments"
+        },
+        {
+          "type": "ritual",
+          "value": "checking in on people regularly"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_independence",
+    "category": "value",
+    "name": "Independence",
+    "parent": "Personal agency values",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "autonomy",
+        "self-direction",
+        "choice",
+        "confidence"
+      ],
+      "dimensions": [
+        {
+          "type": "preference",
+          "value": "having room to make personal decisions"
+        },
+        {
+          "type": "behavior",
+          "value": "solving problems without excessive oversight"
+        },
+        {
+          "type": "tension",
+          "value": "constraints that limit flexibility"
+        },
+        {
+          "type": "language",
+          "value": "do it my way"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_sustainability",
+    "category": "value",
+    "name": "Sustainability",
+    "parent": "Long-term stewardship values",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "resourcefulness",
+        "durability",
+        "responsibility",
+        "long-term-thinking"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "reducing waste where practical"
+        },
+        {
+          "type": "preference",
+          "value": "durable choices over disposable ones"
+        },
+        {
+          "type": "tension",
+          "value": "convenience conflicting with lower-impact habits"
+        },
+        {
+          "type": "language",
+          "value": "use what you have"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_humor",
+    "category": "value",
+    "name": "Humor",
+    "parent": "Emotional and social values",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": [
+        "levity",
+        "connection",
+        "perspective",
+        "playfulness"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "using jokes to ease everyday tension"
+        },
+        {
+          "type": "emotion",
+          "value": "relief through shared laughter"
+        },
+        {
+          "type": "preference",
+          "value": "warm, observational humor"
+        },
+        {
+          "type": "language",
+          "value": "laugh it off"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_privacy",
+    "category": "value",
+    "name": "Privacy",
+    "parent": "Personal boundary values",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "boundaries",
+        "control",
+        "discretion",
+        "trust"
+      ],
+      "dimensions": [
+        {
+          "type": "preference",
+          "value": "sharing personal information selectively"
+        },
+        {
+          "type": "behavior",
+          "value": "reviewing who has access to personal details"
+        },
+        {
+          "type": "tension",
+          "value": "convenience requiring more disclosure than preferred"
+        },
+        {
+          "type": "language",
+          "value": "need to know"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_comfort",
+    "category": "value",
+    "name": "Comfort",
+    "parent": "Everyday well-being values",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "ease",
+        "rest",
+        "familiarity",
+        "recovery"
+      ],
+      "dimensions": [
+        {
+          "type": "preference",
+          "value": "low-friction routines that feel physically easy"
+        },
+        {
+          "type": "emotion",
+          "value": "relief in familiar surroundings"
+        },
+        {
+          "type": "ritual",
+          "value": "creating a calm transition at day's end"
+        },
+        {
+          "type": "tension",
+          "value": "constant busyness crowding out rest"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_achievement",
+    "category": "value",
+    "name": "Achievement",
+    "parent": "Growth and performance values",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": [
+        "progress",
+        "mastery",
+        "discipline",
+        "recognition"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "setting goals and tracking progress"
+        },
+        {
+          "type": "emotion",
+          "value": "satisfaction from visible improvement"
+        },
+        {
+          "type": "tension",
+          "value": "high standards competing with limited time"
+        },
+        {
+          "type": "language",
+          "value": "next milestone"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_slow_living",
+    "category": "value",
+    "name": "Slow living",
+    "parent": "Intentional lifestyle values",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "presence",
+        "pace",
+        "mindfulness",
+        "intentionality"
+      ],
+      "dimensions": [
+        {
+          "type": "preference",
+          "value": "unhurried routines with fewer transitions"
+        },
+        {
+          "type": "ritual",
+          "value": "making time for quiet meals or walks"
+        },
+        {
+          "type": "tension",
+          "value": "constant urgency from packed schedules"
+        },
+        {
+          "type": "language",
+          "value": "no rush"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_reliability",
+    "category": "value",
+    "name": "Reliability",
+    "parent": "Trust and consistency values",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "consistency",
+        "dependability",
+        "trust",
+        "follow-through"
+      ],
+      "dimensions": [
+        {
+          "type": "behavior",
+          "value": "doing what was promised"
+        },
+        {
+          "type": "preference",
+          "value": "predictable systems and clear expectations"
+        },
+        {
+          "type": "tension",
+          "value": "last-minute changes creating avoidable stress"
+        },
+        {
+          "type": "language",
+          "value": "count on it"
+        }
+      ]
+    }
+  },
+  {
+    "seed_id": "value_learning",
+    "category": "value",
+    "name": "Continuous learning",
+    "parent": "Growth and curiosity values",
+    "metadata": {
+      "priority": 7,
+      "affinity_tags": [
+        "curiosity",
+        "adaptability",
+        "skill-building",
+        "reflection"
+      ],
+      "dimensions": [
+        {
+          "type": "routine",
+          "value": "making time to learn something new"
+        },
+        {
+          "type": "behavior",
+          "value": "seeking feedback and useful explanations"
+        },
+        {
+          "type": "tension",
+          "value": "limited attention across many interests"
+        },
+        {
+          "type": "language",
+          "value": "still learning"
+        }
       ]
     }
   }

@@ -52,6 +52,7 @@ from merchandise_discovery.infrastructure.providers.research_provider import (
     OpenAIWebResearchProvider,
 )
 from merchandise_discovery.shared.configuration import Settings
+from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
 
 @dataclass
@@ -101,6 +102,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         brief_repository = BriefRepository(database.briefs)
         artwork_repository = ArtworkRepository(database.artworks)
         review_repository = ReviewRepository(database.reviews)
+        if not seed_repository.has_records():
+            seed_repository.seed_if_empty(load_seed_fixture())
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,

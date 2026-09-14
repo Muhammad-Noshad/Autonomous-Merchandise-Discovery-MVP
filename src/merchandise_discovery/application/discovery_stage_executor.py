@@ -51,7 +51,6 @@ from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_rep
 from merchandise_discovery.infrastructure.providers.image_provider import ImageProvider
 from merchandise_discovery.infrastructure.providers.reasoning_provider import ReasoningProvider
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
-from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
 logger = logging.getLogger(__name__)
 
@@ -280,8 +279,7 @@ class DiscoveryStageExecutor:
             input_model = stage_01.SeedDiscoveryInput.model_validate(input_data)
             seeds = self._seeds.list_all()
             if not seeds:
-                seeds = load_seed_fixture()
-                self._seeds.replace_all(seeds)
+                raise ValueError("Seed knowledge is empty. Restart the application to seed MongoDB.")
 
             candidates = stage_01.select_candidate_seeds(input_model, seeds)
             reasoning_output = None
