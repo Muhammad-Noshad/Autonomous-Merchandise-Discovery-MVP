@@ -12,7 +12,7 @@ from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.application.stage_runner import execute_stage
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
-from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
+from merchandise_discovery.ui.components.layout import PAGE_RUNS, navigate_to
 
 
 def build_run_config(
@@ -147,4 +147,5 @@ def render_run_create(
 
     st.session_state["created_run_id"] = run.run_id
     st.session_state["selected_run_id"] = run.run_id
-    navigate_to(PAGE_RUN_DETAIL, run.run_id)
+    # Detail is intentionally reached only through an explicit run selection on the Runs page.
+    navigate_to(PAGE_RUNS)

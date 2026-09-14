@@ -18,7 +18,6 @@ PAGE_ARTWORK_REVIEW = "Artwork Review"
 PAGE_OPTIONS = [
     PAGE_RUNS,
     PAGE_CREATE_RUN,
-    PAGE_RUN_DETAIL,
     PAGE_NICHES,
     PAGE_CONCEPTS,
     PAGE_ARTWORK_REVIEW,
@@ -87,16 +86,11 @@ def render_sidebar(
                     color = status_color_map.get(status_str.lower(), "#8B5CF6")
                     short_id = f"#{r_id[:8]}" if len(r_id) > 8 else f"#{r_id}"
 
-                    col1, col2 = st.columns([0.7, 0.3])
-                    with col1:
-                        st.markdown(
-                            f'<span style="font-size:0.8rem;"><span style="color:{color};">●</span> '
-                            f'<strong>{short_id}</strong> · {status_str}</span>',
-                            unsafe_allow_html=True,
-                        )
-                    with col2:
-                        if st.button("View", key=f"sidebar-open-{r_id}", use_container_width=True):
-                            navigate_to(PAGE_RUN_DETAIL, r_id)
+                    st.markdown(
+                        f'<span style="font-size:0.8rem;"><span style="color:{color};">●</span> '
+                        f'<strong>{short_id}</strong> · {status_str}</span>',
+                        unsafe_allow_html=True,
+                    )
         else:
             fallback_runs = [
                 ("#017", "In progress", "12m ago", "#8B5CF6"),
