@@ -60,6 +60,24 @@ def apply_theme() -> None:
             box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18);
         }
 
+        /* Keep long stage payloads inside their own card so the pipeline remains scannable. The
+           same shared rule also protects nested audit/log expanders from taking over the page. */
+        [data-testid="stExpander"] details[open] > div {
+            max-height: 34rem;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding-right: 0.35rem;
+        }
+
+        [data-testid="stExpander"] details[open] > div::-webkit-scrollbar {
+            width: 0.45rem;
+        }
+
+        [data-testid="stExpander"] details[open] > div::-webkit-scrollbar-thumb {
+            background: rgba(196, 181, 253, 0.35);
+            border-radius: 999px;
+        }
+
         .opus-muted { color: var(--opus-muted); }
         .opus-primary { color: var(--opus-primary); }
         .opus-success { color: var(--opus-success); }
@@ -116,4 +134,3 @@ def apply_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
-

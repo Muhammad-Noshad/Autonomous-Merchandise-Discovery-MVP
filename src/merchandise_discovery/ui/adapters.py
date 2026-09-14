@@ -58,6 +58,32 @@ def _latest_stages(stages: list[StageExecution]) -> list[StageExecution]:
     return [latest[number] for number in sorted(latest)]
 
 
+def _stage_metrics(stage: StageExecution) -> dict[str, str]:
+    """Build operational and provider metrics without reporting fake zero-cost AI usage."""
+
+    metrics = {
+        "Attempt": str(stage.attempt_number),
+        "State version": str(stage.version),
+    }
+    has_provider_usage = (
+        stage.usage.provider != "fixture"
+        or stage.usage.total_tokens > 0
+        or stage.usage.image_count > 0
+        or stage.usage.estimated_cost_usd > 0
+    )
+    if has_provider_usage:
+        metrics.update(
+            {
+                "Provider": stage.usage.provider,
+                "Model": stage.usage.model,
+                "Tokens": f"{stage.usage.total_tokens:,}",
+                "Est. cost": f"${stage.usage.estimated_cost_usd:.6f}"
+                + (" · estimated" if stage.usage.cost_is_estimate else ""),
+            }
+        )
+    return metrics
+
+
 def _evidence_fixtures(payload: dict) -> list[EvidenceFixture]:
     """Map Stage 6's serialized evidence into the citations used by the detail panel."""
 
@@ -123,15 +149,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
             inputs={str(key): str(value) for key, value in stage.input_data.items()},
             input_payload=stage.input_data,
             output_payload=stage.output_data,
-            metrics={
-                "Attempt": str(stage.attempt_number),
-                "State version": str(stage.version),
-                "Provider": stage.usage.provider,
-                "Model": stage.usage.model,
-                "Tokens": f"{stage.usage.total_tokens:,}",
-                "Est. cost": f"${stage.usage.estimated_cost_usd:.6f}"
-                + (" · estimated" if stage.usage.cost_is_estimate else ""),
-            },
+            metrics=_stage_metrics(stage),
             evidence=_evidence_fixtures(stage.output_data),
             artifacts=[str(item) for item in stage.output_data.get("artifacts", [])]
             if isinstance(stage.output_data.get("artifacts", []), list)

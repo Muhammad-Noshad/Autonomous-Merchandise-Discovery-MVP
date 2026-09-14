@@ -74,6 +74,9 @@ def render_run_detail(
             st.success("Run created and persisted.")
         del st.session_state["created_run_id"]
 
+    if st.button("← Back to runs", key=f"back-to-runs-{run.run_id}"):
+        navigate_to(PAGE_RUNS)
+
     render_run_header(run)
     st.divider()
 
@@ -112,19 +115,13 @@ def render_run_detail_with_polling(
     """Refresh live MongoDB detail snapshots without moving durable state into Streamlit.
 
     Streamlit fragments provide the MVP's lightweight push-like experience by re-running only the
-    detail view. The fallback keeps the same page usable on older Streamlit versions and exposes a
-    manual refresh control instead of requiring an HTTP/SSE server.
+    detail view. The fallback keeps the same page usable on older Streamlit versions without
+    exposing a second refresh control in the detail interface.
     """
 
     if discovery_service is None or not hasattr(st, "fragment"):
-        if st.button("Refresh now", key=f"refresh-run-{run_id}"):
-            st.rerun()
         render_run_detail(run_id, discovery_service)
         return
-
-    st.caption("Live status refreshes automatically every 3 seconds.")
-    if st.button("Refresh now", key=f"refresh-run-{run_id}"):
-        st.rerun()
 
     @st.fragment(run_every="3s")
     def render_live_snapshot() -> None:

@@ -21,7 +21,7 @@ class SeedDiscoveryInput(BaseModel):
 
 
 class SeedAnalysis(BaseModel):
-    """Structured evaluation of a candidate seed from Luna reasoning."""
+    """Structured evaluation of a candidate seed from the reasoning provider."""
 
     seed_id: str
     seed_name: str
@@ -41,15 +41,15 @@ class SeedAnalysis(BaseModel):
         description="Key emotional drivers, shared rituals, or cultural tensions",
     )
     selection_reason: str = Field(
-        description="Luna's strategic rationale for prioritizing this seed for discovery",
+        description="Provider rationale for prioritizing this seed for discovery",
     )
 
 
 class Stage1ReasoningOutput(BaseModel):
-    """Structured response model for Luna Stage 1 seed discovery evaluation."""
+    """Structured response model for Stage 1 provider evaluation."""
 
     executive_summary: str = Field(
-        description="Luna's strategic executive summary of the selected seed portfolio",
+        description="Provider executive summary of the selected seed portfolio",
     )
     evaluations: list[SeedAnalysis]
 

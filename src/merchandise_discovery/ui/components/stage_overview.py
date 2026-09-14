@@ -56,49 +56,49 @@ def _section(title: str) -> None:
 
 
 def _render_seed_discovery(payload: dict[str, Any]) -> None:
+    """Show the Stage 1 decision summary without turning the pipeline card into a transcript."""
+
     seeds = _records(payload, "selected_seeds")
     reasons = payload.get("selection_reasons", {})
     evaluations = _records(payload, "evaluations")
     eval_by_id = {e.get("seed_id"): e for e in evaluations}
+
+    category_counts = {
+        category: sum(
+            _text(seed, "category", default="Unknown").lower() == category
+            for seed in seeds
+        )
+        for category in ("audience", "interest", "value")
+    }
     _metric_row([
-        ("Selected seed groups", str(len(seeds))),
+        ("Audience selected", str(category_counts["audience"])),
+        ("Interest selected", str(category_counts["interest"])),
+        ("Value selected", str(category_counts["value"])),
+    ])
+    _metric_row([
         ("Selection seed", str(payload.get("selection_seed", "Not recorded"))),
-        ("Executor", "LUNA + SYSTEM"),
-        ("Cognitive Agent", "Luna (OpenAI reasoning)"),
+        ("Total selected", str(len(seeds))),
     ])
 
-    exec_summary = payload.get("executive_summary")
-    if exec_summary:
-        st.info(f"🌙 **Luna's Portfolio Strategy Summary:**\n\n{exec_summary}")
-
     _section("Selected seed groups")
+    rows = []
     for seed in seeds:
         seed_id = seed.get("seed_id", "")
-        with st.container(border=True):
-            category = _text(seed, "category").upper()
-            priority = _text(seed.get("metadata", {}), "priority", default="0")
-            st.markdown(f"**{_text(seed, 'name')}** &nbsp; `[{category}]` &nbsp; `Priority: {priority}`")
-
-            eval_item = eval_by_id.get(seed_id)
-            if eval_item:
-                if eval_item.get("selection_reason"):
-                    st.markdown(f"🌙 **Luna's Strategic Rationale:** {eval_item['selection_reason']}")
-                if eval_item.get("self_identification_strength"):
-                    st.markdown(f"🏷️ **Self-Identification Strength:** {eval_item['self_identification_strength']}")
-                if eval_item.get("community_language"):
-                    st.markdown(f"💬 **Community Language & Tropes:** {eval_item['community_language']}")
-                if eval_item.get("merchandise_potential"):
-                    st.markdown(f"🛍️ **Merchandise Potential:** {eval_item['merchandise_potential']}")
-                if eval_item.get("target_audience_appeal"):
-                    st.markdown(f"🎯 **Target Audience Appeal:** {eval_item['target_audience_appeal']}")
-            elif isinstance(reasons, dict) and seed_id in reasons:
-                st.write(str(reasons[seed_id]))
-            else:
-                st.write("Selected by configured seed priority.")
-
-            affinity_tags = seed.get("metadata", {}).get("affinity_tags", [])
-            if isinstance(affinity_tags, list) and affinity_tags:
-                st.caption(f"Affinity signals: {' · '.join(str(tag) for tag in affinity_tags)}")
+        eval_item = eval_by_id.get(seed_id, {})
+        reason = eval_item.get("selection_reason") if eval_item else None
+        if not reason and isinstance(reasons, dict):
+            reason = reasons.get(seed_id)
+        rows.append(
+            {
+                "Category": _text(seed, "category", default="Unknown").title(),
+                "Seed group": _text(seed, "name"),
+                "Selection reason": _short(
+                    str(reason or "Selected for this run's discovery sample."), 180
+                ),
+            }
+        )
+    if rows:
+        st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 def _render_identity_expansion(payload: dict[str, Any]) -> None:
@@ -394,7 +394,14 @@ def render_stage_overview(stage: StageFixture) -> None:
     if stage.progress and stage.status == StageStatus.RUNNING:
         st.progress(stage.progress / 100, text=f"Stage progress · {stage.progress}%")
     if stage.metrics:
-        _metric_row(list(stage.metrics.items()))
+        # Attempt/version remain available in the right-hand audit panel; the pipeline card should
+        # lead with stage decisions and provider consumption rather than storage bookkeeping.
+        card_metrics = [
+            (label, value)
+            for label, value in stage.metrics.items()
+            if label not in {"Attempt", "State version"}
+        ]
+        _metric_row(card_metrics)
     if not stage.output_payload:
         if stage.status == StageStatus.PENDING:
             st.info(f"⏳ Stage {stage.number:02d} ({stage.name}) is pending execution. Pipeline execution halted at Stage 1 as configured by MVP_STOP_AFTER_STAGE.")
