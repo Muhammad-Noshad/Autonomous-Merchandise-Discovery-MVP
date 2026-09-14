@@ -1,5 +1,7 @@
 """Run detail page for the expandable workflow pipeline."""
 
+import logging
+
 import streamlit as st
 from pymongo.errors import PyMongoError
 
@@ -10,6 +12,8 @@ from merchandise_discovery.ui.components.details import render_detail_panel
 from merchandise_discovery.ui.components.layout import PAGE_RUNS, navigate_to, render_run_header
 from merchandise_discovery.ui.components.pipeline import render_pipeline
 from merchandise_discovery.ui.fixtures import get_demo_run
+
+logger = logging.getLogger(__name__)
 
 
 def render_run_detail(
@@ -27,8 +31,8 @@ def render_run_detail(
                 if runs:
                     target_id = runs[0].run_id
                     st.session_state["selected_run_id"] = target_id
-            except Exception:
-                pass
+            except (PyMongoError, RepositoryError) as error:
+                logger.warning("Could not resolve the latest run (%s).", type(error).__name__)
 
         try:
             snapshot = discovery_service.get_run_snapshot(target_id)
@@ -61,10 +65,13 @@ def render_run_detail(
         return
 
     if st.session_state.get("created_run_id") == run.run_id:
-        st.success(
-            "🎉 Run created! Stage 1 (Autonomous Seed Discovery) executed with live OpenAI reasoning. "
-            "Pipeline halted after Stage 1 as configured by MVP_STOP_AFTER_STAGE."
-        )
+        if run.status.value == "paused":
+            st.success(
+                "Run created. Stage 1 completed and the pipeline is paused at the configured MVP "
+                "boundary."
+            )
+        else:
+            st.success("Run created and persisted.")
         del st.session_state["created_run_id"]
 
     render_run_header(run)

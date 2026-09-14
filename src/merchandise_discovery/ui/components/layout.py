@@ -76,6 +76,7 @@ def render_sidebar(
                 status_color_map = {
                     "completed": "#22C55E",
                     "running": "#8B5CF6",
+                    "paused": "#F59E0B",
                     "failed": "#EF4444",
                     "pending": "rgba(255,255,255,0.50)",
                 }
@@ -132,6 +133,7 @@ def render_run_header(run: RunFixture) -> None:
     status_color = {
         "completed": "#22C55E",
         "running": "#8B5CF6",
+        "paused": "#F59E0B",
         "failed": "#EF4444",
         "pending": "rgba(255,255,255,0.50)",
         "cancelled": "rgba(255,255,255,0.50)",

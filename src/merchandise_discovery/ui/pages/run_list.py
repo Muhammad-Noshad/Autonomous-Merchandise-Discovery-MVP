@@ -19,6 +19,7 @@ def _status_color(status: RunStatus) -> str:
     return {
         RunStatus.COMPLETED: "#22C55E",
         RunStatus.RUNNING: "#8B5CF6",
+        RunStatus.PAUSED: "#F59E0B",
         RunStatus.FAILED: "#EF4444",
         RunStatus.PENDING: "rgba(255,255,255,0.50)",
         RunStatus.CANCELLED: "rgba(255,255,255,0.50)",
@@ -62,7 +63,7 @@ def render_run_list(runs: list[WorkflowRun] | None = None) -> None:
     with toolbar_right:
         selected_filter = st.selectbox(
             "Filter",
-            ["All runs", "In progress", "Completed", "Failed"],
+            ["All runs", "In progress", "Paused", "Completed", "Failed"],
             label_visibility="collapsed",
         )
 

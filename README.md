@@ -31,6 +31,15 @@ Verify a configured MongoDB deployment with:
 python scripts/check_mongodb.py
 ```
 
+To permanently clear the entire configured MongoDB database, run:
+
+```powershell
+python scripts/clear_database.py
+```
+
+The command shows the target database and requires typing its exact name. For a deliberate
+non-interactive reset, use `python scripts/clear_database.py --yes` only after verifying `.env`.
+
 Process one queued run with:
 
 ```powershell
@@ -57,6 +66,10 @@ When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same he
 initialization automatically. MongoDB databases are created lazily, so the app creates an
 `_app_metadata` infrastructure collection and the workflow indexes; the configured database then
 appears in Compass or `show dbs`.
+
+The current client demo defaults to `MVP_STOP_AFTER_STAGE=1`. Stage 1 is executed and the run is
+persisted as `paused` so later stages do not run until the client approves expanding the funnel.
+The stop boundary is shared by Streamlit and the worker.
 
 Copy `.env.example` to `.env` when local credentials are needed. Real credentials belong in environment variables or a local Streamlit secrets file; they must not be committed.
 

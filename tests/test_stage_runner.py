@@ -14,6 +14,7 @@ def test_execute_stage_success() -> None:
     """execute_stage coordinates prepare, execute, complete, and log successfully."""
 
     runtime = Mock()
+    runtime.stop_after_stage = 1
     run = WorkflowRun(title="Test run", status=RunStatus.RUNNING)
     execution = StageExecution(
         run_id=run.run_id,
@@ -35,7 +36,7 @@ def test_execute_stage_success() -> None:
     completed_run = run.model_copy(update={"completed_stages": 1, "current_stage_number": 2})
     runtime.workflow_orchestrator.complete_stage_and_run.return_value = completed_run
 
-    updated_run, returned_exec, result = execute_stage(runtime, run, execution)
+    updated_run, _returned_exec, result = execute_stage(runtime, run, execution)
 
     runtime.stage_executor.prepare.assert_called_once_with(run, execution)
     runtime.stage_repository.set_input_data.assert_called_once_with(
@@ -44,7 +45,11 @@ def test_execute_stage_success() -> None:
     runtime.stage_executor.execute.assert_called_once_with(run, execution, input_payload)
     runtime.stage_repository.complete.assert_called_once()
     runtime.stage_log_repository.save.assert_called_once()
-    runtime.workflow_orchestrator.complete_stage_and_run.assert_called_once_with(run, completed_execution)
+    runtime.workflow_orchestrator.complete_stage_and_run.assert_called_once_with(
+        run,
+        completed_execution,
+        stop_after_stage=1,
+    )
     assert updated_run == completed_run
     assert result == stage_result
 

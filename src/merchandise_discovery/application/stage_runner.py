@@ -48,10 +48,14 @@ def execute_stage(
                         message=f"Stage {active_execution.stage_number} completed: {result.output_summary}",
                     )
                 )
-            except Exception as log_err:
+            except Exception as log_err:  # noqa: BLE001  # Logging must not mask stage state.
                 logger.warning("Could not persist stage log: %s", log_err)
 
-        updated_run = runtime.workflow_orchestrator.complete_stage_and_run(run, active_execution)
+        updated_run = runtime.workflow_orchestrator.complete_stage_and_run(
+            run,
+            active_execution,
+            stop_after_stage=runtime.stop_after_stage,
+        )
         return updated_run, active_execution, result
     except Exception as error:
         runtime.workflow_orchestrator.fail_stage_and_run(
@@ -71,6 +75,6 @@ def execute_stage(
                         message=f"Stage {active_execution.stage_number} failed: {error}",
                     )
                 )
-            except Exception as log_err:
+            except Exception as log_err:  # noqa: BLE001  # Logging must not mask stage state.
                 logger.warning("Could not persist stage log: %s", log_err)
         raise

@@ -1,10 +1,11 @@
-"""UI composition root for the fixture-backed discovery workspace."""
+"""UI composition root for the MongoDB-backed discovery workspace."""
+
+import logging
 
 import streamlit as st
 from pymongo.errors import PyMongoError
 
-from merchandise_discovery.application.runtime import ApplicationRuntime, build_runtime
-from merchandise_discovery.shared.configuration import load_settings
+from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import (
     PAGE_ARTWORK_REVIEW,
@@ -24,6 +25,8 @@ from merchandise_discovery.ui.pages.run_detail import render_run_detail_with_pol
 from merchandise_discovery.ui.pages.run_list import render_run_list
 from merchandise_discovery.ui.theme import apply_theme
 
+logger = logging.getLogger(__name__)
+
 
 def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
     """Route the shell to live MongoDB pages or an explicit fixture fallback."""
@@ -32,15 +35,6 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
 
     if runtime is None:
         runtime = st.session_state.get("application_runtime")
-    if runtime is None:
-        try:
-            settings = load_settings()
-            if settings.mongodb_uri:
-                runtime = build_runtime(settings)
-                st.session_state["application_runtime"] = runtime
-        except Exception:
-            pass
-
     live_runs = None
     default_run_id = ""
 
@@ -49,7 +43,8 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
             live_runs = runtime.discovery_service.list_runs()
             if live_runs:
                 default_run_id = live_runs[0].run_id
-        except (PyMongoError, RepositoryError):
+        except (PyMongoError, RepositoryError) as error:
+            logger.warning("Could not load live runs (%s).", type(error).__name__)
             live_runs = []
 
     demo_run = get_demo_run() if runtime is None else None

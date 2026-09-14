@@ -76,16 +76,35 @@ class WorkflowOrchestrator:
         self,
         run: WorkflowRun,
         execution: StageExecution,
+        *,
+        stop_after_stage: int | None = None,
     ) -> WorkflowRun:
-        """Advance durable run progress after a stage succeeds, or close the final run."""
+        """Advance durable progress, pausing intentionally at the configured MVP boundary."""
 
         completed_stages = min(run.completed_stages + 1, run.total_stages)
         is_final_stage = execution.stage_number >= run.total_stages
+        is_demo_boundary = (
+            stop_after_stage is not None and execution.stage_number >= stop_after_stage
+        )
+        status = (
+            RunStatus.COMPLETED
+            if is_final_stage
+            else RunStatus.PAUSED
+            if is_demo_boundary
+            else RunStatus.RUNNING
+        )
+        next_stage = (
+            None
+            if is_final_stage
+            else execution.stage_number
+            if is_demo_boundary
+            else execution.stage_number + 1
+        )
         return self._runs.update_status(
             run.run_id,
             expected_version=run.version,
-            status=RunStatus.COMPLETED if is_final_stage else RunStatus.RUNNING,
-            current_stage_number=None if is_final_stage else execution.stage_number + 1,
+            status=status,
+            current_stage_number=next_stage,
             last_error=None,
             completed_stages=completed_stages,
             retry_exhausted=False,

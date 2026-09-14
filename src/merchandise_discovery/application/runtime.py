@@ -108,6 +108,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             concept_repository,
             artwork_repository=artwork_repository,
             stage_log_repository=stage_log_repository,
+            niche_repository=niche_repository,
         )
         workflow_orchestrator = WorkflowOrchestrator(run_repository, stage_repository)
         review_service = ReviewService(run_repository, artwork_repository, review_repository)

@@ -82,14 +82,15 @@ def render_database_status() -> ApplicationRuntime | None:
                 provider_mode=settings.provider_mode,
                 stop_after_stage=settings.stop_after_stage,
             )
-        except Exception as error:
-            logger.warning("Cached runtime initialization failed: %s", error)
-            try:
-                runtime = build_runtime(settings)
-            except Exception as direct_error:
-                logger.error("MongoDB direct initialization failed: %s", direct_error)
-                st.error("MongoDB unavailable — showing fixture data.")
-                return None
+        except (PyMongoError, ConfigurationError, TypeError, ValueError) as error:
+            # Only expected startup/configuration failures become fixture mode; programming
+            # errors should remain visible instead of being silently converted into fake data.
+            logger.warning(
+                "MongoDB runtime initialization failed (%s).",
+                type(error).__name__,
+            )
+            st.error("MongoDB unavailable — showing fixture data.")
+            return None
 
         st.session_state["application_runtime"] = runtime
         return runtime

@@ -60,9 +60,6 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
     reasons = payload.get("selection_reasons", {})
     evaluations = _records(payload, "evaluations")
     eval_by_id = {e.get("seed_id"): e for e in evaluations}
-    model = str(payload.get("model", "Luna"))
-    strategy_label = f"Luna ({model})" if "gpt" in model or "luna" in model.lower() else "Luna (Priority baseline)"
-
     _metric_row([
         ("Selected seed groups", str(len(seeds))),
         ("Executor", "LUNA + SYSTEM"),

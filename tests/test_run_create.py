@@ -20,7 +20,9 @@ def test_render_run_create_unsubmitted(monkeypatch) -> None:
     """When the form is not submitted, render_run_create exits cleanly."""
 
     from unittest.mock import Mock
+
     import streamlit as st
+
     from merchandise_discovery.ui.pages.run_create import render_run_create
 
     monkeypatch.setattr(st, "form_submit_button", lambda *args, **kwargs: False)

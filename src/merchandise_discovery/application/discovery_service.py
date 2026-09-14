@@ -5,11 +5,13 @@ syntax. Those concerns remain behind the entrypoint and repository boundaries.
 """
 
 from dataclasses import dataclass, field
+from uuid import uuid4
 
 from merchandise_discovery.domain.models.artifacts import (
     Artwork,
     IdentityIntersection,
     MerchandiseConcept,
+    Niche,
 )
 from merchandise_discovery.domain.models.workflow import (
     RunConfig,
@@ -27,6 +29,7 @@ from merchandise_discovery.infrastructure.mongo.repositories.concept_repository 
 from merchandise_discovery.infrastructure.mongo.repositories.intersection_repository import (
     IntersectionRepository,
 )
+from merchandise_discovery.infrastructure.mongo.repositories.niche_repository import NicheRepository
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
@@ -56,6 +59,7 @@ class DiscoveryService:
         concept_repository: ConceptRepository | None = None,
         artwork_repository: ArtworkRepository | None = None,
         stage_log_repository: StageLogRepository | None = None,
+        niche_repository: NicheRepository | None = None,
     ):
         self._runs = run_repository
         self._stages = stage_repository
@@ -63,6 +67,7 @@ class DiscoveryService:
         self._concepts = concept_repository
         self._artworks = artwork_repository
         self._stage_logs = stage_log_repository
+        self._niches = niche_repository
 
     def create_run(
         self,
@@ -129,3 +134,35 @@ class DiscoveryService:
         if self._artworks is None:
             return []
         return self._artworks.list_for_run(run_id)
+
+    def list_niches(self, run_id: str) -> list[Niche]:
+        """Return the persisted niches belonging to one run."""
+
+        if self._niches is None:
+            return []
+        return self._niches.list_for_run(run_id)
+
+    def create_manual_niche(
+        self,
+        run_id: str,
+        *,
+        name: str,
+        experience_summary: str,
+        coherence_score: float,
+        opportunity_score: float,
+    ) -> Niche:
+        """Create a manual niche through the repository boundary for an existing run."""
+
+        if self._niches is None:
+            raise RuntimeError("Niche persistence is not configured.")
+        if self._runs.get_by_id(run_id) is None:
+            raise ValueError(f"Cannot create a niche for unknown run: {run_id}")
+        niche = Niche(
+            run_id=run_id,
+            intersection_id=f"manual-{uuid4()}",
+            name=name.strip(),
+            experience_summary=experience_summary.strip() or None,
+            coherence_score=coherence_score,
+            opportunity_score=opportunity_score,
+        )
+        return self._niches.save(niche)

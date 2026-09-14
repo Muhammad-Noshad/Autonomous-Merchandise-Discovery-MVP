@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from merchandise_discovery.application.runtime import build_runtime
 from merchandise_discovery.application.stage_executor import StageNotImplementedError
+from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog
 from merchandise_discovery.shared.configuration import load_settings
 
@@ -94,8 +95,15 @@ def _process_one(runtime, worker_id: str) -> bool:
                 f"Stage {active_execution.stage_number} completed: {result.output_summary}",
                 stage=active_execution,
             )
-            run = runtime.workflow_orchestrator.complete_stage_and_run(run, active_execution)
+            run = runtime.workflow_orchestrator.complete_stage_and_run(
+                run,
+                active_execution,
+                stop_after_stage=runtime.stop_after_stage,
+            )
             print(f"Stage {active_execution.stage_number} completed for run {run.run_id}.")
+            if run.status == RunStatus.PAUSED:
+                print(f"Run paused at configured MVP boundary: {run.run_id}")
+                return True
         except (StageNotImplementedError, ValueError) as error:
             runtime.workflow_orchestrator.fail_stage_and_run(
                 run,

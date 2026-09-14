@@ -7,7 +7,7 @@ independently portable and provider dependencies are injected here.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
@@ -53,7 +53,6 @@ from merchandise_discovery.infrastructure.providers.reasoning_provider import Re
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -64,8 +63,7 @@ def _log_stage_01_results(
 ) -> None:
     """Log Stage 1 Luna reasoning execution results to console and persisted text log files."""
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    agent_model = f"Luna ({usage.model})" if usage.provider != "fixture" else "Deterministic baseline"
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     header = (
         f"\n{'='*80}\n"
         f"🌙 STAGE 1: LUNA AUTONOMOUS SEED DISCOVERY\n"
@@ -118,7 +116,7 @@ def _log_stage_01_results(
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as file:
                 file.write(full_report)
-        except Exception as log_err:
+        except Exception as log_err:  # noqa: BLE001  # File logging must not mask stage output.
             logger.warning("Could not append to %s: %s", log_path, log_err)
 
 
@@ -330,7 +328,7 @@ class DiscoveryStageExecutor:
                     )
                     reasoning_output = structured_resp.output
                     usage = structured_resp.usage
-                except Exception as err:
+                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
                     logger.warning("Stage 1 Luna evaluation failed; falling back to deterministic baseline: %s", err)
 
             output = stage_01.execute(

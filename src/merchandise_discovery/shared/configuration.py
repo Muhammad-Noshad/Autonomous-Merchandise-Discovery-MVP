@@ -30,16 +30,18 @@ class Settings:
     openai_output_price_per_million: float = 0.60
     xai_image_price: float = 0.02
     provider_mode: str = "fixture"
-    stop_after_stage: int = 17
+    # The current MVP intentionally evaluates only Stage 1 until the client approves expanding
+    # the funnel. This is a demo boundary, not a claim that later stages are complete.
+    stop_after_stage: int = 1
 
 
 def load_settings() -> Settings:
     """Load environment variables without requiring optional provider credentials at import time."""
 
     if ENV_FILE.is_file():
-        load_dotenv(dotenv_path=ENV_FILE, override=True)
+        load_dotenv(dotenv_path=ENV_FILE, override=False)
     else:
-        load_dotenv(override=True)
+        load_dotenv(override=False)
     return Settings(
         mongodb_uri=os.getenv("MONGODB_URI"),
         mongodb_database=os.getenv("MONGODB_DATABASE", "merchandise_discovery"),
@@ -54,7 +56,7 @@ def load_settings() -> Settings:
         openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
         xai_image_price=float(os.getenv("XAI_IMAGE_PRICE", "0.02")),
         provider_mode=os.getenv("MVP_PROVIDER_MODE", "fixture").strip().lower(),
-        stop_after_stage=max(1, min(17, int(os.getenv("MVP_STOP_AFTER_STAGE", "17")))),
+        stop_after_stage=max(1, min(17, int(os.getenv("MVP_STOP_AFTER_STAGE", "1")))),
     )
 
 

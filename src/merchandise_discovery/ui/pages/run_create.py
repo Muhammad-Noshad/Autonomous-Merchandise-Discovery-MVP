@@ -8,10 +8,9 @@ import streamlit as st
 from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
-from merchandise_discovery.application.runtime import ApplicationRuntime, build_runtime
+from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.application.stage_runner import execute_stage
 from merchandise_discovery.domain.models.workflow import RunConfig
-from merchandise_discovery.shared.configuration import load_settings
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 
@@ -54,15 +53,8 @@ def render_run_create(
         runtime = st.session_state.get("application_runtime")
         if runtime is not None:
             discovery_service = runtime.discovery_service
-        else:
-            try:
-                settings = load_settings()
-                if settings.mongodb_uri:
-                    runtime = build_runtime(settings)
-                    st.session_state["application_runtime"] = runtime
-                    discovery_service = runtime.discovery_service
-            except Exception:
-                pass
+        # Runtime construction belongs to the entrypoint. This page only consumes the injected
+        # application boundary and therefore cannot hide connection failures by rebuilding it.
 
     st.markdown('<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>', unsafe_allow_html=True)
     st.title("Create a discovery run")
@@ -130,7 +122,7 @@ def render_run_create(
 
                 stage_num = execution.stage_number
                 if stage_num == 1:
-                    st.write("🌙 Running Stage 1: Autonomous Seed Discovery (Luna evaluating candidates via OpenAI gpt-4o-mini)...")
+                    st.write("Running Stage 1: Autonomous Seed Discovery...")
                 else:
                     st.write(f"🚀 Running Stage {stage_num:02d}: {execution.stage_name}...")
 
@@ -138,7 +130,7 @@ def render_run_create(
                     claimed_run, execution, result = execute_stage(runtime, claimed_run, execution)
                     completed_stages += 1
                     st.write(f"✅ Stage {stage_num:02d} completed: {result.output_summary}")
-                except Exception as error:
+                except (PyMongoError, RepositoryError, RuntimeError, TypeError, ValueError) as error:
                     st.error(f"Stage {stage_num:02d} execution failed: {error}")
                     status_box.update(label=f"Stage {stage_num:02d} failed", state="error")
                     return
@@ -148,7 +140,7 @@ def render_run_create(
                     break
 
             status_box.update(
-                label=f"Pipeline execution through Stage {completed_stages} complete!",
+                label=f"Pipeline paused after Stage {completed_stages}.",
                 state="complete",
                 expanded=False,
             )
