@@ -7,6 +7,7 @@ records a reason for every selection so later provider-backed ranking has a repr
 from pydantic import BaseModel, Field
 
 from merchandise_discovery.domain.models.artifacts import SeedItem
+from merchandise_discovery.domain.models.common import SeedCategory
 
 
 class SeedDiscoveryInput(BaseModel):
@@ -21,7 +22,7 @@ class SeedAnalysis(BaseModel):
 
     seed_id: str
     seed_name: str
-    category: str
+    category: SeedCategory
     self_identification_strength: str = Field(
         default="",
         description="How strongly people self-identify with this group",

@@ -14,6 +14,14 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class SeedCategory(str, Enum):
+    """The three controlled axes used to build discovery intersections."""
+
+    AUDIENCE = "audience"
+    INTEREST = "interest"
+    VALUE = "value"
+
+
 class StageStatus(str, Enum):
     """Lifecycle states for one stage execution."""
 

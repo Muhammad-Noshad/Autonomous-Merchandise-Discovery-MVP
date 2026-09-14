@@ -1,6 +1,10 @@
 """Smoke tests for shared workflow contracts."""
 
-from merchandise_discovery.domain.models.common import RunStatus, StageStatus
+import pytest
+from pydantic import ValidationError
+
+from merchandise_discovery.domain.models.artifacts import SeedItem
+from merchandise_discovery.domain.models.common import RunStatus, SeedCategory, StageStatus
 from merchandise_discovery.domain.models.workflow import RunConfig, WorkflowRun
 
 
@@ -9,6 +13,15 @@ def test_workflow_status_values_are_stable() -> None:
 
     assert RunStatus.PENDING.value == "pending"
     assert StageStatus.COMPLETED.value == "completed"
+
+
+def test_seed_categories_are_limited_to_the_three_discovery_axes() -> None:
+    """Invalid seed categories fail before records can enter the repository boundary."""
+
+    assert {category.value for category in SeedCategory} == {"audience", "interest", "value"}
+
+    with pytest.raises(ValidationError):
+        SeedItem(category="personality", name="Introverts")
 
 
 def test_mvp_run_config_has_bounded_demo_defaults() -> None:

@@ -9,6 +9,7 @@ from merchandise_discovery.domain.models.common import (
     ApprovalDecision,
     ArtworkDecision,
     ConceptVerdict,
+    SeedCategory,
 )
 from merchandise_discovery.domain.models.workflow import utc_now
 
@@ -19,7 +20,7 @@ class SeedItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     seed_id: str = Field(default_factory=lambda: str(uuid4()))
-    category: str
+    category: SeedCategory
     name: str
     parent: str | None = None
     metadata: dict = Field(default_factory=dict)

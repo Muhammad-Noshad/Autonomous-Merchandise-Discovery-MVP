@@ -3,6 +3,7 @@
 from pydantic import BaseModel, Field
 
 from merchandise_discovery.domain.models.artifacts import SeedItem
+from merchandise_discovery.domain.models.common import SeedCategory
 
 
 class ExpandedIdentity(BaseModel):
@@ -10,7 +11,7 @@ class ExpandedIdentity(BaseModel):
 
     source_seed_id: str
     source_seed_name: str
-    category: str
+    category: SeedCategory
     dimension_type: str
     value: str
     affinity_tags: list[str] = Field(default_factory=list)
