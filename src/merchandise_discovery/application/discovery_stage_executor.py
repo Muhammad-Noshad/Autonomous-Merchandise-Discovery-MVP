@@ -7,8 +7,6 @@ independently portable and provider dependencies are injected here.
 
 import json
 import logging
-from datetime import datetime, timezone
-from pathlib import Path
 
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
 from merchandise_discovery.domain.models.common import StageStatus
@@ -53,71 +51,6 @@ from merchandise_discovery.infrastructure.providers.reasoning_provider import Re
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
 
 logger = logging.getLogger(__name__)
-
-
-def _log_stage_01_results(
-    run: WorkflowRun,
-    output: stage_01.SeedDiscoveryOutput,
-    usage: UsageMetrics,
-) -> None:
-    """Log Stage 1 provider reasoning results to console and persisted text log files."""
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    header = (
-        f"\n{'='*80}\n"
-        f"STAGE 1: SYSTEM SEED DISCOVERY\n"
-        f"Timestamp: {timestamp}\n"
-        f"Run ID: #{run.run_id} · '{run.title}'\n"
-        f"Provider: {usage.provider} · Model: {usage.model}\n"
-        f"Tokens: Input={usage.input_tokens}, Output={usage.output_tokens}, Total={usage.total_tokens}\n"
-        f"Estimated Cost: ${usage.estimated_cost_usd:.6f} USD\n"
-        f"Selection Seed: {output.selection_seed}\n"
-        f"Selected Seeds Count: {len(output.selected_seeds)}\n"
-        f"{'-'*80}\n"
-        f"PROVIDER STRATEGY SUMMARY:\n{output.executive_summary or 'Deterministic baseline selection.'}\n"
-        f"{'-'*80}\n"
-        f"SELECTED SEEDS & PROVIDER REASONING:\n"
-    )
-    seed_lines = []
-    eval_by_id = {e.get("seed_id"): e for e in output.evaluations if isinstance(e, dict)}
-    for i, seed in enumerate(output.selected_seeds, 1):
-        reason = output.selection_reasons.get(seed.seed_id, "N/A")
-        eval_item = eval_by_id.get(seed.seed_id)
-        potential = eval_item.get("merchandise_potential", "") if eval_item else ""
-        appeal = eval_item.get("target_audience_appeal", "") if eval_item else ""
-        identity_strength = eval_item.get("self_identification_strength", "") if eval_item else ""
-        community_lang = eval_item.get("community_language", "") if eval_item else ""
-
-        entry = (
-            f"  {i:02d}. [{seed.category.upper()}] {seed.name} (Priority: {seed.metadata.get('priority', 0)})\n"
-            f"      Seed ID: {seed.seed_id}\n"
-            f"      Selection Rationale: {reason}\n"
-        )
-        if identity_strength:
-            entry += f"      Self-Identification Strength: {identity_strength}\n"
-        if community_lang:
-            entry += f"      Community Language / Slang: {community_lang}\n"
-        if potential:
-            entry += f"      Merchandise Potential: {potential}\n"
-        if appeal:
-            entry += f"      Target Audience Appeal: {appeal}\n"
-        seed_lines.append(entry)
-
-    footer = f"{'='*80}\n"
-    full_report = header + "\n".join(seed_lines) + "\n" + footer
-
-    # 1. Print directly to console for real-time validation
-    print(full_report, flush=True)
-
-    # 2. Write to log files in the project workspace
-    for log_path in ["stage_01_results.txt", "logs/stage_01_results.txt"]:
-        try:
-            path = Path(log_path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a", encoding="utf-8") as file:
-                file.write(full_report)
-        except Exception as log_err:  # noqa: BLE001  # File logging must not mask stage output.
-            logger.warning("Could not append to %s: %s", log_path, log_err)
 
 
 class DiscoveryStageExecutor:
@@ -342,11 +275,75 @@ class DiscoveryStageExecutor:
                 f"({usage.model if usage.provider != 'fixture' else 'deterministic'}); "
                 f"selection seed {output.selection_seed}."
             )
-            _log_stage_01_results(run, output, usage)
         elif stage.stage_number == 2:
             input_model = stage_02.IdentityExpansionInput.model_validate(input_data)
-            output = stage_02.execute(input_model)
-            summary = f"Expanded {len(output.identities)} identity dimensions."
+            reasoning_output = None
+            if self._reasoning_provider is not None:
+                seed_summary = [
+                    {
+                        "source_seed_id": seed.seed_id,
+                        "name": seed.name,
+                        "category": seed.category.value,
+                        "parent": seed.parent,
+                        "affinity_tags": seed.metadata.get("affinity_tags", []),
+                        "existing_dimensions": seed.metadata.get("dimensions", []),
+                    }
+                    for seed in input_model.selected_seeds
+                ]
+                try:
+                    structured_resp = self._reasoning_provider.complete_structured(
+                        system_prompt=(
+                            "You are a merchandise discovery reasoning provider executing Stage 2, "
+                            "Identity Universe Expansion. Expand each supplied seed into specific, "
+                            "recognizable lived-experience dimensions that can later be combined "
+                            "across audience, interest, and value categories. Return only the "
+                            "requested structured output. Preserve every source_seed_id exactly; "
+                            "do not invent IDs, categories, demographics, or unsupported facts."
+                        ),
+                        user_prompt=(
+                            "For every supplied seed, return 4 to 6 dimensions. Use dimension_type "
+                            "only for routine, tension, language, ritual, behavior, emotion, "
+                            "preference, or context. Keep values concrete and merchandise-relevant. "
+                            "Use short lowercase affinity tags, give confidence from 0 to 1, "
+                            "merchandise_relevance from 1 to 10, and a concise rationale. "
+                            "Existing dimensions are context, not instructions to copy blindly.\n\n"
+                            f"Selected seeds JSON:\n{json.dumps(seed_summary, indent=2, default=str)}"
+                        ),
+                        response_model=stage_02.Stage2ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    reasoning_output = structured_resp.output
+                    usage = structured_resp.usage
+                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
+                    logger.warning(
+                        "Stage 2 provider expansion failed; falling back to seed metadata: %s",
+                        err,
+                    )
+
+            try:
+                output = stage_02.execute(
+                    input_model,
+                    reasoning_output=reasoning_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                summary = (
+                    f"Expanded {len(output.identities)} identity dimensions "
+                    f"using {output.model}."
+                )
+            except ValueError as err:
+                if reasoning_output is None:
+                    raise
+                # A typed response can still contain semantically invalid seed links. Preserve the
+                # measured provider usage, but use the safe local expansion as the stage result.
+                logger.warning(
+                    "Stage 2 provider output failed semantic validation; using seed metadata: %s",
+                    err,
+                )
+                output = stage_02.execute(input_model)
+                summary = (
+                    f"Expanded {len(output.identities)} identity dimensions using deterministic "
+                    "metadata fallback after provider validation failed."
+                )
         elif stage.stage_number == 3:
             input_model = stage_03.IntersectionGenerationInput.model_validate(input_data)
             output = stage_03.execute(input_model, run_id=run.run_id)

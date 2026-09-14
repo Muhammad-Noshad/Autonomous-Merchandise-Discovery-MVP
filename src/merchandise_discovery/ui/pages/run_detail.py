@@ -8,7 +8,6 @@ from pymongo.errors import PyMongoError
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.adapters import snapshot_to_fixture
-from merchandise_discovery.ui.components.details import render_detail_panel
 from merchandise_discovery.ui.components.layout import PAGE_RUNS, navigate_to, render_run_header
 from merchandise_discovery.ui.components.pipeline import render_pipeline
 from merchandise_discovery.ui.fixtures import get_demo_run
@@ -80,32 +79,9 @@ def render_run_detail(
     render_run_header(run)
     st.divider()
 
-    pipeline_column, detail_column = st.columns([1.62, 1.0], gap="large")
-    with pipeline_column:
-        render_pipeline(run)
-    with detail_column:
-        stage_numbers = [stage.number for stage in run.stages]
-        completed = [s for s in run.stages if s.status.value == "completed"]
-        default_stage = completed[-1].number if completed else run.current_stage_number
-
-        session_key = f"inspect_stage_{run_id}"
-        if session_key not in st.session_state or st.session_state[session_key] not in stage_numbers:
-            st.session_state[session_key] = default_stage
-
-        selected_stage_number = st.selectbox(
-            "Inspect stage",
-            options=stage_numbers,
-            index=stage_numbers.index(st.session_state[session_key]),
-            format_func=lambda num: f"Stage {num:02d} · {next(s.name for s in run.stages if s.number == num)} ({next(s.status.value.title() for s in run.stages if s.number == num)})",
-            key=f"stage_select_box_{run_id}",
-        )
-        st.session_state[session_key] = selected_stage_number
-
-        selected_stage = next(
-            (stage for stage in run.stages if stage.number == selected_stage_number),
-            run.stages[0],
-        )
-        render_detail_panel(selected_stage)
+    # The pipeline is the complete detail surface. Keeping it full-width gives each stage expander
+    # enough room for its structured output and avoids maintaining a second selected-stage state.
+    render_pipeline(run)
 
 
 def render_run_detail_with_polling(

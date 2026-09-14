@@ -102,21 +102,34 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
 
 
 def _render_identity_expansion(payload: dict[str, Any]) -> None:
+    """Render expanded identity dimensions as a compact, inspectable Stage 2 result table."""
+
     identities = _records(payload, "identities")
-    _metric_row([("Expanded dimensions", str(len(identities)))])
+    provider_count = sum(identity.get("provenance") == "provider" for identity in identities)
+    _metric_row([
+        ("Expanded dimensions", str(len(identities))),
+        ("Provider-generated", str(provider_count)),
+    ])
+    summary = payload.get("summary")
+    if summary:
+        st.caption(f"Provider summary: {_short(str(summary), 240)}")
+
     _section("Identity dimensions")
-    for identity in identities[:12]:
-        with st.container(border=True):
-            st.markdown(f"**{_text(identity, 'value')}**")
-            st.caption(
-                f"{_text(identity, 'dimension_type')} · {_text(identity, 'category')} · "
-                f"from {_text(identity, 'source_seed_name')}"
-            )
-            tags = identity.get("affinity_tags", [])
-            if isinstance(tags, list) and tags:
-                st.write(" · ".join(str(tag) for tag in tags))
-    if len(identities) > 12:
-        st.caption(f"Showing 12 of {len(identities)} expanded dimensions.")
+    rows = []
+    for identity in identities:
+        confidence = identity.get("confidence")
+        relevance = identity.get("merchandise_relevance")
+        rows.append(
+            {
+                "Type": _text(identity, "dimension_type").title(),
+                "Dimension": _text(identity, "value"),
+                "Source seed": _text(identity, "source_seed_name"),
+                "Confidence": f"{float(confidence):.0%}" if confidence is not None else "—",
+                "Merchandise relevance": str(relevance) if relevance is not None else "—",
+            }
+        )
+    if rows:
+        st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
 def _render_intersections(payload: dict[str, Any]) -> None:

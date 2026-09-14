@@ -9,7 +9,10 @@ from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
     execute as execute_seed_discovery,
 )
 from merchandise_discovery.domain.stages.stage_02_identity_expansion import (
+    GeneratedDimension,
     IdentityExpansionInput,
+    SeedExpansion,
+    Stage2ReasoningOutput,
 )
 from merchandise_discovery.domain.stages.stage_02_identity_expansion import (
     execute as execute_identity_expansion,
@@ -152,3 +155,62 @@ def test_stage_01_different_selection_seeds_can_explore_different_records() -> N
     second = select_candidate_seeds(SeedDiscoveryInput(max_seed_items=12, selection_seed=2), seeds)
 
     assert [seed.seed_id for seed in first] != [seed.seed_id for seed in second]
+
+
+def test_stage_02_normalizes_structured_provider_dimensions() -> None:
+    """Provider dimensions inherit trusted source metadata and retain quality signals."""
+
+    seed = load_seed_fixture()[0]
+    dimensions = [
+        GeneratedDimension(
+            dimension_type="routine",
+            value="working from a home office",
+            affinity_tags=["home-office"],
+            confidence=0.9,
+            merchandise_relevance=8,
+            rationale="A repeated routine creates recognizable identity language.",
+        ),
+        GeneratedDimension(
+            dimension_type="tension",
+            value="blurred work and personal boundaries",
+            affinity_tags=["boundaries"],
+            confidence=0.88,
+            merchandise_relevance=9,
+            rationale="The tension is common and easy to express visually.",
+        ),
+        GeneratedDimension(
+            dimension_type="language",
+            value="camera fatigue",
+            affinity_tags=["digital-routines"],
+            confidence=0.95,
+            merchandise_relevance=8,
+            rationale="The phrase is concise and recognizable within the group.",
+        ),
+        GeneratedDimension(
+            dimension_type="ritual",
+            value="closing the laptop at the end of the day",
+            affinity_tags=["work-life-boundaries"],
+            confidence=0.91,
+            merchandise_relevance=7,
+            rationale="A concrete ritual can translate into an experience-led concept.",
+        ),
+    ]
+    provider_output = Stage2ReasoningOutput(
+        expansions=[SeedExpansion(source_seed_id=seed.seed_id, dimensions=dimensions)],
+        summary="The seed has distinct digital routines and work-life tensions.",
+    )
+
+    result = execute_identity_expansion(
+        IdentityExpansionInput(selected_seeds=[seed]),
+        reasoning_output=provider_output,
+        model="gpt-4o-mini",
+    )
+
+    generated = [item for item in result.identities if item.provenance == "provider"]
+    assert len(generated) == 4
+    assert all(item.category == seed.category for item in generated)
+    assert all(item.priority == seed.metadata["priority"] for item in generated)
+    assert generated[0].confidence == 0.9
+    assert result.model == "gpt-4o-mini"
+    assert result.summary == provider_output.summary
+    assert result.provider_expansions[0]["source_seed_id"] == seed.seed_id
