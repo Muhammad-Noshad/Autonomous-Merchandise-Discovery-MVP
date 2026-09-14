@@ -99,6 +99,23 @@ def test_run_repository_can_claim_a_failed_run_for_resume() -> None:
     assert "current_stage_number" not in collection.find_one_and_update.call_args.args[1]["$set"]
 
 
+def test_run_repository_can_claim_specific_run() -> None:
+    """A specific run can be claimed atomically by run_id."""
+
+    collection = Mock()
+    run = WorkflowRun(title="Specific run", status=RunStatus.RUNNING, claimed_by="worker-ui")
+    collection.find_one_and_update.return_value = run.model_dump(mode="python")
+
+    claimed = RunRepository(collection).claim_run(run.run_id, "worker-ui")
+
+    assert claimed == run
+    query = collection.find_one_and_update.call_args.args[0]
+    assert query["run_id"] == run.run_id
+    assert query["status"] == {"$in": ["pending", "failed"]}
+    assert collection.find_one_and_update.call_args.args[1]["$set"]["claimed_by"] == "worker-ui"
+    assert collection.find_one_and_update.call_args.args[1]["$set"]["current_stage_number"] == 1
+
+
 def test_run_repository_rejects_lost_optimistic_lock() -> None:
     """A stale worker must not overwrite a newer run state."""
 

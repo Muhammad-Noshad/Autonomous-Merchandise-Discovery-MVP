@@ -40,7 +40,7 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
             except (PyMongoError, RepositoryError):
                 st.error("Run history could not be loaded from MongoDB.")
     elif selected_page == PAGE_CREATE_RUN:
-        render_run_create(runtime.discovery_service if runtime else None)
+        render_run_create(runtime if runtime else None)
     elif selected_page == PAGE_RUN_DETAIL:
         render_run_detail_with_polling(
             st.session_state.get("selected_run_id", run.run_id),

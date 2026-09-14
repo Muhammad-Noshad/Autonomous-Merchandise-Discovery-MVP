@@ -28,6 +28,11 @@ class WorkflowOrchestrator:
 
         return self._runs.claim_next_available(worker_id)
 
+    def claim_run(self, run_id: str, worker_id: str) -> WorkflowRun | None:
+        """Claim a specific pending or failed run atomically by run_id."""
+
+        return self._runs.claim_run(run_id, worker_id)
+
     def next_runnable_stage(self, run_id: str, *, max_attempts: int = 3) -> StageExecution | None:
         """Find the earliest stage that can still be attempted under the retry policy."""
 

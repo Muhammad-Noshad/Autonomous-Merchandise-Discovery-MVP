@@ -76,7 +76,11 @@ def render_pipeline(run: RunFixture) -> None:
         icon = _status_icon(stage.status)
         color = _status_color(stage.status)
         label = f"{icon}  {stage.number:02d} · {stage.name}   ·   {stage.duration}"
-        with st.expander(label, expanded=stage.number == run.current_stage_number):
+        is_expanded = (
+            stage.number == run.current_stage_number
+            or (stage.number == 1 and stage.status == StageStatus.COMPLETED)
+        )
+        with st.expander(label, expanded=is_expanded):
             st.markdown(
                 f'<span style="color:{color}; font-size:0.78rem; font-weight:650;">'
                 f'{stage.status.value.upper()}</span>',

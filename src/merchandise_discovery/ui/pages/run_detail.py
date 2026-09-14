@@ -44,7 +44,7 @@ def render_run_detail(
         return
 
     if st.session_state.get("created_run_id") == run_id:
-        st.success("Run created and persisted. The worker is ready to claim it.")
+        st.success("Run created! Stage 1 (Seed Discovery) executed and actual data is loaded.")
         del st.session_state["created_run_id"]
 
     render_run_header(run)
@@ -54,9 +54,26 @@ def render_run_detail(
     with pipeline_column:
         render_pipeline(run)
     with detail_column:
+        stage_numbers = [stage.number for stage in run.stages]
+        completed = [s for s in run.stages if s.status.value == "completed"]
+        default_stage = completed[-1].number if completed else run.current_stage_number
+
+        session_key = f"inspect_stage_{run_id}"
+        if session_key not in st.session_state or st.session_state[session_key] not in stage_numbers:
+            st.session_state[session_key] = default_stage
+
+        selected_stage_number = st.selectbox(
+            "Inspect stage",
+            options=stage_numbers,
+            index=stage_numbers.index(st.session_state[session_key]),
+            format_func=lambda num: f"Stage {num:02d} · {next(s.name for s in run.stages if s.number == num)} ({next(s.status.value.title() for s in run.stages if s.number == num)})",
+            key=f"stage_select_box_{run_id}",
+        )
+        st.session_state[session_key] = selected_stage_number
+
         selected_stage = next(
-            (stage for stage in run.stages if stage.number == run.current_stage_number),
-            run.stages[-1],
+            (stage for stage in run.stages if stage.number == selected_stage_number),
+            run.stages[0],
         )
         render_detail_panel(selected_stage)
 

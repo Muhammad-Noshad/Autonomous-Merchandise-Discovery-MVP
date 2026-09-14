@@ -8,6 +8,8 @@ import streamlit as st
 from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
+from merchandise_discovery.application.runtime import ApplicationRuntime
+from merchandise_discovery.application.stage_runner import execute_stage
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
@@ -19,7 +21,7 @@ def build_run_config(
     niches: int,
     concepts: int,
     artwork_variants: int,
-    similarity_check: bool,
+    similarity_check: bool = False,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
 
@@ -33,8 +35,19 @@ def build_run_config(
     )
 
 
-def render_run_create(discovery_service: DiscoveryService | None = None) -> None:
+def render_run_create(
+    runtime_or_service: ApplicationRuntime | DiscoveryService | None = None,
+) -> None:
     """Render a configuration form and create a persisted run when a service is available."""
+
+    runtime: ApplicationRuntime | None = None
+    discovery_service: DiscoveryService | None = None
+
+    if isinstance(runtime_or_service, ApplicationRuntime):
+        runtime = runtime_or_service
+        discovery_service = runtime.discovery_service
+    elif isinstance(runtime_or_service, DiscoveryService):
+        discovery_service = runtime_or_service
 
     st.markdown('<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>', unsafe_allow_html=True)
     st.title("Create a discovery run")
@@ -57,8 +70,6 @@ def render_run_create(discovery_service: DiscoveryService | None = None) -> None
         concepts = st.slider("Concepts per niche", min_value=1, max_value=10, value=5)
         artwork_variants = st.slider("Artwork variants per finalist", min_value=1, max_value=4, value=2)
 
-        st.markdown("### Optional checks")
-        similarity_check = st.checkbox("Enable similarity/IP screening", value=False)
         submitted = st.form_submit_button("Create demo run", use_container_width=True)
 
     if not submitted:
@@ -79,13 +90,28 @@ def render_run_create(discovery_service: DiscoveryService | None = None) -> None
                 niches,
                 concepts,
                 artwork_variants,
-                similarity_check,
             ),
             triggered_by="manual",
         )
     except (PyMongoError, RepositoryError, ValueError) as error:
         st.error(f"Run could not be created: {error}")
         return
+
+    # Execute Stage 1 inline so actual data is generated and visible immediately
+    if runtime is not None:
+        try:
+            claimed_run = runtime.workflow_orchestrator.claim_run(run.run_id, worker_id="ui-inline-runner")
+            if claimed_run is None:
+                claimed_run = run
+            execution = runtime.workflow_orchestrator.start_next_stage(
+                claimed_run.run_id,
+                max_attempts=runtime.max_stage_attempts,
+            )
+            if execution is not None:
+                execute_stage(runtime, claimed_run, execution)
+        except Exception as error:
+            st.error(f"Stage 1 execution failed: {error}")
+            return
 
     st.session_state["created_run_id"] = run.run_id
     navigate_to(PAGE_RUN_DETAIL, run.run_id)

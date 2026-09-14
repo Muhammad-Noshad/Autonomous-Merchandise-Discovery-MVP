@@ -60,6 +60,27 @@ class RunRepository:
             set_initial_stage=True,
         )
 
+    def claim_run(self, run_id: str, worker_id: str) -> WorkflowRun | None:
+        """Atomically claim a specific pending or failed run by ID."""
+
+        document = self._collection.find_one_and_update(
+            {
+                "run_id": run_id,
+                "status": {"$in": [RunStatus.PENDING.value, RunStatus.FAILED.value]},
+            },
+            {
+                "$set": {
+                    "status": RunStatus.RUNNING.value,
+                    "claimed_by": worker_id,
+                    "current_stage_number": 1,
+                    "updated_at": utc_now(),
+                },
+                "$inc": {"version": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return from_document(WorkflowRun, document)
+
     def claim_next_available(self, worker_id: str) -> WorkflowRun | None:
         """Claim the oldest pending or failed run so failed work can be resumed safely."""
 

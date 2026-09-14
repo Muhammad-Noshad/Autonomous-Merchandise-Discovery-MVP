@@ -20,21 +20,33 @@ logger = logging.getLogger(__name__)
 
 
 @st.cache_resource(show_spinner=False)
-def _initialize_configured_runtime(mongodb_uri: str, mongodb_database: str) -> ApplicationRuntime:
-    """Cache one application runtime per database configuration without caching provider secrets."""
+def _initialize_configured_runtime(
+    mongodb_uri: str,
+    mongodb_database: str,
+    openai_api_key: str | None = None,
+    xai_api_key: str | None = None,
+    xai_image_model: str = "grok-imagine-image",
+    max_stage_attempts: int = 3,
+    openai_reasoning_model: str = "gpt-4o-mini",
+    openai_input_price_per_million: float = 0.15,
+    openai_output_price_per_million: float = 0.60,
+    xai_image_price: float = 0.02,
+    provider_mode: str = "fixture",
+) -> ApplicationRuntime:
+    """Cache one application runtime per configuration."""
 
     settings = Settings(
         mongodb_uri=mongodb_uri,
         mongodb_database=mongodb_database,
-        openai_api_key=None,
-        xai_api_key=None,
-        xai_image_model="grok-imagine-image",
-        max_stage_attempts=3,
-        openai_reasoning_model="gpt-4o-mini",
-        openai_input_price_per_million=0.15,
-        openai_output_price_per_million=0.60,
-        xai_image_price=0.02,
-        provider_mode="fixture",
+        openai_api_key=openai_api_key,
+        xai_api_key=xai_api_key,
+        xai_image_model=xai_image_model,
+        max_stage_attempts=max_stage_attempts,
+        openai_reasoning_model=openai_reasoning_model,
+        openai_input_price_per_million=openai_input_price_per_million,
+        openai_output_price_per_million=openai_output_price_per_million,
+        xai_image_price=xai_image_price,
+        provider_mode=provider_mode,
     )
     return build_runtime(settings)
 
@@ -57,6 +69,15 @@ def render_database_status() -> ApplicationRuntime | None:
             runtime = _initialize_configured_runtime(
                 settings.mongodb_uri,
                 settings.mongodb_database,
+                openai_api_key=settings.openai_api_key,
+                xai_api_key=settings.xai_api_key,
+                xai_image_model=settings.xai_image_model,
+                max_stage_attempts=settings.max_stage_attempts,
+                openai_reasoning_model=settings.openai_reasoning_model,
+                openai_input_price_per_million=settings.openai_input_price_per_million,
+                openai_output_price_per_million=settings.openai_output_price_per_million,
+                xai_image_price=settings.xai_image_price,
+                provider_mode=settings.provider_mode,
             )
         except (ConfigurationError, PyMongoError) as error:
             # Keep fixture mode available for demos, but leave an operator-visible server log with
