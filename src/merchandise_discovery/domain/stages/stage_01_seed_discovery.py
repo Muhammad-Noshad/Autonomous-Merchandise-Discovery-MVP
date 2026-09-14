@@ -16,15 +16,36 @@ class SeedDiscoveryInput(BaseModel):
     max_seed_items: int = Field(default=12, ge=1, le=100)
 
 
+class SeedAnalysis(BaseModel):
+    """Structured evaluation of a candidate seed from OpenAI reasoning."""
+
+    seed_id: str
+    seed_name: str
+    category: str
+    merchandise_potential: str
+    target_audience_appeal: str
+    selection_reason: str
+
+
+class Stage1ReasoningOutput(BaseModel):
+    """Structured response model for OpenAI Stage 1 evaluation."""
+
+    executive_summary: str
+    evaluations: list[SeedAnalysis]
+
+
 class SeedDiscoveryOutput(BaseModel):
-    """Selected seed records and human-readable selection reasons."""
+    """Selected seed records, selection reasons, and structured OpenAI evaluations."""
 
     selected_seeds: list[SeedItem]
     selection_reasons: dict[str, str]
+    evaluations: list[dict] = Field(default_factory=list)
+    executive_summary: str = ""
+    model: str = "deterministic"
 
 
-def execute(input_data: SeedDiscoveryInput, seeds: list[SeedItem]) -> SeedDiscoveryOutput:
-    """Select highest-priority seeds with stable tie-breaking by category and name."""
+def select_candidate_seeds(input_data: SeedDiscoveryInput, seeds: list[SeedItem]) -> list[SeedItem]:
+    """Deterministically order and bound candidate seeds by configured priority and tie-breakers."""
 
     if not seeds:
         raise ValueError("Seed discovery requires at least one seed record.")
@@ -36,7 +57,38 @@ def execute(input_data: SeedDiscoveryInput, seeds: list[SeedItem]) -> SeedDiscov
             seed.name.lower(),
         ),
     )
-    selected = ordered[: input_data.max_seed_items]
+    return ordered[: input_data.max_seed_items]
+
+
+def execute(
+    input_data: SeedDiscoveryInput,
+    seeds: list[SeedItem],
+    reasoning_output: Stage1ReasoningOutput | None = None,
+    model: str = "deterministic",
+) -> SeedDiscoveryOutput:
+    """Select highest-priority seeds with deterministic ordering and optional provider evaluation."""
+
+    selected = select_candidate_seeds(input_data, seeds)
+
+    if reasoning_output is not None:
+        eval_by_id = {item.seed_id: item for item in reasoning_output.evaluations}
+        reasons = {
+            seed.seed_id: (
+                eval_by_id[seed.seed_id].selection_reason
+                if seed.seed_id in eval_by_id
+                else f"Selected from {input_data.seed_source} with priority {seed.metadata.get('priority', 0)}."
+            )
+            for seed in selected
+        }
+        eval_dicts = [item.model_dump() for item in reasoning_output.evaluations]
+        return SeedDiscoveryOutput(
+            selected_seeds=selected,
+            selection_reasons=reasons,
+            evaluations=eval_dicts,
+            executive_summary=reasoning_output.executive_summary,
+            model=model,
+        )
+
     reasons = {
         seed.seed_id: (
             f"Selected from {input_data.seed_source} with priority "
@@ -44,4 +96,13 @@ def execute(input_data: SeedDiscoveryInput, seeds: list[SeedItem]) -> SeedDiscov
         )
         for seed in selected
     }
-    return SeedDiscoveryOutput(selected_seeds=selected, selection_reasons=reasons)
+    summary = (
+        f"Selected {len(selected)} high-priority seed groups from {input_data.seed_source} "
+        f"based on configured priority rankings."
+    )
+    return SeedDiscoveryOutput(
+        selected_seeds=selected,
+        selection_reasons=reasons,
+        executive_summary=summary,
+        model=model,
+    )

@@ -34,7 +34,11 @@ def navigate_to(page: str, run_id: str | None = None) -> None:
     st.rerun()
 
 
-def render_sidebar(run: RunFixture, provider_modes: dict[str, str] | None = None) -> str:
+def render_sidebar(
+    run: RunFixture | None = None,
+    provider_modes: dict[str, str] | None = None,
+    recent_runs: list | None = None,
+) -> str:
     """Render navigation and recent-run context, returning the selected page key."""
 
     # Button callbacks can happen after the radio widget has been instantiated. Apply queued route
@@ -65,21 +69,49 @@ def render_sidebar(run: RunFixture, provider_modes: dict[str, str] | None = None
 
         st.divider()
         st.markdown("**Recent runs**")
-        recent_runs = [
-            ("#017", "In progress", "12m ago", "#8B5CF6"),
-            ("#016", "Completed", "2h ago", "#22C55E"),
-            ("#015", "Completed", "1d ago", "#22C55E"),
-            ("#014", "Failed", "2d ago", "#EF4444"),
-        ]
-        for run_id, status, age, color in recent_runs:
-            st.markdown(
-                f'<div style="display:flex; justify-content:space-between; gap:0.4rem; '
-                f'margin:0.55rem 0; font-size:0.78rem;">'
-                f'<span><span style="color:{color};">●</span>&nbsp; {run_id}&nbsp; '
-                f'<span style="color:{color};">{status}</span></span>'
-                f'<span class="opus-muted">{age}</span></div>',
-                unsafe_allow_html=True,
-            )
+        if recent_runs is not None:
+            if not recent_runs:
+                st.caption("No runs yet. Click '+ New run' above.")
+            else:
+                status_color_map = {
+                    "completed": "#22C55E",
+                    "running": "#8B5CF6",
+                    "failed": "#EF4444",
+                    "pending": "rgba(255,255,255,0.50)",
+                }
+                for item in recent_runs[:5]:
+                    r_id = getattr(item, "run_id", str(item))
+                    r_status = getattr(item, "status", None)
+                    status_str = r_status.value.title() if hasattr(r_status, "value") else str(r_status or "Active")
+                    color = status_color_map.get(status_str.lower(), "#8B5CF6")
+                    short_id = f"#{r_id[:8]}" if len(r_id) > 8 else f"#{r_id}"
+
+                    col1, col2 = st.columns([0.7, 0.3])
+                    with col1:
+                        st.markdown(
+                            f'<span style="font-size:0.8rem;"><span style="color:{color};">●</span> '
+                            f'<strong>{short_id}</strong> · {status_str}</span>',
+                            unsafe_allow_html=True,
+                        )
+                    with col2:
+                        if st.button("View", key=f"sidebar-open-{r_id}", use_container_width=True):
+                            navigate_to(PAGE_RUN_DETAIL, r_id)
+        else:
+            fallback_runs = [
+                ("#017", "In progress", "12m ago", "#8B5CF6"),
+                ("#016", "Completed", "2h ago", "#22C55E"),
+                ("#015", "Completed", "1d ago", "#22C55E"),
+                ("#014", "Failed", "2d ago", "#EF4444"),
+            ]
+            for run_id, status, age, color in fallback_runs:
+                st.markdown(
+                    f'<div style="display:flex; justify-content:space-between; gap:0.4rem; '
+                    f'margin:0.55rem 0; font-size:0.78rem;">'
+                    f'<span><span style="color:{color};">●</span>&nbsp; {run_id}&nbsp; '
+                    f'<span style="color:{color};">{status}</span></span>'
+                    f'<span class="opus-muted">{age}</span></div>',
+                    unsafe_allow_html=True,
+                )
 
         st.divider()
         if provider_modes and any(value != "fixture" for value in provider_modes.values()):

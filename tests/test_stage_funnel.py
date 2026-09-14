@@ -83,3 +83,37 @@ def test_pre_research_filter_rejects_reordered_duplicates() -> None:
     assert len(result.accepted) == 1
     assert len(result.rejected) == 1
     assert result.rejected[0].filter_reason == "Rejected as a duplicate identity combination."
+
+
+def test_stage_01_seed_discovery_with_reasoning_output() -> None:
+    """Stage 1 integrates structured reasoning evaluations while preserving deterministic ordering."""
+    from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
+        SeedAnalysis,
+        Stage1ReasoningOutput,
+    )
+
+    seeds = load_seed_fixture()
+    reasoning = Stage1ReasoningOutput(
+        executive_summary="High potential seed portfolio.",
+        evaluations=[
+            SeedAnalysis(
+                seed_id=seeds[0].seed_id,
+                seed_name=seeds[0].name,
+                category=seeds[0].category,
+                merchandise_potential="Apparel and mugs.",
+                target_audience_appeal="Work-from-home humor.",
+                selection_reason="Top priority audience for POD.",
+            )
+        ],
+    )
+    result = execute_seed_discovery(
+        SeedDiscoveryInput(max_seed_items=4),
+        seeds,
+        reasoning_output=reasoning,
+        model="gpt-4o-mini",
+    )
+    assert len(result.selected_seeds) == 4
+    assert result.model == "gpt-4o-mini"
+    assert result.executive_summary == "High potential seed portfolio."
+    assert result.selection_reasons[seeds[0].seed_id] == "Top priority audience for POD."
+    assert len(result.evaluations) == 1

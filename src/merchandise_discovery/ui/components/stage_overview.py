@@ -58,16 +58,45 @@ def _section(title: str) -> None:
 def _render_seed_discovery(payload: dict[str, Any]) -> None:
     seeds = _records(payload, "selected_seeds")
     reasons = payload.get("selection_reasons", {})
-    _metric_row([("Selected seed groups", str(len(seeds)))])
+    evaluations = _records(payload, "evaluations")
+    eval_by_id = {e.get("seed_id"): e for e in evaluations}
+    model = str(payload.get("model", "deterministic"))
+    strategy_label = f"OpenAI ({model})" if "gpt" in model else "Priority baseline"
+
+    _metric_row([
+        ("Selected seed groups", str(len(seeds))),
+        ("Decision model", strategy_label),
+        ("Evaluated seeds", str(len(evaluations) if evaluations else len(seeds))),
+    ])
+
+    exec_summary = payload.get("executive_summary")
+    if exec_summary:
+        st.info(f"💡 **OpenAI Strategic Portfolio Summary:**\n\n{exec_summary}")
+
     _section("Selected seed groups")
     for seed in seeds:
+        seed_id = seed.get("seed_id", "")
         with st.container(border=True):
-            st.markdown(f"**{_text(seed, 'name')}**")
-            st.caption(
-                f"{_text(seed, 'category')} · priority {_text(seed.get('metadata', {}), 'priority', default='0')}"
-            )
-            if isinstance(reasons, dict):
-                st.write(str(reasons.get(seed.get("seed_id"), "Selected by configured seed priority.")))
+            category = _text(seed, "category").upper()
+            priority = _text(seed.get("metadata", {}), "priority", default="0")
+            st.markdown(f"**{_text(seed, 'name')}** &nbsp; `[{category}]` &nbsp; `Priority: {priority}`")
+
+            eval_item = eval_by_id.get(seed_id)
+            if eval_item:
+                if eval_item.get("selection_reason"):
+                    st.markdown(f"**Strategic Rationale:** {eval_item['selection_reason']}")
+                if eval_item.get("merchandise_potential"):
+                    st.markdown(f"🛍️ **Merchandise Potential:** {eval_item['merchandise_potential']}")
+                if eval_item.get("target_audience_appeal"):
+                    st.markdown(f"🎯 **Audience Appeal:** {eval_item['target_audience_appeal']}")
+            elif isinstance(reasons, dict) and seed_id in reasons:
+                st.write(str(reasons[seed_id]))
+            else:
+                st.write("Selected by configured seed priority.")
+
+            affinity_tags = seed.get("metadata", {}).get("affinity_tags", [])
+            if isinstance(affinity_tags, list) and affinity_tags:
+                st.caption(f"Affinity signals: {' · '.join(str(tag) for tag in affinity_tags)}")
 
 
 def _render_identity_expansion(payload: dict[str, Any]) -> None:
@@ -365,8 +394,11 @@ def render_stage_overview(stage: StageFixture) -> None:
     if stage.metrics:
         _metric_row(list(stage.metrics.items()))
     if not stage.output_payload:
-        st.info(stage.output_summary)
-        st.caption("Structured stage output will appear here after execution.")
+        if stage.status == StageStatus.PENDING:
+            st.info(f"⏳ Stage {stage.number:02d} ({stage.name}) is pending execution. Pipeline execution halted at Stage 1 as configured by MVP_STOP_AFTER_STAGE.")
+        else:
+            st.info(stage.output_summary)
+            st.caption("Structured stage output will appear here after execution.")
         return
     renderer = RENDERERS.get(stage.number, _render_generic)
     renderer(stage.output_payload)

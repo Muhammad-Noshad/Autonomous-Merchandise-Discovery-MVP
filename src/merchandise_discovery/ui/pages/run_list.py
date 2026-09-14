@@ -76,5 +76,7 @@ def render_run_list(runs: list[WorkflowRun] | None = None) -> None:
 
     if runs is None:
         st.info("These are demo runs for the MVP shell. Live run history will be loaded from MongoDB in a later chunk.")
+    elif not runs:
+        st.info("No discovery runs created yet. Click '+ New run' in the sidebar to create one.")
     elif not run_items:
-        st.info("No runs match this filter.")
+        st.info("No runs match the selected filter.")

@@ -35,6 +35,7 @@ class ReasoningProvider(Protocol):
         system_prompt: str,
         user_prompt: str,
         response_model: type[BaseModel],
+        temperature: float = 0.0,
     ) -> StructuredResponse:
         """Return a validated Pydantic response and measured usage for one request."""
 
@@ -61,6 +62,7 @@ class OpenAIReasoningProvider:
         system_prompt: str,
         user_prompt: str,
         response_model: type[BaseModel],
+        temperature: float = 0.0,
     ) -> StructuredResponse:
         """Submit one typed request and convert provider usage into the application contract."""
 
@@ -72,6 +74,7 @@ class OpenAIReasoningProvider:
                     {"role": "user", "content": user_prompt},
                 ],
                 text_format=response_model,
+                temperature=temperature,
             )
         except (OpenAIError, TypeError, ValueError) as error:
             raise ReasoningProviderError("Structured reasoning request failed.") from error

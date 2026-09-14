@@ -6,6 +6,9 @@ independently portable and provider dependencies are injected here.
 """
 
 import json
+import logging
+from datetime import datetime
+from pathlib import Path
 
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
 from merchandise_discovery.domain.models.common import StageStatus
@@ -49,6 +52,67 @@ from merchandise_discovery.infrastructure.providers.image_provider import ImageP
 from merchandise_discovery.infrastructure.providers.reasoning_provider import ReasoningProvider
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
+
+
+logger = logging.getLogger(__name__)
+
+
+def _log_stage_01_results(
+    run: WorkflowRun,
+    output: stage_01.SeedDiscoveryOutput,
+    usage: UsageMetrics,
+) -> None:
+    """Log Stage 1 OpenAI execution results to console and persisted text log files."""
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = (
+        f"\n{'='*80}\n"
+        f"🎯 STAGE 1: AUTONOMOUS SEED DISCOVERY EXECUTION\n"
+        f"Timestamp: {timestamp}\n"
+        f"Run ID: #{run.run_id} · '{run.title}'\n"
+        f"Provider: {usage.provider} · Model: {usage.model}\n"
+        f"Tokens: Input={usage.input_tokens}, Output={usage.output_tokens}, Total={usage.total_tokens}\n"
+        f"Estimated Cost: ${usage.estimated_cost_usd:.6f} USD\n"
+        f"Selected Seeds Count: {len(output.selected_seeds)}\n"
+        f"{'-'*80}\n"
+        f"EXECUTIVE SUMMARY:\n{output.executive_summary or 'Deterministic baseline selection.'}\n"
+        f"{'-'*80}\n"
+        f"SELECTED SEEDS & STRATEGIC REASONING:\n"
+    )
+    seed_lines = []
+    eval_by_id = {e.get("seed_id"): e for e in output.evaluations if isinstance(e, dict)}
+    for i, seed in enumerate(output.selected_seeds, 1):
+        reason = output.selection_reasons.get(seed.seed_id, "N/A")
+        eval_item = eval_by_id.get(seed.seed_id)
+        potential = eval_item.get("merchandise_potential", "") if eval_item else ""
+        appeal = eval_item.get("target_audience_appeal", "") if eval_item else ""
+
+        entry = (
+            f"  {i:02d}. [{seed.category.upper()}] {seed.name} (Priority: {seed.metadata.get('priority', 0)})\n"
+            f"      Seed ID: {seed.seed_id}\n"
+            f"      Strategic Rationale: {reason}\n"
+        )
+        if potential:
+            entry += f"      Merchandise Potential: {potential}\n"
+        if appeal:
+            entry += f"      Target Audience Appeal: {appeal}\n"
+        seed_lines.append(entry)
+
+    footer = f"{'='*80}\n"
+    full_report = header + "\n".join(seed_lines) + "\n" + footer
+
+    # 1. Print directly to console for real-time validation
+    print(full_report, flush=True)
+
+    # 2. Write to log files in the project workspace
+    for log_path in ["stage_01_results.txt", "logs/stage_01_results.txt"]:
+        try:
+            path = Path(log_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as file:
+                file.write(full_report)
+        except Exception as log_err:
+            logger.warning("Could not append to %s: %s", log_path, log_err)
 
 
 class DiscoveryStageExecutor:
@@ -213,8 +277,61 @@ class DiscoveryStageExecutor:
             if not seeds:
                 seeds = load_seed_fixture()
                 self._seeds.replace_all(seeds)
-            output = stage_01.execute(input_model, seeds)
-            summary = f"Selected {len(output.selected_seeds)} seed groups."
+
+            candidates = stage_01.select_candidate_seeds(input_model, seeds)
+            reasoning_output = None
+
+            if self._reasoning_provider is not None:
+                candidate_summary = [
+                    {
+                        "seed_id": s.seed_id,
+                        "seed_name": s.name,
+                        "category": s.category,
+                        "priority": s.metadata.get("priority", 0),
+                        "dimensions": s.metadata.get("dimensions", []),
+                        "affinity_tags": s.metadata.get("affinity_tags", []),
+                    }
+                    for s in candidates
+                ]
+                system_prompt = (
+                    "You are an expert merchandise discovery analyst and creative strategist. "
+                    "Evaluate the candidate seed groups deterministically based on commercial merchandise "
+                    "viability, emotional audience resonance, print-on-demand appeal, and cultural relevance. "
+                    "Maintain strict factual consistency, evaluate every candidate seed, and return valid structured output."
+                )
+                user_prompt = (
+                    f"Deterministically evaluate the following {len(candidates)} candidate seed groups for "
+                    f"autonomous merchandise discovery in run '{run.title}' (ID: {run.run_id}).\n\n"
+                    f"Candidate seeds JSON:\n{json.dumps(candidate_summary, indent=2)}\n\n"
+                    "For each candidate seed, provide:\n"
+                    "1. An insightful evaluation of merchandise potential (apparel, accessories, home goods, gifts).\n"
+                    "2. Target audience emotional resonance and cultural tension.\n"
+                    "3. A concise, strategic selection reason for why this seed was prioritized.\n"
+                    "Also provide a high-level executive summary of the entire seed portfolio."
+                )
+                try:
+                    structured_resp = self._reasoning_provider.complete_structured(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        response_model=stage_01.Stage1ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    reasoning_output = structured_resp.output
+                    usage = structured_resp.usage
+                except Exception as err:
+                    logger.warning("Stage 1 OpenAI evaluation failed; falling back to deterministic baseline: %s", err)
+
+            output = stage_01.execute(
+                input_model,
+                seeds,
+                reasoning_output=reasoning_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
+            summary = (
+                f"Selected {len(output.selected_seeds)} seed groups with "
+                f"{'OpenAI ' + usage.model if usage.provider != 'fixture' else 'deterministic'} reasoning."
+            )
+            _log_stage_01_results(run, output, usage)
         elif stage.stage_number == 2:
             input_model = stage_02.IdentityExpansionInput.model_validate(input_data)
             output = stage_02.execute(input_model)

@@ -19,15 +19,32 @@ def render_run_detail(
     """Render a persisted snapshot when available, or the demo detail in fixture mode."""
 
     if discovery_service is not None:
+        target_id = run_id
+        if target_id == "017" or not target_id:
+            # When connected to MongoDB, resolve to the latest real run rather than fake demo run 017
+            try:
+                runs = discovery_service.list_runs()
+                if runs:
+                    target_id = runs[0].run_id
+                    st.session_state["selected_run_id"] = target_id
+            except Exception:
+                pass
+
         try:
-            snapshot = discovery_service.get_run_snapshot(run_id)
+            snapshot = discovery_service.get_run_snapshot(target_id)
         except (PyMongoError, RepositoryError):
             st.error("Run details could not be loaded from MongoDB.")
             return
+
         if snapshot is None:
-            st.error(f"Run {run_id} was not found.")
-            if st.button("Back to runs"):
-                navigate_to(PAGE_RUNS)
+            st.info("No active run selected or run was not found in MongoDB.")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Browse all runs", use_container_width=True):
+                    navigate_to(PAGE_RUNS)
+            with col_b:
+                if st.button("+ Create a run", use_container_width=True):
+                    navigate_to("create_run")
             return
         run = snapshot_to_fixture(snapshot)
     elif run_id == "017":
@@ -43,8 +60,11 @@ def render_run_detail(
             navigate_to(PAGE_RUNS)
         return
 
-    if st.session_state.get("created_run_id") == run_id:
-        st.success("Run created! Stage 1 (Seed Discovery) executed and actual data is loaded.")
+    if st.session_state.get("created_run_id") == run.run_id:
+        st.success(
+            "🎉 Run created! Stage 1 (Autonomous Seed Discovery) executed with live OpenAI reasoning. "
+            "Pipeline halted after Stage 1 as configured by MVP_STOP_AFTER_STAGE."
+        )
         del st.session_state["created_run_id"]
 
     render_run_header(run)

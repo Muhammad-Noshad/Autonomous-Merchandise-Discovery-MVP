@@ -28,22 +28,37 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
     """Route the shell to live MongoDB pages or an explicit fixture fallback."""
 
     apply_theme()
-    run = get_demo_run()
-    selected_page = render_sidebar(run, runtime.provider_modes if runtime else None)
+    live_runs = None
+    default_run_id = ""
+
+    if runtime is not None:
+        try:
+            live_runs = runtime.discovery_service.list_runs()
+            if live_runs:
+                default_run_id = live_runs[0].run_id
+        except (PyMongoError, RepositoryError):
+            live_runs = []
+
+    demo_run = get_demo_run() if runtime is None else None
+    selected_page = render_sidebar(
+        run=demo_run,
+        provider_modes=runtime.provider_modes if runtime else None,
+        recent_runs=live_runs,
+    )
 
     if selected_page == PAGE_RUNS:
         if runtime is None:
             render_run_list()
         else:
-            try:
-                render_run_list(runtime.discovery_service.list_runs())
-            except (PyMongoError, RepositoryError):
-                st.error("Run history could not be loaded from MongoDB.")
+            render_run_list(live_runs or [])
     elif selected_page == PAGE_CREATE_RUN:
         render_run_create(runtime if runtime else None)
     elif selected_page == PAGE_RUN_DETAIL:
+        active_id = st.session_state.get("selected_run_id") or default_run_id
+        if not active_id and runtime is None:
+            active_id = "017"
         render_run_detail_with_polling(
-            st.session_state.get("selected_run_id", run.run_id),
+            active_id,
             runtime.discovery_service if runtime else None,
         )
     elif selected_page == PAGE_NICHES:

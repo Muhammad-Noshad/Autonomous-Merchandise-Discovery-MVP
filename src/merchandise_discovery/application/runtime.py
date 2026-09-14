@@ -64,6 +64,7 @@ class ApplicationRuntime:
     stage_repository: StageExecutionRepository
     stage_log_repository: StageLogRepository
     max_stage_attempts: int
+    stop_after_stage: int
     provider_modes: dict[str, str]
     seed_repository: SeedRepository
     intersection_repository: IntersectionRepository
@@ -160,6 +161,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             stage_repository=stage_repository,
             stage_log_repository=stage_log_repository,
             max_stage_attempts=settings.max_stage_attempts,
+            stop_after_stage=settings.stop_after_stage,
             provider_modes={
                 "research": "openai web search" if live_mode and settings.openai_api_key else "fixture",
                 "reasoning": "openai structured outputs" if live_mode and settings.openai_api_key else "fixture",

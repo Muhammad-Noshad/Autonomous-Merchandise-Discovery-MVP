@@ -32,6 +32,7 @@ def _initialize_configured_runtime(
     openai_output_price_per_million: float = 0.60,
     xai_image_price: float = 0.02,
     provider_mode: str = "fixture",
+    stop_after_stage: int = 17,
 ) -> ApplicationRuntime:
     """Cache one application runtime per configuration."""
 
@@ -47,6 +48,7 @@ def _initialize_configured_runtime(
         openai_output_price_per_million=openai_output_price_per_million,
         xai_image_price=xai_image_price,
         provider_mode=provider_mode,
+        stop_after_stage=stop_after_stage,
     )
     return build_runtime(settings)
 
@@ -78,6 +80,7 @@ def render_database_status() -> ApplicationRuntime | None:
                 openai_output_price_per_million=settings.openai_output_price_per_million,
                 xai_image_price=settings.xai_image_price,
                 provider_mode=settings.provider_mode,
+                stop_after_stage=settings.stop_after_stage,
             )
         except (ConfigurationError, PyMongoError) as error:
             # Keep fixture mode available for demos, but leave an operator-visible server log with

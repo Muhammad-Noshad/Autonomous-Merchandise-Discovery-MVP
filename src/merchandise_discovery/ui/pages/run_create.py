@@ -97,21 +97,47 @@ def render_run_create(
         st.error(f"Run could not be created: {error}")
         return
 
-    # Execute Stage 1 inline so actual data is generated and visible immediately
+    # Execute stages inline up to stop_after_stage with live UI loading status
     if runtime is not None:
-        try:
-            claimed_run = runtime.workflow_orchestrator.claim_run(run.run_id, worker_id="ui-inline-runner")
-            if claimed_run is None:
-                claimed_run = run
-            execution = runtime.workflow_orchestrator.start_next_stage(
-                claimed_run.run_id,
-                max_attempts=runtime.max_stage_attempts,
+        stop_after = getattr(runtime, "stop_after_stage", 1)
+        with st.status(f"Executing pipeline (Stage 1 to Stage {stop_after})...", expanded=True) as status_box:
+            st.write(f"Workflow run #{run.run_id} created in MongoDB.")
+            claimed_run = runtime.workflow_orchestrator.claim_run(run.run_id, worker_id="ui-inline-runner") or run
+
+            completed_stages = 0
+            while completed_stages < stop_after:
+                execution = runtime.workflow_orchestrator.start_next_stage(
+                    claimed_run.run_id,
+                    max_attempts=runtime.max_stage_attempts,
+                )
+                if execution is None:
+                    break
+
+                stage_num = execution.stage_number
+                if stage_num == 1:
+                    st.write("🚀 Running Stage 1: Seed Discovery (Calling OpenAI API gpt-4o-mini for reasoning)...")
+                else:
+                    st.write(f"🚀 Running Stage {stage_num:02d}: {execution.stage_name}...")
+
+                try:
+                    claimed_run, execution, result = execute_stage(runtime, claimed_run, execution)
+                    completed_stages += 1
+                    st.write(f"✅ Stage {stage_num:02d} completed: {result.output_summary}")
+                except Exception as error:
+                    st.error(f"Stage {stage_num:02d} execution failed: {error}")
+                    status_box.update(label=f"Stage {stage_num:02d} failed", state="error")
+                    return
+
+                if stage_num >= stop_after:
+                    st.info(f"Pipeline execution halted after Stage {stage_num} as configured by MVP_STOP_AFTER_STAGE={stop_after}.")
+                    break
+
+            status_box.update(
+                label=f"Pipeline execution through Stage {completed_stages} complete!",
+                state="complete",
+                expanded=False,
             )
-            if execution is not None:
-                execute_stage(runtime, claimed_run, execution)
-        except Exception as error:
-            st.error(f"Stage 1 execution failed: {error}")
-            return
 
     st.session_state["created_run_id"] = run.run_id
+    st.session_state["selected_run_id"] = run.run_id
     navigate_to(PAGE_RUN_DETAIL, run.run_id)
