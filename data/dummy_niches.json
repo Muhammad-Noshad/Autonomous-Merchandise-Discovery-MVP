@@ -1,0 +1,24 @@
+[
+  {
+    "niche_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "run_id": "dummy-run",
+    "intersection_id": "dummy-intersection-1",
+    "name": "Night Shift ICU Nurse + Pit Bull Owner",
+    "coherence_score": 9.5,
+    "experience_summary": "After spending a 12-hour night shift taking care of people, they would rather go home and decompress with their dog than socialize.",
+    "opportunity_score": 88.0,
+    "evidence_count": 5,
+    "validated": true
+  },
+  {
+    "niche_id": "f6e5d4c3-b2a1-0987-1234-567890abcdef",
+    "run_id": "dummy-run",
+    "intersection_id": "dummy-intersection-2",
+    "name": "Introverted Gamer + Cat Owner",
+    "coherence_score": 8.2,
+    "experience_summary": "Loves uninterrupted gaming sessions with their cat sitting on the keyboard, finding social interaction exhausting compared to virtual worlds.",
+    "opportunity_score": 75.5,
+    "evidence_count": 3,
+    "validated": true
+  }
+]

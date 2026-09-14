@@ -41,12 +41,8 @@ def load_settings() -> Settings:
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
         max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
         openai_reasoning_model=os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini"),
-        openai_input_price_per_million=float(
-            os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")
-        ),
-        openai_output_price_per_million=float(
-            os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")
-        ),
+        openai_input_price_per_million=float(os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")),
+        openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
         xai_image_price=float(os.getenv("XAI_IMAGE_PRICE", "0.02")),
         provider_mode=os.getenv("MVP_PROVIDER_MODE", "fixture").strip().lower(),
     )

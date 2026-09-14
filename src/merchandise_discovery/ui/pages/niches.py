@@ -1,69 +1,105 @@
-"""Niche and intermediate discovery-candidate page entrypoint."""
+"""Niche page showing dummy data from a JSON file."""
 
+import json
+import os
+import uuid
 import streamlit as st
-from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
-from merchandise_discovery.domain.models.artifacts import IdentityIntersection
-from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.pages.placeholder import render_placeholder_page
 
+JSON_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "..", "data", "dummy_niches.json"
+)
 
-def _render_intersection(intersection: IdentityIntersection) -> None:
-    """Render one candidate with its score, hypothesis, and deterministic filter outcome."""
 
-    accepted = intersection.eligible_for_research
-    status = "Accepted for research" if accepted else "Rejected"
-    color = "#22C55E" if accepted else "#EF4444"
+def load_niches() -> list[dict]:
+    """Load niches from the dummy JSON file."""
+    if not os.path.exists(JSON_PATH):
+        return []
+    try:
+        with open(JSON_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return []
+
+
+def save_niches(niches: list[dict]) -> None:
+    """Save niches to the dummy JSON file."""
+    os.makedirs(os.path.dirname(JSON_PATH), exist_ok=True)
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(niches, f, indent=2)
+
+
+def _render_niche(niche: dict) -> None:
+    """Render a single Niche candidate."""
     with st.container(border=True):
-        st.markdown(f"**{' + '.join(intersection.identities)}**")
+        st.markdown(f"**{niche.get('name', 'Unnamed Niche')}**")
+
+        validated = niche.get("validated", False)
+        status = "Validated" if validated else "Unvalidated"
+        color = "#22C55E" if validated else "#EAB308"
+
         st.markdown(
             f'<span style="color:{color}; font-weight:650;">●&nbsp; {status}</span>',
             unsafe_allow_html=True,
         )
-        if intersection.coherence_score is not None:
-            st.caption(f"Coherence score: {intersection.coherence_score:.2f} / 10")
-        for hypothesis in intersection.experience_hypotheses:
-            st.write(hypothesis)
-        if intersection.filter_reason:
-            st.warning(intersection.filter_reason)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if niche.get("coherence_score") is not None:
+                st.caption(f"Coherence score: {niche['coherence_score']:.2f} / 10")
+        with col2:
+            if niche.get("opportunity_score") is not None:
+                st.caption(f"Opportunity score: {niche['opportunity_score']:.2f} / 100")
+
+        if niche.get("experience_summary"):
+            st.write(niche["experience_summary"])
+
+        st.caption(f"Evidence count: {niche.get('evidence_count', 0)}")
 
 
 def render_niches(discovery_service: DiscoveryService | None = None) -> None:
-    """Render persisted Stage 5 candidates or the future research placeholder."""
-
-    if discovery_service is None:
-        render_placeholder_page(
-            "Niches",
-            "Compare researched opportunities and trace each signal back to public evidence.",
-            [
-                ("Validated niches", "Research-backed niches will be ranked here."),
-                ("Evidence", "Citations, excerpts, and retrieval timestamps will appear here."),
-                ("Opportunity scores", "Reproducible score breakdowns will appear here."),
-            ],
-        )
-        return
-
-    run_id = st.session_state.get("selected_run_id")
+    """Render dummy niches and allow adding new ones."""
     st.markdown('<div class="opus-breadcrumb">Workspace</div>', unsafe_allow_html=True)
     st.title("Niches")
-    st.caption("Inspect the identity intersections that passed the deterministic pre-research filter.")
-    if not run_id:
-        st.info("Open a run first to inspect its discovery candidates.")
+    st.caption("Inspect and add manual identity intersections for merchandise discovery.")
+
+    niches = load_niches()
+
+    st.subheader("Add a New Niche")
+    with st.form("add_niche_form", clear_on_submit=True):
+        name = st.text_input("Niche Name (e.g., Night Shift ICU Nurse)")
+        experience = st.text_area("Experience Summary")
+        coherence = st.slider("Coherence Score", 0.0, 10.0, 5.0, 0.1)
+        opportunity = st.slider("Opportunity Score", 0.0, 100.0, 50.0, 1.0)
+
+        submitted = st.form_submit_button("Add Niche")
+        if submitted:
+            if not name.strip():
+                st.error("Niche name is required.")
+            else:
+                new_niche = {
+                    "niche_id": str(uuid.uuid4()),
+                    "run_id": "dummy-run",
+                    "intersection_id": f"manual-{uuid.uuid4()}",
+                    "name": name.strip(),
+                    "coherence_score": coherence,
+                    "experience_summary": experience.strip(),
+                    "opportunity_score": opportunity,
+                    "evidence_count": 0,
+                    "validated": False,
+                }
+                niches.append(new_niche)
+                save_niches(niches)
+                st.success(f"Added niche: {name}")
+                st.rerun()
+
+    st.subheader("Available Niches")
+    if not niches:
+        st.info("No niches found in the dummy JSON file.")
         return
 
-    try:
-        intersections = discovery_service.list_intersections(run_id)
-    except (PyMongoError, RepositoryError):
-        st.error("Discovery candidates could not be loaded from MongoDB.")
-        return
-    if not intersections:
-        st.info("No persisted discovery candidates are available for this run yet.")
-        return
-
-    accepted = sum(intersection.eligible_for_research for intersection in intersections)
-    metric_left, metric_right = st.columns(2)
-    metric_left.metric("Accepted", accepted)
-    metric_right.metric("Rejected", len(intersections) - accepted)
-    for intersection in intersections:
-        _render_intersection(intersection)
+    st.metric("Total Niches", len(niches))
+    for niche in niches:
+        _render_niche(niche)
