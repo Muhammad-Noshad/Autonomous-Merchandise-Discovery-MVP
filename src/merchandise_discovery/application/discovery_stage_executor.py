@@ -71,6 +71,7 @@ def _log_stage_01_results(
         f"Cognitive Agent: Luna · Provider: {usage.provider} · Model: {usage.model}\n"
         f"Tokens: Input={usage.input_tokens}, Output={usage.output_tokens}, Total={usage.total_tokens}\n"
         f"Estimated Cost: ${usage.estimated_cost_usd:.6f} USD\n"
+        f"Selection Seed: {output.selection_seed}\n"
         f"Selected Seeds Count: {len(output.selected_seeds)}\n"
         f"{'-'*80}\n"
         f"LUNA'S EXECUTIVE STRATEGY SUMMARY:\n{output.executive_summary or 'Deterministic baseline selection.'}\n"
@@ -174,6 +175,7 @@ class DiscoveryStageExecutor:
             return stage_01.SeedDiscoveryInput(
                 seed_source=run.config.seed_source,
                 max_seed_items=max(6, min(12, run.config.max_intersections + 2)),
+                selection_seed=run.config.selection_seed,
             ).model_dump(mode="python")
 
         previous = self._stage_repository.get_latest(run.run_id, stage.stage_number - 1)
@@ -337,7 +339,8 @@ class DiscoveryStageExecutor:
             )
             summary = (
                 f"Selected {len(output.selected_seeds)} seed groups evaluated by Luna "
-                f"({usage.model if usage.provider != 'fixture' else 'deterministic'})."
+                f"({usage.model if usage.provider != 'fixture' else 'deterministic'}); "
+                f"selection seed {output.selection_seed}."
             )
             _log_stage_01_results(run, output, usage)
         elif stage.stage_number == 2:

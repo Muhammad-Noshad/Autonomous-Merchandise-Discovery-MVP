@@ -43,7 +43,12 @@ def render_sidebar(
     # Button callbacks can happen after the radio widget has been instantiated. Apply queued route
     # changes before creating that widget on the next run so Streamlit accepts the state update.
     pending_page = st.session_state.pop("pending_page", None)
-    if pending_page is not None:
+    internal_page = None
+    if pending_page == PAGE_RUN_DETAIL:
+        # Run Detail is deliberately absent from the sidebar radio. Keep it as a one-rerun
+        # internal route so an Open button can navigate there without exposing a direct toggle.
+        internal_page = pending_page
+    elif pending_page is not None:
         st.session_state["active_page"] = pending_page
     pending_run_id = st.session_state.pop("pending_run_id", None)
     if pending_run_id is not None:
@@ -118,7 +123,7 @@ def render_sidebar(
             st.caption(f"Live providers · {active}")
         else:
             st.caption("MVP fixture providers")
-        return selected_page
+        return internal_page or selected_page
 
 
 def render_run_header(run: RunFixture) -> None:
@@ -140,7 +145,9 @@ def render_run_header(run: RunFixture) -> None:
     with header_left:
         st.title(f"Run #{run.run_id}")
         st.caption(
-            f"{run.title}  ·  Started {run.started}  ·  Triggered by {run.triggered_by}  ·  {run.version}"
+            f"{run.title}  ·  Started {run.started}  ·  Triggered by {run.triggered_by}  ·  "
+            f"Selection seed: {run.selection_seed if run.selection_seed is not None else 'not recorded'}  ·  "
+            f"{run.version}"
         )
     with header_right:
         st.markdown(

@@ -3,6 +3,7 @@
 from merchandise_discovery.domain.models.artifacts import IdentityIntersection
 from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
     SeedDiscoveryInput,
+    select_candidate_seeds,
 )
 from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
     execute as execute_seed_discovery,
@@ -89,20 +90,23 @@ def test_pre_research_filter_rejects_reordered_duplicates() -> None:
 
 
 def test_stage_01_seed_discovery_with_reasoning_output() -> None:
-    """Stage 1 integrates structured reasoning evaluations while preserving deterministic ordering."""
+    """Stage 1 attaches provider reasoning to the reproducibly selected sample."""
     from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
         SeedAnalysis,
         Stage1ReasoningOutput,
     )
 
     seeds = load_seed_fixture()
+    input_data = SeedDiscoveryInput(max_seed_items=4, selection_seed=21)
+    selected = select_candidate_seeds(input_data, seeds)
+    selected_seed = selected[0]
     reasoning = Stage1ReasoningOutput(
         executive_summary="High potential seed portfolio.",
         evaluations=[
             SeedAnalysis(
-                seed_id=seeds[0].seed_id,
-                seed_name=seeds[0].name,
-                category=seeds[0].category,
+                seed_id=selected_seed.seed_id,
+                seed_name=selected_seed.name,
+                category=selected_seed.category,
                 merchandise_potential="Apparel and mugs.",
                 target_audience_appeal="Work-from-home humor.",
                 selection_reason="Top priority audience for POD.",
@@ -110,7 +114,7 @@ def test_stage_01_seed_discovery_with_reasoning_output() -> None:
         ],
     )
     result = execute_seed_discovery(
-        SeedDiscoveryInput(max_seed_items=4),
+        input_data,
         seeds,
         reasoning_output=reasoning,
         model="gpt-4o-mini",
@@ -118,5 +122,33 @@ def test_stage_01_seed_discovery_with_reasoning_output() -> None:
     assert len(result.selected_seeds) == 4
     assert result.model == "gpt-4o-mini"
     assert result.executive_summary == "High potential seed portfolio."
-    assert result.selection_reasons[seeds[0].seed_id] == "Top priority audience for POD."
+    assert result.selection_reasons[selected_seed.seed_id] == "Top priority audience for POD."
     assert len(result.evaluations) == 1
+
+
+def test_stage_01_selection_is_reproducible_and_category_balanced() -> None:
+    """One selection seed reproduces the same 4/4/4 sample from the three categories."""
+
+    seeds = load_seed_fixture()
+    input_data = SeedDiscoveryInput(max_seed_items=12, selection_seed=12345)
+
+    first = select_candidate_seeds(input_data, seeds)
+    second = select_candidate_seeds(input_data, seeds)
+
+    assert [seed.seed_id for seed in first] == [seed.seed_id for seed in second]
+    categories = {seed.category for seed in first}
+    assert {category.value: sum(seed.category == category for seed in first) for category in categories} == {
+        "audience": 4,
+        "interest": 4,
+        "value": 4,
+    }
+
+
+def test_stage_01_different_selection_seeds_can_explore_different_records() -> None:
+    """Changing only the random state can produce a different sample without replacement."""
+
+    seeds = load_seed_fixture()
+    first = select_candidate_seeds(SeedDiscoveryInput(max_seed_items=12, selection_seed=1), seeds)
+    second = select_candidate_seeds(SeedDiscoveryInput(max_seed_items=12, selection_seed=2), seeds)
+
+    assert [seed.seed_id for seed in first] != [seed.seed_id for seed in second]

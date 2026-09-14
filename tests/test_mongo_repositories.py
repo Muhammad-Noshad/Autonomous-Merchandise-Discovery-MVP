@@ -42,6 +42,23 @@ def test_run_repository_returns_none_for_missing_record() -> None:
     assert RunRepository(collection).get_by_id("missing") is None
 
 
+def test_run_repository_migrates_legacy_runs_to_a_stable_selection_seed() -> None:
+    """Pre-seed runs receive a reproducible value that is written back to MongoDB on read."""
+
+    collection = Mock()
+    legacy_document = WorkflowRun(title="Legacy run").model_dump(mode="python")
+    legacy_document["config"].pop("selection_seed")
+    collection.find_one.return_value = legacy_document
+
+    run = RunRepository(collection).get_by_id(legacy_document["run_id"])
+
+    assert run is not None
+    assert run.config.selection_seed is not None
+    collection.update_one.assert_called_once()
+    update = collection.update_one.call_args.args[1]
+    assert update["$set"]["config.selection_seed"] == run.config.selection_seed
+
+
 def test_run_repository_lists_newest_runs_with_a_bound() -> None:
     """The history page receives a bounded, repository-owned query result."""
 

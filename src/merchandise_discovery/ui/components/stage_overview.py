@@ -62,6 +62,7 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
     eval_by_id = {e.get("seed_id"): e for e in evaluations}
     _metric_row([
         ("Selected seed groups", str(len(seeds))),
+        ("Selection seed", str(payload.get("selection_seed", "Not recorded"))),
         ("Executor", "LUNA + SYSTEM"),
         ("Cognitive Agent", "Luna (OpenAI reasoning)"),
     ])

@@ -4,6 +4,8 @@ The repository owns atomic claiming and optimistic-locking updates. Application 
 a run should change state; this module only expresses those decisions as MongoDB operations.
 """
 
+from hashlib import sha256
+
 from pymongo import ReturnDocument
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
@@ -35,10 +37,7 @@ class RunRepository:
     def get_by_id(self, run_id: str) -> WorkflowRun | None:
         """Fetch one run by its stable application identifier."""
 
-        return from_document(
-            WorkflowRun,
-            self._collection.find_one({"run_id": run_id}),
-        )
+        return self._from_document(self._collection.find_one({"run_id": run_id}))
 
     def list_recent(self, limit: int = 50) -> list[WorkflowRun]:
         """Return the newest runs in a bounded result set for the history page."""
@@ -48,8 +47,30 @@ class RunRepository:
         return [
             run
             for document in self._collection.find({}).sort([("created_at", -1)]).limit(limit)
-            if (run := from_document(WorkflowRun, document)) is not None
+            if (run := self._from_document(document)) is not None
         ]
+
+    def _from_document(self, document: dict | None) -> WorkflowRun | None:
+        """Rehydrate a run and persist a stable seed for documents created before seed support."""
+
+        if document is None:
+            return None
+
+        config = document.get("config")
+        if isinstance(config, dict) and "selection_seed" not in config:
+            run_id = str(document.get("run_id", ""))
+            # A legacy run has no historical random state to recover. Hashing its immutable ID
+            # gives it a stable migration value without pretending it was randomly generated.
+            selection_seed = int.from_bytes(sha256(run_id.encode("utf-8")).digest()[:4], "big")
+            self._collection.update_one(
+                {"run_id": run_id},
+                {"$set": {"config.selection_seed": selection_seed}},
+            )
+            document = {
+                **document,
+                "config": {**config, "selection_seed": selection_seed},
+            }
+        return from_document(WorkflowRun, document)
 
     def claim_next_pending(self, worker_id: str) -> WorkflowRun | None:
         """Atomically claim the oldest pending run so two workers cannot process it together."""

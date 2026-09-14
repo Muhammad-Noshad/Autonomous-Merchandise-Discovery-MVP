@@ -46,6 +46,7 @@ class RunFixture(BaseModel):
 
     run_id: str
     title: str
+    selection_seed: int | None = None
     status: RunStatus
     completed_stages: int
     total_stages: int = 17
@@ -72,6 +73,7 @@ class RunListItemFixture(BaseModel):
 
     run_id: str
     title: str
+    selection_seed: int | None = None
     status: RunStatus
     progress: int = Field(ge=0, le=100)
     updated: str
@@ -85,6 +87,7 @@ def get_demo_runs() -> list[RunListItemFixture]:
         RunListItemFixture(
             run_id="017",
             title="Autonomous merchandise discovery pipeline",
+            selection_seed=17017,
             status=RunStatus.RUNNING,
             progress=35,
             updated="12 minutes ago",
@@ -93,6 +96,7 @@ def get_demo_runs() -> list[RunListItemFixture]:
         RunListItemFixture(
             run_id="016",
             title="Remote workers and decompression rituals",
+            selection_seed=16016,
             status=RunStatus.COMPLETED,
             progress=100,
             updated="2 hours ago",
@@ -101,6 +105,7 @@ def get_demo_runs() -> list[RunListItemFixture]:
         RunListItemFixture(
             run_id="015",
             title="Weekend makers and workshop identity",
+            selection_seed=15015,
             status=RunStatus.COMPLETED,
             progress=100,
             updated="1 day ago",
@@ -109,6 +114,7 @@ def get_demo_runs() -> list[RunListItemFixture]:
         RunListItemFixture(
             run_id="014",
             title="Pet owners after demanding shifts",
+            selection_seed=14014,
             status=RunStatus.FAILED,
             progress=58,
             updated="2 days ago",
@@ -289,6 +295,7 @@ def get_demo_run() -> RunFixture:
     return RunFixture(
         run_id="017",
         title="Autonomous merchandise discovery pipeline",
+        selection_seed=17017,
         status=RunStatus.RUNNING,
         completed_stages=6,
         estimated_remaining="28 minutes",

@@ -6,6 +6,7 @@ without reconstructing what an external model returned.
 """
 
 from datetime import datetime, timezone
+from secrets import randbits
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,10 +21,19 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def new_selection_seed() -> int:
+    """Create the bounded random state used to reproduce one run's seed selection."""
+
+    return randbits(32)
+
+
 class RunConfig(BaseModel):
-    """Small, configurable funnel limits used by the MVP demo run."""
+    """Small, configurable funnel limits and reproducibility settings for one run."""
 
     seed_source: str = Field(default="mvp_seed_library", min_length=1)
+    # The seed belongs to the run, not to an individual knowledge-base record. Persisting it in
+    # the aggregate lets operators reproduce the exact Stage 1 selection from MongoDB later.
+    selection_seed: int = Field(default_factory=new_selection_seed, ge=0, le=4_294_967_295)
     max_intersections: int = Field(default=10, ge=1, le=5000)
     max_researched_niches: int = Field(default=3, ge=1, le=100)
     concepts_per_niche: int = Field(default=5, ge=1, le=50)

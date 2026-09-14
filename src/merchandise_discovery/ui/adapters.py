@@ -83,6 +83,7 @@ def workflow_to_list_item(run: WorkflowRun) -> RunListItemFixture:
     return RunListItemFixture(
         run_id=run.run_id,
         title=run.title,
+        selection_seed=run.config.selection_seed,
         status=run.status,
         progress=progress,
         updated=_format_timestamp(run.updated_at),
@@ -143,6 +144,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
     return RunFixture(
         run_id=run.run_id,
         title=run.title,
+        selection_seed=run.config.selection_seed,
         status=run.status,
         completed_stages=run.completed_stages,
         total_stages=run.total_stages,

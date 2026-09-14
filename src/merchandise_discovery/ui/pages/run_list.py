@@ -35,7 +35,10 @@ def _render_run_row(run: RunListItemFixture) -> None:
         )
         with identity:
             st.markdown(f"**#{run.run_id} · {run.title}**")
-            st.caption(f"Triggered by {run.triggered_by} · Updated {run.updated}")
+            st.caption(
+                f"Triggered by {run.triggered_by} · Updated {run.updated} · "
+                f"Selection seed: {run.selection_seed if run.selection_seed is not None else 'not recorded'}"
+            )
         with status_column:
             color = _status_color(run.status)
             st.markdown(
