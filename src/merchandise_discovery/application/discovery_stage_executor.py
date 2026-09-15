@@ -216,63 +216,19 @@ class DiscoveryStageExecutor:
             if not seeds:
                 raise ValueError("Seed knowledge is empty. Restart the application to seed MongoDB.")
 
-            candidates = stage_01.select_candidate_seeds(input_model, seeds)
-            reasoning_output = None
-
-            if self._reasoning_provider is not None:
-                candidate_summary = [
-                    {
-                        "seed_id": s.seed_id,
-                        "seed_name": s.name,
-                        "category": s.category,
-                        "priority": s.metadata.get("priority", 0),
-                        "dimensions": s.metadata.get("dimensions", []),
-                        "affinity_tags": s.metadata.get("affinity_tags", []),
-                    }
-                    for s in candidates
-                ]
-                system_prompt = (
-                    "You are a merchandise discovery reasoning provider. "
-                    "Your role in Stage 1 is system seed evaluation: evaluate broad candidate starting points from the knowledge base. "
-                    "In accordance with the discovery architecture, prefer identity groups with: "
-                    "(1) strong self-identification, (2) shared daily experiences and routines, "
-                    "(3) distinct community language and in-group humor, (4) high commercial merchandise and wearability potential, "
-                    "(5) high gift potential, and (6) enough sub-identities to create fertile intersections. "
-                    "Perform a rigorous, deterministic evaluation of every candidate seed and return structured output."
-                )
-                user_prompt = (
-                    f"Evaluate the following {len(candidates)} candidate seed groups for "
-                    f"run '{run.title}' (ID: {run.run_id}):\n\n"
-                    f"Candidate seeds JSON:\n{json.dumps(candidate_summary, indent=2)}\n\n"
-                    "For each candidate seed, provide:\n"
-                    "1. self_identification_strength: How strongly do people identify with this group?\n"
-                    "2. community_language: Key in-group phrases, vocabulary, jokes, or shared memes.\n"
-                    "3. merchandise_potential: Specific commercial products (apparel, mugs, home decor, desk gifts).\n"
-                    "4. target_audience_appeal: Emotional drivers, shared frustrations, or rituals.\n"
-                    "5. selection_reason: The provider's rationale for prioritizing this seed for discovery.\n\n"
-                    "Also provide an executive strategy summary synthesizing why this seed portfolio was selected."
-                )
-                try:
-                    structured_resp = self._reasoning_provider.complete_structured(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        response_model=stage_01.Stage1ReasoningOutput,
-                        temperature=0.0,
-                    )
-                    reasoning_output = structured_resp.output
-                    usage = structured_resp.usage
-                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
-                    logger.warning("Stage 1 provider evaluation failed; falling back to deterministic baseline: %s", err)
-
+            # Stage 1 is intentionally provider-free. Its responsibility is reproducible portfolio
+            # sampling from MongoDB; live reasoning starts in Stage 2 where it expands the selected
+            # seeds into structured identity dimensions. This prevents an optional AI call from
+            # blocking the first durable workflow transition.
             output = stage_01.execute(
                 input_model,
                 seeds,
-                reasoning_output=reasoning_output,
+                reasoning_output=None,
                 model=usage.model if usage.provider != "fixture" else "deterministic",
             )
             summary = (
                 f"Selected {len(output.selected_seeds)} seed groups by system selection "
-                f"({usage.model if usage.provider != 'fixture' else 'deterministic'}); "
+                "(deterministic); "
                 f"selection seed {output.selection_seed}."
             )
         elif stage.stage_number == 2:

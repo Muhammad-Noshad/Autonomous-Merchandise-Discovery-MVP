@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Streamlit caches the composed runtime, including service instances. Bumping this value forces a
 # rebuild when application-service capabilities change so a hot-reloaded UI cannot retain an older
 # cached DiscoveryService object.
-RUNTIME_CACHE_VERSION = "2026-09-15-run-deletion-v1"
+RUNTIME_CACHE_VERSION = "2026-09-15-inline-stage-rerun-v3"
 
 
 @st.cache_resource(show_spinner=False)

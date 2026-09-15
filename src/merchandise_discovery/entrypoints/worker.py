@@ -71,7 +71,26 @@ def _process_one(runtime, worker_id: str) -> bool:
                 )
                 print(f"Run remains failed after retry limit: {run.run_id}")
             else:
-                print(f"Run completed all automated stages: {run.run_id}")
+                message = (
+                    f"No runnable stage found; expected Stage {run.current_stage_number or 'unknown'}."
+                )
+                _log_event(runtime, run.run_id, message, level="error")
+                try:
+                    runtime.run_repository.update_status(
+                        run.run_id,
+                        expected_version=run.version,
+                        status=RunStatus.FAILED,
+                        current_stage_number=run.current_stage_number,
+                        last_error=message,
+                        retry_exhausted=False,
+                    )
+                except Exception as state_error:  # noqa: BLE001  # Preserve the original failure context.
+                    print(
+                        f"[RUN {run.run_id}] ERROR | Could not persist recovery state: "
+                        f"{type(state_error).__name__}: {state_error}",
+                        flush=True,
+                    )
+                print(f"[RUN {run.run_id}] ERROR | {message}", flush=True)
             return True
 
         active_execution = execution

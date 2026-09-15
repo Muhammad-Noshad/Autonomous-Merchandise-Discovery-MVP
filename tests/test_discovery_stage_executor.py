@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
+from merchandise_discovery.domain.stages.stage_01_seed_discovery import SeedDiscoveryInput
 from merchandise_discovery.domain.stages.stage_02_identity_expansion import (
     GeneratedDimension,
     IdentityExpansionInput,
@@ -25,6 +26,37 @@ from merchandise_discovery.domain.stages.stage_03_intersection_generation import
 )
 from merchandise_discovery.infrastructure.providers.reasoning_provider import StructuredResponse
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
+
+
+def test_stage_01_does_not_call_reasoning_provider() -> None:
+    """Stage 1 remains a deterministic MongoDB selection even in live-provider mode."""
+
+    seed_repository = Mock()
+    seed_repository.list_all.return_value = load_seed_fixture()
+    reasoning_provider = Mock()
+    executor = DiscoveryStageExecutor(
+        seed_repository,
+        *(Mock() for _ in range(9)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title="Stage 1 deterministic test")
+    stage = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Autonomous Seed Discovery",
+    )
+    input_data = SeedDiscoveryInput(
+        seed_source=run.config.seed_source,
+        max_seed_items=12,
+        selection_seed=run.config.selection_seed,
+    ).model_dump(mode="python")
+
+    result = executor.execute(run, stage, input_data)
+
+    reasoning_provider.complete_structured.assert_not_called()
+    assert result.usage.total_tokens == 0
+    assert result.usage.estimated_cost_usd == 0
+    assert result.output_data["model"] == "deterministic"
 
 
 def test_stage_02_calls_structured_provider_and_preserves_usage() -> None:

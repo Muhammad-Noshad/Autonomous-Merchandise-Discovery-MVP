@@ -50,8 +50,11 @@ class OpenAIReasoningProvider:
         *,
         input_price_per_million: float = 0.15,
         output_price_per_million: float = 0.60,
+        timeout_seconds: float = 60.0,
     ):
-        self._client = OpenAI(api_key=api_key)
+        # A bounded timeout keeps a failed live provider from holding a Streamlit request open
+        # indefinitely. Stage execution catches this provider error and records a visible fallback.
+        self._client = OpenAI(api_key=api_key, timeout=timeout_seconds)
         self._model = model
         self._input_price = input_price_per_million
         self._output_price = output_price_per_million
