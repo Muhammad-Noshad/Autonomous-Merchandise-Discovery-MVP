@@ -1,5 +1,7 @@
 """Tests for the local, evidence-linked research and opportunity stages."""
 
+from unittest.mock import Mock, patch
+
 from merchandise_discovery.domain.models.artifacts import IdentityIntersection
 from merchandise_discovery.domain.stages.stage_06_niche_research import NicheResearchInput
 from merchandise_discovery.domain.stages.stage_06_niche_research import (
@@ -13,7 +15,11 @@ from merchandise_discovery.domain.stages.stage_08_opportunity_scoring import Opp
 from merchandise_discovery.domain.stages.stage_08_opportunity_scoring import (
     execute as execute_scoring,
 )
-from merchandise_discovery.infrastructure.providers.research_provider import FixtureResearchProvider
+from merchandise_discovery.infrastructure.providers.research_provider import (
+    FixtureResearchProvider,
+    OpenAIWebResearchProvider,
+    ResearchRequest,
+)
 
 
 def test_research_stage_bounds_targets_and_preserves_provenance() -> None:
@@ -48,6 +54,42 @@ def test_research_stage_bounds_targets_and_preserves_provenance() -> None:
     assert len(result.evidence) == 3
     assert all(item.run_id == "run-test" for item in result.evidence)
     assert all(item.niche_id == result.niches[0].niche_id for item in result.evidence)
+
+
+def test_openai_web_search_usage_includes_per_call_tool_price() -> None:
+    """Stage 6 estimates token cost plus the configured fixed web-search call charge."""
+
+    response = Mock()
+    response.output_text = "Evidence summary."
+    response.output = [
+        Mock(
+            content=[
+                Mock(
+                    annotations=[Mock(url="https://example.com/source", title="Example source")]
+                )
+            ]
+        )
+    ]
+    response.usage = Mock(input_tokens=100, output_tokens=100, total_tokens=200)
+
+    with patch("merchandise_discovery.infrastructure.providers.research_provider.OpenAI") as client_factory:
+        client_factory.return_value.responses.create.return_value = response
+        provider = OpenAIWebResearchProvider(
+            "test-key",
+            web_search_price_per_call=0.01,
+        )
+        result = provider.search(
+            ResearchRequest(
+                query="remote workers and home gardeners",
+                identities=("Remote workers", "Home gardeners"),
+                hypotheses=("A repeatable decompression ritual.",),
+            )
+        )
+
+    assert result.usage.request_count == 1
+    assert result.usage.total_tokens == 200
+    assert result.usage.estimated_cost_usd == 0.010075
+    assert "per OpenAI web-search call" in (result.usage.pricing_note or "")
 
 
 def test_experience_mining_keeps_evidence_lineage() -> None:

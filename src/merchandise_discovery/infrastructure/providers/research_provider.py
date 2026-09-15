@@ -104,11 +104,13 @@ class OpenAIWebResearchProvider:
         *,
         input_price_per_million: float = 0.15,
         output_price_per_million: float = 0.60,
+        web_search_price_per_call: float = 0.01,
     ):
         self._client = OpenAI(api_key=api_key)
         self._model = model
         self._input_price = input_price_per_million
         self._output_price = output_price_per_million
+        self._web_search_price_per_call = web_search_price_per_call
 
     def search(self, request: ResearchRequest) -> ResearchSearchResult:
         """Search the public web and retain citation URLs as evidence provenance."""
@@ -167,10 +169,14 @@ class OpenAIWebResearchProvider:
                 ),
                 estimated_cost_usd=round(
                     input_tokens * self._input_price / 1_000_000
-                    + output_tokens * self._output_price / 1_000_000,
+                    + output_tokens * self._output_price / 1_000_000
+                    + self._web_search_price_per_call,
                     8,
                 ),
                 cost_is_estimate=True,
-                pricing_note="Token estimate excludes any separate web-search tool charge.",
+                pricing_note=(
+                    "Estimated token cost plus $"
+                    f"{self._web_search_price_per_call:.2f} per OpenAI web-search call."
+                ),
             ),
         )

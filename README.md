@@ -61,7 +61,8 @@ Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live 
 `OPENAI_API_KEY` enables OpenAI structured outputs for Stages 2–4, 9, 10, and 13, plus OpenAI web
 search for Stage 6. Stage 1 remains deterministic. `XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
 continue to use the fixture provider or deterministic fallback. Token costs are estimated from the
-configured OpenAI rates; xAI image costs are estimated from the configured per-image rate.
+configured OpenAI rates; Stage 6 also adds `OPENAI_WEB_SEARCH_PRICE_PER_CALL` (default `$0.01`,
+derived from `$10 per 1,000 calls`); xAI image costs are estimated from the configured per-image rate.
 
 When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same health check and
 initialization automatically. MongoDB databases are created lazily, so the app creates an

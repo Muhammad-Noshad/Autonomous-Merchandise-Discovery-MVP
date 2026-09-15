@@ -28,6 +28,7 @@ class Settings:
     openai_reasoning_model: str = "gpt-4o-mini"
     openai_input_price_per_million: float = 0.15
     openai_output_price_per_million: float = 0.60
+    openai_web_search_price_per_call: float = 0.01
     xai_image_price: float = 0.02
     provider_mode: str = "fixture"
     # The current MVP intentionally evaluates only Stage 1 until the client approves expanding
@@ -54,6 +55,9 @@ def load_settings() -> Settings:
         ),
         openai_input_price_per_million=float(os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")),
         openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
+        openai_web_search_price_per_call=float(
+            os.getenv("OPENAI_WEB_SEARCH_PRICE_PER_CALL", "0.01")
+        ),
         xai_image_price=float(os.getenv("XAI_IMAGE_PRICE", "0.02")),
         provider_mode=os.getenv("MVP_PROVIDER_MODE", "fixture").strip().lower(),
         stop_after_stage=max(1, min(17, int(os.getenv("MVP_STOP_AFTER_STAGE", "1")))),
