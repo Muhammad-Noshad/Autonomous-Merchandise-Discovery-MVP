@@ -134,6 +134,40 @@ def test_stage_04_merges_structured_provider_evaluation() -> None:
     assert enriched.metadata["coherence_generation_method"] == "provider"
 
 
+def test_pre_research_filter_rejects_incomplete_candidates() -> None:
+    """Stage 5 does not allow structurally incomplete intersections into research."""
+
+    missing_score = IdentityIntersection(
+        run_id="run-test",
+        identities=["Night-shift nurses", "Coffee rituals"],
+        experience_hypotheses=["A repeatable decompression ritual."],
+    )
+    missing_hypothesis = IdentityIntersection(
+        run_id="run-test",
+        identities=["Remote workers", "Home gardeners"],
+        coherence_score=8,
+    )
+    one_identity = IdentityIntersection(
+        run_id="run-test",
+        identities=["Night-shift nurses"],
+        coherence_score=8,
+        experience_hypotheses=["A shared work experience."],
+    )
+
+    result = execute_pre_research_filter(
+        PreResearchFilterInput(
+            intersections=[missing_score, missing_hypothesis, one_identity],
+            max_intersections=10,
+        )
+    )
+
+    assert not result.accepted
+    reasons = {item.filter_reason for item in result.rejected}
+    assert "Rejected because the intersection has no coherence score." in reasons
+    assert "Rejected because the intersection has no experience hypothesis." in reasons
+    assert "Rejected because the intersection has fewer than two valid identities." in reasons
+
+
 def test_stage_01_seed_discovery_with_reasoning_output() -> None:
     """Stage 1 attaches provider reasoning to the reproducibly selected sample."""
     from merchandise_discovery.domain.stages.stage_01_seed_discovery import (

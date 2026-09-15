@@ -27,7 +27,12 @@ def _canonical_key(intersection: IdentityIntersection) -> str:
 
 
 def execute(input_data: PreResearchFilterInput) -> PreResearchFilterOutput:
-    """Reject duplicates, weak coherence, and candidates beyond the configured research bound."""
+    """Reject incomplete candidates, duplicates, weak coherence, and excess candidates.
+
+    Stage 4 owns semantic evaluation, but Stage 5 still verifies the minimum data needed for
+    research. This prevents a structurally valid Pydantic record with missing optional fields from
+    being treated as research-ready.
+    """
 
     ordered = sorted(
         input_data.intersections,
@@ -42,9 +47,17 @@ def execute(input_data: PreResearchFilterInput) -> PreResearchFilterOutput:
     for intersection in ordered:
         key = _canonical_key(intersection)
         reason: str | None = None
-        if key in seen:
+        if len(intersection.identities) < 2 or any(
+            not str(identity).strip() for identity in intersection.identities
+        ):
+            reason = "Rejected because the intersection has fewer than two valid identities."
+        elif intersection.coherence_score is None:
+            reason = "Rejected because the intersection has no coherence score."
+        elif not any(str(hypothesis).strip() for hypothesis in intersection.experience_hypotheses):
+            reason = "Rejected because the intersection has no experience hypothesis."
+        elif key in seen:
             reason = "Rejected as a duplicate identity combination."
-        elif (intersection.coherence_score or 0) < 6:
+        elif intersection.coherence_score < 6:
             reason = "Rejected because coherence score is below the 6.0 research threshold."
         elif len(accepted) >= input_data.max_intersections:
             reason = "Rejected because the configured research bound has been reached."
