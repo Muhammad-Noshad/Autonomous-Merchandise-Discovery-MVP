@@ -1,8 +1,8 @@
-"""Reasoning-model adapters for structured generation and critique.
+"""Reasoning-model adapters for provider-backed structured generation and critique.
 
-Stages depend on this boundary rather than importing the OpenAI SDK. The first five stages currently
-use deterministic logic, but this adapter is ready for provider-backed hypotheses in a later stage
-without changing stage or worker control flow.
+Stages depend on this boundary rather than importing the OpenAI SDK. Live provider use is injected
+by the application runtime, while fixture or deterministic fallbacks remain available when live mode
+is disabled or a provider request fails.
 """
 
 from dataclasses import dataclass

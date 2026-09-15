@@ -17,7 +17,7 @@ class StageDefinition:
 STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     StageDefinition(1, "Autonomous Seed Discovery", "Select high-value audience, interest, and value seeds to begin the funnel."),
     StageDefinition(2, "Identity Universe Expansion", "Expand each selected seed into core identities and contextual experience dimensions."),
-    StageDefinition(3, "Intersection Generation", "Combine compatible identity categories into bounded candidate intersections."),
+    StageDefinition(3, "Intersection Generation", "Use AI to propose meaningful identity combinations, then validate and bound them with system rules."),
     StageDefinition(4, "Coherence and Experience Hypothesis", "Score shared signals and propose a recognizable experience hypothesis for each candidate."),
     StageDefinition(5, "Pre-Research Filter", "Remove duplicates and weak candidates before spending resources on external research."),
     StageDefinition(6, "Niche Research and Validation", "Collect public evidence to validate whether an intersection represents a real niche."),

@@ -37,3 +37,8 @@ class StageLogRepository:
             for document in self._collection.find(query).sort([("created_at", -1)]).limit(limit)
             if (log := from_document(StageLog, document)) is not None
         ]
+
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete lifecycle logs only when their owning run is explicitly deleted."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count

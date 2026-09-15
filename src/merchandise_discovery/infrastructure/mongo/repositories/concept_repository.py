@@ -40,6 +40,11 @@ class ConceptRepository:
             if (concept := from_document(MerchandiseConcept, document)) is not None
         ]
 
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all merchandise concepts generated for one run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
+
     def list_for_niche(self, niche_id: str) -> list[MerchandiseConcept]:
         """Return concepts ranked by overall score for one niche."""
 

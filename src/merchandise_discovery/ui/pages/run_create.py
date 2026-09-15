@@ -77,7 +77,7 @@ def render_run_create(
         concepts = st.slider("Concepts per niche", min_value=1, max_value=10, value=5)
         artwork_variants = st.slider("Artwork variants per finalist", min_value=1, max_value=4, value=2)
 
-        submitted = st.form_submit_button("Create demo run", use_container_width=True)
+        submitted = st.form_submit_button("Create demo run", width="stretch")
 
     if not submitted:
         return

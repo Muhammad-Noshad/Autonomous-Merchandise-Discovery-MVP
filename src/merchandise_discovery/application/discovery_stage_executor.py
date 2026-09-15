@@ -346,8 +346,70 @@ class DiscoveryStageExecutor:
                 )
         elif stage.stage_number == 3:
             input_model = stage_03.IntersectionGenerationInput.model_validate(input_data)
-            output = stage_03.execute(input_model, run_id=run.run_id)
-            summary = f"Generated {len(output.intersections)} candidate intersections."
+            reasoning_output = None
+            if self._reasoning_provider is not None:
+                catalog = stage_03.build_identity_catalog(input_model.identities)
+                try:
+                    structured_resp = self._reasoning_provider.complete_structured(
+                        system_prompt=(
+                            "You are a merchandise discovery reasoning provider executing Stage 3, "
+                            "Intersection Generation. Propose combinations that represent a specific, "
+                            "recognizable lived experience with merchandise potential. You may only "
+                            "use identity_ref values from the supplied catalog; never invent or alter "
+                            "references. Return only the requested structured output."
+                        ),
+                        user_prompt=(
+                            f"Create no more than {input_model.max_intersections * 3} strong candidate "
+                            "intersections from the complete Stage 2 identity catalog below. Each "
+                            "intersection must contain 3 to 6 identity references, including at least "
+                            "one audience and one interest identity. Include a value identity when it "
+                            "makes the combination more specific. A proposal may use at most two "
+                            "dimensions from the same source seed. Prefer natural combinations over "
+                            "clever but forced associations. Explain the lived-experience connection "
+                            "in composition_rationale and score distinctiveness from 1 to 10. Do not "
+                            "evaluate coherence yet; that is Stage 4's responsibility.\n\n"
+                            f"Identity catalog ({len(catalog)} records):\n"
+                            f"{json.dumps(catalog, indent=2, default=str)}"
+                        ),
+                        response_model=stage_03.Stage3ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    reasoning_output = structured_resp.output
+                    usage = structured_resp.usage
+                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
+                    logger.warning(
+                        "Stage 3 provider intersection generation failed; falling back to deterministic baseline: %s",
+                        err,
+                    )
+
+            try:
+                output = stage_03.execute(
+                    input_model,
+                    run_id=run.run_id,
+                    reasoning_output=reasoning_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                if reasoning_output is not None:
+                    summary = (
+                        f"AI proposed {output.provider_proposals_count} intersections; retained "
+                        f"{len(output.intersections)} after system validation."
+                    )
+                else:
+                    summary = f"Generated {len(output.intersections)} candidate intersections deterministically."
+            except ValueError as err:
+                if reasoning_output is None:
+                    raise
+                # Keep the provider's measured usage for auditability while ensuring downstream
+                # stages receive a complete deterministic artifact when every proposal is invalid.
+                logger.warning(
+                    "Stage 3 provider output failed semantic validation; using deterministic baseline: %s",
+                    err,
+                )
+                output = stage_03.execute(input_model, run_id=run.run_id)
+                summary = (
+                    f"Generated {len(output.intersections)} candidate intersections deterministically "
+                    "after provider validation failed."
+                )
         elif stage.stage_number == 4:
             input_model = stage_04.CoherenceInput.model_validate(input_data)
             output = stage_04.execute(input_model)

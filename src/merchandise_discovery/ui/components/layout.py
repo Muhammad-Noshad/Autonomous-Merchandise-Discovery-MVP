@@ -61,7 +61,7 @@ def render_sidebar(
 
         # The create action sits above the radio widget so its click can safely update the widget's
         # session-state value before Streamlit instantiates it during the rerun.
-        if st.button("+ New run", use_container_width=True):
+        if st.button("+ New run", width="stretch"):
             navigate_to(PAGE_CREATE_RUN)
 
         selected_page = st.radio(

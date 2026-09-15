@@ -39,3 +39,8 @@ class ReviewRepository:
             )
             if (review := from_document(HumanReview, document)) is not None
         ]
+
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete review records only as part of explicit cleanup of their owning run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count

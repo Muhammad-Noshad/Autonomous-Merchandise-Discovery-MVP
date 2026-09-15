@@ -50,6 +50,11 @@ class RunRepository:
             if (run := self._from_document(document)) is not None
         ]
 
+    def delete_by_id(self, run_id: str) -> int:
+        """Delete exactly one run aggregate and return the number of removed records."""
+
+        return self._collection.delete_one({"run_id": run_id}).deleted_count
+
     def _from_document(self, document: dict | None) -> WorkflowRun | None:
         """Rehydrate a run and persist a stable seed for documents created before seed support."""
 

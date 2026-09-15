@@ -18,11 +18,17 @@ from merchandise_discovery.ui.pages.run_dashboard import render_run_dashboard
 
 logger = logging.getLogger(__name__)
 
+# Streamlit caches the composed runtime, including service instances. Bumping this value forces a
+# rebuild when application-service capabilities change so a hot-reloaded UI cannot retain an older
+# cached DiscoveryService object.
+RUNTIME_CACHE_VERSION = "2026-09-15-run-deletion-v1"
+
 
 @st.cache_resource(show_spinner=False)
 def _initialize_configured_runtime(
     mongodb_uri: str,
     mongodb_database: str,
+    runtime_cache_version: str = RUNTIME_CACHE_VERSION,
     openai_api_key: str | None = None,
     xai_api_key: str | None = None,
     xai_image_model: str = "grok-imagine-image",
@@ -71,6 +77,7 @@ def render_database_status() -> ApplicationRuntime | None:
             runtime = _initialize_configured_runtime(
                 settings.mongodb_uri,
                 settings.mongodb_database,
+                runtime_cache_version=RUNTIME_CACHE_VERSION,
                 openai_api_key=settings.openai_api_key,
                 xai_api_key=settings.xai_api_key,
                 xai_image_model=settings.xai_image_model,

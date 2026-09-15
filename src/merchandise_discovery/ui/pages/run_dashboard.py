@@ -58,7 +58,7 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
         if runtime is None:
             render_run_list()
         else:
-            render_run_list(live_runs or [])
+            render_run_list(live_runs or [], runtime.discovery_service)
     elif selected_page == PAGE_CREATE_RUN:
         render_run_create(runtime if runtime else None)
     elif selected_page == PAGE_RUN_DETAIL:

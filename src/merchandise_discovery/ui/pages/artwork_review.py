@@ -90,7 +90,7 @@ def _render_artwork_card(
                 key=f"notes-{artwork.artwork_id}",
                 placeholder="Explain the decision or requested change.",
             )
-            submitted = st.form_submit_button("Save decision", use_container_width=True)
+            submitted = st.form_submit_button("Save decision", width="stretch")
         if submitted:
             try:
                 selected_decision = next(
@@ -140,7 +140,7 @@ def _render_queue(state: ReviewState, review_service: ReviewService) -> None:
             data=json.dumps({"run_id": state.run.run_id, "approved": approved}, indent=2),
             file_name=f"{state.run.run_id}-approved-artwork.json",
             mime="application/json",
-            use_container_width=True,
+            width="stretch",
         )
     for artwork in state.artworks:
         _render_artwork_card(artwork, state.latest_reviews.get(artwork.artwork_id), review_service)

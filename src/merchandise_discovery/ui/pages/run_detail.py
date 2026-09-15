@@ -43,10 +43,10 @@ def render_run_detail(
             st.info("No active run selected or run was not found in MongoDB.")
             col_a, col_b = st.columns(2)
             with col_a:
-                if st.button("Browse all runs", use_container_width=True):
+                if st.button("Browse all runs", width="stretch"):
                     navigate_to(PAGE_RUNS)
             with col_b:
-                if st.button("+ Create a run", use_container_width=True):
+                if st.button("+ Create a run", width="stretch"):
                     navigate_to("create_run")
             return
         run = snapshot_to_fixture(snapshot)

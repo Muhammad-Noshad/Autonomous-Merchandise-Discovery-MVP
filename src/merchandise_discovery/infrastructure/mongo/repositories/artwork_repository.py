@@ -45,6 +45,11 @@ class ArtworkRepository:
             if (artwork := from_document(Artwork, document)) is not None
         ]
 
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete artwork metadata owned by one run; external object files are separate storage."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
+
     def list_for_concept(self, concept_id: str) -> list[Artwork]:
         """Return artwork attempts in creation order for side-by-side review."""
 

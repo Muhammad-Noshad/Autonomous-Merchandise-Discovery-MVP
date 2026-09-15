@@ -4,10 +4,11 @@ This repository contains the modular MVP for discovering merchandise niches, val
 
 ## Current chunk
 
-Chunks one through eight establish the complete deterministic funnel through human approval. Chunk 9
-adds bounded retries, durable stage logs, stage-version provenance, a continuous worker mode, and
-live run-detail polling. The default runtime still uses local fixture providers; no external AI or
-research API is called.
+Chunks one through eight establish the complete funnel through human approval. Chunk 9 adds bounded
+retries, durable stage logs, stage-version provenance, continuous worker mode, and live run-detail
+polling. Chunk 10 adds opt-in live provider calls, usage accounting, and AI-assisted Stage 2 identity
+expansion plus Stage 3 intersection generation. The default runtime remains fixture-backed unless
+`MVP_PROVIDER_MODE=live` and the required API key are configured.
 
 ## Local setup
 
@@ -57,10 +58,10 @@ the worker is run again until that ceiling is reached; after that, the run remai
 longer reclaimed automatically.
 
 Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live mode,
-`OPENAI_API_KEY` enables OpenAI web search and structured outputs for Stages 6, 9, 10, and 13, while
-`XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys continue to use the
-fixture provider. Token costs are estimated from the configured OpenAI rates; xAI image costs are
-estimated from the configured per-image rate.
+`OPENAI_API_KEY` enables OpenAI structured outputs for Stages 1–3, 9, 10, and 13, plus OpenAI web
+search for Stage 6. `XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
+continue to use the fixture provider or deterministic fallback. Token costs are estimated from the
+configured OpenAI rates; xAI image costs are estimated from the configured per-image rate.
 
 When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same health check and
 initialization automatically. MongoDB databases are created lazily, so the app creates an

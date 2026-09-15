@@ -32,3 +32,8 @@ class IntersectionRepository:
             for document in self._collection.find({"run_id": run_id}).sort([("_id", 1)])
             if (intersection := from_document(IdentityIntersection, document)) is not None
         ]
+
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all generated intersections belonging to one run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count

@@ -35,6 +35,11 @@ class EvidenceRepository:
             if (item := from_document(ResearchEvidence, document)) is not None
         ]
 
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all research evidence owned by one run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
+
     def list_for_niche(self, niche_id: str) -> list[ResearchEvidence]:
         """Return evidence newest first so the dashboard can show the latest research context."""
 

@@ -38,6 +38,11 @@ class BriefRepository:
             if (brief := from_document(DesignBrief, document)) is not None
         ]
 
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all design briefs generated for one run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
+
     def get_by_concept(self, concept_id: str) -> DesignBrief | None:
         """Fetch the current brief for one concept."""
 

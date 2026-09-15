@@ -80,10 +80,10 @@ def render_detail_panel(stage: StageFixture) -> None:
     st.divider()
     action_left, action_right = st.columns(2)
     with action_left:
-        if st.button("↻  Retry stage", use_container_width=True, disabled=stage.status == StageStatus.PENDING):
+        if st.button("↻  Retry stage", width="stretch", disabled=stage.status == StageStatus.PENDING):
             st.toast("Retry action will connect to the worker in a later chunk.")
     with action_right:
-        if st.button("⋯  View logs", use_container_width=True):
+        if st.button("⋯  View logs", width="stretch"):
             st.session_state[f"show-logs-{stage.number}"] = True
 
     if st.session_state.get(f"show-logs-{stage.number}"):

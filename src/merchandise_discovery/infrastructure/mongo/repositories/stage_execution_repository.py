@@ -70,6 +70,11 @@ class StageExecutionRepository:
             if (execution := from_document(StageExecution, document)) is not None
         ]
 
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all stage attempts owned by one run during explicit run cleanup."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
+
     def list_runnable(self, run_id: str, *, max_attempts: int = 3) -> list[StageExecution]:
         """Return eligible pending/failed stages, excluding attempts at the retry ceiling."""
 

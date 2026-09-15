@@ -98,7 +98,7 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
             }
         )
     if rows:
-        st.dataframe(rows, hide_index=True, use_container_width=True)
+        st.dataframe(rows, hide_index=True, width="stretch")
 
 
 def _render_identity_expansion(payload: dict[str, Any]) -> None:
@@ -129,23 +129,35 @@ def _render_identity_expansion(payload: dict[str, Any]) -> None:
             }
         )
     if rows:
-        st.dataframe(rows, hide_index=True, use_container_width=True)
+        st.dataframe(rows, hide_index=True, width="stretch")
 
 
 def _render_intersections(payload: dict[str, Any]) -> None:
     intersections = _records(payload, "intersections")
-    _metric_row([("Candidate intersections", str(len(intersections)))])
+    provider_count = payload.get("provider_proposals_count")
+    rejected_count = payload.get("provider_rejected_count")
+    metrics = [("Candidate intersections", str(len(intersections)))]
+    if provider_count:
+        metrics.append(("AI proposals", str(provider_count)))
+        if rejected_count:
+            metrics.append(("Rejected by system", str(rejected_count)))
+    _metric_row(metrics)
+    summary = payload.get("summary")
+    if summary:
+        st.caption(str(summary))
     _section("Candidate combinations")
     rows = [
         {
             "Identities": " + ".join(str(item) for item in record.get("identities", [])),
             "Shared signals": ", ".join(str(item) for item in record.get("metadata", {}).get("shared_tags", [])),
+            "Why this combination": str(record.get("metadata", {}).get("composition_rationale", "—")),
+            "Distinctiveness": record.get("metadata", {}).get("distinctiveness", "—"),
             "Candidate ID": _text(record, "intersection_id"),
         }
         for record in intersections
     ]
     if rows:
-        st.dataframe(rows, hide_index=True, use_container_width=True)
+        st.dataframe(rows, hide_index=True, width="stretch")
 
 
 def _render_coherence(payload: dict[str, Any]) -> None:
@@ -417,7 +429,7 @@ def render_stage_overview(stage: StageFixture) -> None:
         _metric_row(card_metrics)
     if not stage.output_payload:
         if stage.status == StageStatus.PENDING:
-            st.info(f"⏳ Stage {stage.number:02d} ({stage.name}) is pending execution. Pipeline execution halted at Stage 1 as configured by MVP_STOP_AFTER_STAGE.")
+            st.info(f"⏳ Stage {stage.number:02d} ({stage.name}) is pending execution.")
         else:
             st.info(stage.output_summary)
             st.caption("Structured stage output will appear here after execution.")

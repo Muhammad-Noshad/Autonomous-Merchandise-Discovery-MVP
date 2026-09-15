@@ -44,3 +44,8 @@ class NicheRepository:
             )
             if (niche := from_document(Niche, document)) is not None
         ]
+
+    def delete_for_run(self, run_id: str) -> int:
+        """Delete all niches generated for one run."""
+
+        return self._collection.delete_many({"run_id": run_id}).deleted_count
