@@ -161,17 +161,36 @@ def _render_intersections(payload: dict[str, Any]) -> None:
 
 def _render_coherence(payload: dict[str, Any]) -> None:
     intersections = _records(payload, "intersections")
-    _metric_row([("Scored intersections", str(len(intersections)))])
-    # Stage 4 is the complete coherence evaluation record. Show every scored intersection here so
-    # the UI never implies that the remaining candidates were filtered before Stage 5.
-    for record in intersections:
-        score = float(record.get("coherence_score") or 0)
+    selected_ids = {str(item) for item in payload.get("selected_intersection_ids", [])}
+    selected = [item for item in intersections if item.get("intersection_id") in selected_ids]
+    _metric_row([
+        ("Candidates reviewed", str(len(intersections))),
+        ("Selected for research", str(len(selected))),
+    ])
+    summary = payload.get("summary")
+    if summary:
+        st.caption(str(summary))
+    _section("AI-selected research candidates")
+    # Stage 4 now displays the AI decision and its reason; it does not imply that a later
+    # deterministic ranking silently removed the remaining candidates.
+    for record in selected:
+        metadata = record.get("metadata", {})
         with st.container(border=True):
             st.markdown(f"**{' + '.join(str(item) for item in record.get('identities', []))}**")
+            score = float(record.get("coherence_score") or 0)
             st.progress(min(1.0, score / 10), text=f"Coherence {score:.1f} / 10")
-            hypotheses = record.get("experience_hypotheses", [])
-            if hypotheses:
-                st.write(_short(str(hypotheses[0])))
+            st.write(f"**Why selected:** {metadata.get('selection_reason', '—')}")
+            st.caption(
+                f"Research value: {float(metadata.get('research_value_score', 0)):.1f} / 10"
+            )
+    _section("Not selected")
+    for record in intersections:
+        if record.get("intersection_id") in selected_ids:
+            continue
+        st.caption(
+            f"{' + '.join(str(item) for item in record.get('identities', []))} · "
+            f"{_text(record, 'filter_reason', default='Not selected by AI for this research budget.')}"
+        )
 
 
 def _render_filter(payload: dict[str, Any]) -> None:
@@ -248,11 +267,26 @@ def _render_opportunity_scoring(payload: dict[str, Any]) -> None:
 
 def _render_concepts(payload: dict[str, Any]) -> None:
     concepts = _records(payload, "concepts")
-    _metric_row([("Concept candidates", str(len(concepts)))])
+    rejected = _records(payload, "rejected_proposals")
+    metrics = [("Specific concepts", str(len(concepts)))]
+    if payload.get("provider_proposals_count") is not None:
+        metrics.append(("AI proposals", str(payload.get("provider_proposals_count", 0))))
+    metrics.append(("Rejected as generic", str(len(rejected))))
+    _metric_row(metrics)
+    if payload.get("summary"):
+        st.caption(str(payload["summary"]))
     for concept in concepts:
         with st.container(border=True):
             st.markdown(f"**{_text(concept, 'phrase')}**")
+            _metric_row(
+                [
+                    ("Specificity", f"{float(concept.get('specificity_score') or 0):.1f} / 10"),
+                    ("Audience", _short(_text(concept, "specific_audience"), 70)),
+                ]
+            )
             st.write(_short(_text(concept, "description")))
+            st.caption(f"Recognizable moment: {_text(concept, 'recognizable_moment')}")
+            st.caption(f"Visual hook: {_text(concept, 'visual_hook')}")
             if concept.get("overall_score") is not None:
                 st.progress(float(concept["overall_score"]) / 10, text=f"Score {float(concept['overall_score']):.1f} / 10")
 
@@ -271,6 +305,8 @@ def _render_critique(payload: dict[str, Any]) -> None:
                     ("Clarity", f"{float(evaluation.get('clarity') or 0):.1f}"),
                     ("Wearability", f"{float(evaluation.get('wearability') or 0):.1f}"),
                     ("Commercial", f"{float(evaluation.get('commercial_potential') or 0):.1f}"),
+                    ("Recognition", f"{float(evaluation.get('personal_recognition') or 0):.1f}"),
+                    ("Specificity", f"{float(evaluation.get('niche_specificity') or 0):.1f}"),
                 ]
             )
             weaknesses = evaluation.get("weaknesses", [])

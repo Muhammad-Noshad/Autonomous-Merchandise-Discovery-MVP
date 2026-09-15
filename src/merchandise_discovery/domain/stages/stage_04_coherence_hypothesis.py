@@ -1,9 +1,9 @@
-"""Stage 4: use structured reasoning to validate intersection coherence.
+"""Stage 4: select research-worthy intersections with structured AI reasoning.
 
-Stage 3 proposes combinations. This module owns the typed Stage 4 response contract and the local
-trust boundary that maps provider evaluations back onto application-owned intersection records.
-The deterministic scorer remains available when no reasoning provider is configured, such as in
-fixture mode; a configured live provider failure is surfaced by the application layer.
+Stage 3 creates the candidate set. This module owns the semantic decision about which candidates
+are worth researching next, while the application layer remains responsible for provider access
+and the deterministic trust boundary. The no-provider path is intentionally limited to fixture
+mode so local demos remain runnable; live provider failures are surfaced by the executor.
 """
 
 from pydantic import BaseModel, Field
@@ -12,129 +12,174 @@ from merchandise_discovery.domain.models.artifacts import IdentityIntersection
 
 
 class CoherenceInput(BaseModel):
-    """Intersections awaiting experience coherence evaluation."""
+    """All Stage 3 candidates and the exact research budget for the next stage."""
 
     intersections: list[IdentityIntersection]
+    max_researched_niches: int = Field(default=3, ge=1, le=100)
 
 
-class CoherenceEvaluation(BaseModel):
-    """One structured model judgment for a supplied intersection."""
+class ResearchSelection(BaseModel):
+    """One AI-selected candidate with the reasoning behind the choice."""
 
     intersection_id: str = Field(min_length=1)
+    selection_reason: str = Field(min_length=1, max_length=500)
     coherence_score: float = Field(ge=0, le=10)
-    experience_hypothesis: str = Field(min_length=1, max_length=500)
-    shared_signals: list[str] = Field(min_length=1, max_length=12)
-    coherence_rationale: str = Field(min_length=1, max_length=500)
+    research_value_score: float = Field(ge=0, le=10)
     confidence: float = Field(ge=0, le=1)
 
 
 class Stage4ReasoningOutput(BaseModel):
     """Exact structured response expected from OpenAI for Stage 4."""
 
-    evaluations: list[CoherenceEvaluation] = Field(min_length=1, max_length=50)
+    selections: list[ResearchSelection] = Field(min_length=1, max_length=100)
     summary: str = Field(min_length=1, max_length=500)
 
 
 class CoherenceOutput(BaseModel):
-    """Intersections enriched with validated hypotheses and coherence scores."""
+    """Complete candidate audit plus the bounded set passed to niche research."""
 
     intersections: list[IdentityIntersection]
-    provider_evaluations_count: int = Field(default=0, ge=0)
+    selected_intersection_ids: list[str] = Field(default_factory=list)
+    provider_selections_count: int = Field(default=0, ge=0)
     summary: str = ""
     model: str = "deterministic"
 
 
-_HYPOTHESIS_TEMPLATES = {
-    "care": "A care-heavy audience may use this combination to express responsibility with warmth.",
-    "decompression": "This combination points to a recognizable ritual for decompressing after pressure.",
-    "focus": "This combination may express the tension between protecting focus and staying connected.",
-    "humor": "This combination creates room for an inside joke about a familiar everyday struggle.",
-    "ritual": "This combination centers on a repeatable ritual that makes small progress visible.",
-}
-
-
-def _apply_provider_evaluations(
+def _validate_selection_ids(
     intersections: list[IdentityIntersection],
-    reasoning_output: Stage4ReasoningOutput,
+    selections: list[ResearchSelection],
+    *,
+    requested_count: int,
+) -> dict[str, ResearchSelection]:
+    """Validate provider IDs, duplicates, and the exact downstream research budget."""
+
+    expected = {item.intersection_id for item in intersections}
+    selection_ids = [item.intersection_id for item in selections]
+    if len(selection_ids) != len(set(selection_ids)):
+        raise ValueError("Stage 4 provider output contains duplicate intersection IDs.")
+    unknown = sorted(set(selection_ids) - expected)
+    if unknown:
+        raise ValueError(f"Stage 4 provider output contains unknown intersection IDs: {unknown}.")
+
+    expected_count = min(requested_count, len(intersections))
+    if len(selections) != expected_count:
+        raise ValueError(
+            "Stage 4 provider must select exactly the configured research count; "
+            f"expected={expected_count}, received={len(selections)}."
+        )
+    return {selection.intersection_id: selection for selection in selections}
+
+
+def _materialize_selection(
+    input_data: CoherenceInput,
+    selections: list[ResearchSelection],
     *,
     model: str,
+    summary: str,
+    generation_method: str = "provider",
 ) -> CoherenceOutput:
-    """Validate complete ID coverage and merge model judgments onto trusted records."""
+    """Attach selection metadata to trusted candidates and retain non-selected records for audit."""
 
-    expected_ids = {item.intersection_id for item in intersections}
-    evaluations = reasoning_output.evaluations
-    evaluation_ids = [item.intersection_id for item in evaluations]
-    if len(evaluation_ids) != len(set(evaluation_ids)):
-        raise ValueError("Stage 4 provider output contains duplicate intersection IDs.")
-    if set(evaluation_ids) != expected_ids:
-        missing = sorted(expected_ids - set(evaluation_ids))
-        unknown = sorted(set(evaluation_ids) - expected_ids)
-        raise ValueError(
-            f"Stage 4 provider output must cover every supplied intersection; "
-            f"missing={missing}, unknown={unknown}."
-        )
+    by_id = _validate_selection_ids(
+        input_data.intersections,
+        selections,
+        requested_count=input_data.max_researched_niches,
+    )
+    selected_ids = [selection.intersection_id for selection in selections]
+    materialized: list[IdentityIntersection] = []
+    for intersection in input_data.intersections:
+        selection = by_id.get(intersection.intersection_id)
+        if selection is None:
+            materialized.append(
+                intersection.model_copy(
+                    update={
+                        "eligible_for_research": False,
+                        "filter_reason": "Not selected by AI for the configured research budget.",
+                    }
+                )
+            )
+            continue
 
-    by_id = {item.intersection_id: item for item in evaluations}
-    enriched = []
-    for intersection in intersections:
-        evaluation = by_id[intersection.intersection_id]
-        enriched.append(
+        if len(intersection.identities) < 2 or any(
+            not str(identity).strip() for identity in intersection.identities
+        ):
+            raise ValueError(
+                f"Stage 4 selected intersection {intersection.intersection_id} is structurally invalid."
+            )
+        categories = {
+            str(category).casefold()
+            for category in intersection.metadata.get("categories", [])
+        }
+        if categories and not {"audience", "interest"}.issubset(categories):
+            raise ValueError(
+                f"Stage 4 selected intersection {intersection.intersection_id} must include "
+                "audience and interest categories."
+            )
+
+        materialized.append(
             intersection.model_copy(
                 update={
-                    "coherence_score": round(evaluation.coherence_score, 2),
-                    "experience_hypotheses": [evaluation.experience_hypothesis],
+                    "coherence_score": round(selection.coherence_score, 2),
+                    "experience_hypotheses": [selection.selection_reason],
+                    "eligible_for_research": True,
+                    "filter_reason": None,
                     "metadata": {
                         **intersection.metadata,
-                        "coherence_shared_signals": evaluation.shared_signals,
-                        "coherence_rationale": evaluation.coherence_rationale,
-                        "coherence_confidence": evaluation.confidence,
-                        "coherence_generation_method": "provider",
+                        "selection_reason": selection.selection_reason,
+                        "research_value_score": selection.research_value_score,
+                        "coherence_confidence": selection.confidence,
+                        "coherence_generation_method": generation_method,
                         "coherence_model": model,
                     },
                 }
             )
         )
+
     return CoherenceOutput(
-        intersections=enriched,
-        provider_evaluations_count=len(evaluations),
-        summary=reasoning_output.summary,
+        intersections=materialized,
+        selected_intersection_ids=selected_ids,
+        provider_selections_count=len(selections),
+        summary=summary,
         model=model,
     )
 
 
-def _apply_deterministic_scoring(intersections: list[IdentityIntersection]) -> CoherenceOutput:
-    """Provide a reproducible local result when no provider is configured."""
+def _apply_deterministic_selection(input_data: CoherenceInput) -> CoherenceOutput:
+    """Provide a reproducible fixture result without pretending a provider made the decision."""
 
-    scored: list[IdentityIntersection] = []
-    for intersection in intersections:
-        tags = [str(tag) for tag in intersection.metadata.get("shared_tags", [])]
-        primary_tag = tags[0] if tags else ""
-        score = min(
-            10.0,
-            4.0 + len(tags) * 1.25 + (0.75 if len(intersection.identities) == 3 else 0),
+    ordered = sorted(
+        input_data.intersections,
+        key=lambda intersection: (
+            -int(intersection.metadata.get("candidate_score", 0)),
+            intersection.intersection_id,
+        ),
+    )
+    selected = ordered[: input_data.max_researched_niches]
+    selections = [
+        ResearchSelection(
+            intersection_id=intersection.intersection_id,
+            selection_reason=(
+                "Selected by deterministic fixture ordering from the Stage 3 candidate score."
+            ),
+            coherence_score=min(
+                10.0, 4.0 + len(intersection.metadata.get("shared_tags", [])) * 1.25
+            ),
+            research_value_score=5.0,
+            confidence=1.0,
         )
-        hypothesis = _HYPOTHESIS_TEMPLATES.get(
-            primary_tag,
-            "This combination needs stronger shared signals before it is ready for research.",
-        )
-        scored.append(
-            intersection.model_copy(
-                update={
-                    "coherence_score": round(score, 2),
-                    "experience_hypotheses": [hypothesis],
-                    "metadata": {
-                        **intersection.metadata,
-                        "coherence_rationale": (
-                            f"{len(tags)} shared affinity tag(s); "
-                            f"{len(intersection.identities)} identity dimensions."
-                        ),
-                        "coherence_generation_method": "deterministic",
-                        "coherence_model": "deterministic",
-                    },
-                }
-            )
-        )
-    return CoherenceOutput(intersections=scored)
+        for intersection in selected
+    ]
+    output = _materialize_selection(
+        input_data,
+        selections,
+        model="deterministic",
+        summary=(
+            f"Selected {len(selected)} of {len(input_data.intersections)} intersections "
+            "deterministically for fixture mode."
+        ),
+        generation_method="deterministic",
+    )
+    return output.model_copy(update={"provider_selections_count": 0})
 
 
 def execute(
@@ -143,8 +188,15 @@ def execute(
     reasoning_output: Stage4ReasoningOutput | None = None,
     model: str = "deterministic",
 ) -> CoherenceOutput:
-    """Apply validated provider judgments, or run deterministically when no provider is supplied."""
+    """Materialize direct AI selection, or use the deterministic no-provider fixture path."""
 
+    if not input_data.intersections:
+        raise ValueError("Stage 4 requires at least one Stage 3 intersection.")
     if reasoning_output is not None:
-        return _apply_provider_evaluations(input_data.intersections, reasoning_output, model=model)
-    return _apply_deterministic_scoring(input_data.intersections)
+        return _materialize_selection(
+            input_data,
+            reasoning_output.selections,
+            model=model,
+            summary=reasoning_output.summary,
+        )
+    return _apply_deterministic_selection(input_data)

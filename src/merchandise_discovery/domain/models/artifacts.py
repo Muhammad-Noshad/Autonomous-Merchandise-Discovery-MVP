@@ -84,6 +84,13 @@ class MerchandiseConcept(BaseModel):
     niche_id: str
     phrase: str
     description: str
+    specific_audience: str = ""
+    recognizable_moment: str = ""
+    insider_behavior_or_language: str = ""
+    emotional_tension: str = ""
+    visual_hook: str = ""
+    audience_identification_reason: str = ""
+    specificity_score: float | None = Field(default=None, ge=0, le=10)
     scores: dict[str, float] = Field(default_factory=dict)
     overall_score: float | None = Field(default=None, ge=0, le=10)
     # Stage 10's critique score and Stage 12's finalist score answer different questions. Keeping

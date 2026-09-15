@@ -37,12 +37,15 @@ class NicheResearchOutput(BaseModel):
 
 
 def _ordered_targets(input_data: NicheResearchInput) -> list[IdentityIntersection]:
-    """Select the strongest eligible intersections using stable score and ID tie-breakers."""
+    """Research exactly the candidates handed over by Stage 4, preserving AI selection order."""
 
-    return sorted(
-        (item for item in input_data.intersections if item.eligible_for_research),
-        key=lambda item: (-(item.coherence_score or 0), item.intersection_id),
-    )[: input_data.max_researched_niches]
+    targets = [item for item in input_data.intersections if item.eligible_for_research]
+    if len(targets) > input_data.max_researched_niches:
+        raise ValueError(
+            "Stage 6 received more research targets than configured; "
+            "selection must be completed by Stage 4."
+        )
+    return targets
 
 
 def _to_evidence(

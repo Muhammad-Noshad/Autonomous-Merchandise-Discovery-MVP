@@ -1,5 +1,7 @@
 """Tests for the deterministic Stage 1–5 discovery funnel."""
 
+import pytest
+
 from merchandise_discovery.domain.models.artifacts import IdentityIntersection
 from merchandise_discovery.domain.stages.stage_01_seed_discovery import (
     SeedDiscoveryInput,
@@ -24,8 +26,8 @@ from merchandise_discovery.domain.stages.stage_03_intersection_generation import
     execute as execute_intersection_generation,
 )
 from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
-    CoherenceEvaluation,
     CoherenceInput,
+    ResearchSelection,
     Stage4ReasoningOutput,
 )
 from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
@@ -69,8 +71,8 @@ def test_discovery_funnel_produces_bounded_inspectable_results() -> None:
     assert all(item.filter_reason for item in filtered.rejected)
 
 
-def test_pre_research_filter_rejects_reordered_duplicates() -> None:
-    """Canonical identity ordering prevents the same combination entering research twice."""
+def test_pre_research_filter_does_not_reapply_deduplication() -> None:
+    """Stage 5 preserves the explicit Stage 4 selection instead of making a new decision."""
 
     first = IdentityIntersection(
         run_id="run-test",
@@ -86,16 +88,18 @@ def test_pre_research_filter_rejects_reordered_duplicates() -> None:
     )
 
     result = execute_pre_research_filter(
-        PreResearchFilterInput(intersections=[duplicate, first], max_intersections=10)
+        PreResearchFilterInput(
+            intersections=[duplicate, first],
+            selected_intersection_ids=[duplicate.intersection_id, first.intersection_id],
+        )
     )
 
-    assert len(result.accepted) == 1
-    assert len(result.rejected) == 1
-    assert result.rejected[0].filter_reason == "Rejected as a duplicate identity combination."
+    assert len(result.accepted) == 2
+    assert not result.rejected
 
 
 def test_stage_04_merges_structured_provider_evaluation() -> None:
-    """Stage 4 maps a complete typed provider response onto trusted intersections."""
+    """Stage 4 maps the typed AI selection response onto trusted intersections."""
 
     intersection = IdentityIntersection(
         intersection_id="intersection-1",
@@ -104,19 +108,19 @@ def test_stage_04_merges_structured_provider_evaluation() -> None:
         metadata={"shared_tags": ["ritual", "decompression"]},
     )
     reasoning = Stage4ReasoningOutput(
-        evaluations=[
-            CoherenceEvaluation(
+        selections=[
+            ResearchSelection(
                 intersection_id=intersection.intersection_id,
                 coherence_score=8.4,
-                experience_hypothesis=(
-                    "Night-shift nurses use coffee rituals and practical tools to decompress."
-                ),
-                shared_signals=["ritual", "decompression"],
-                coherence_rationale="The identities describe a recurring work-life experience.",
+                research_value_score=9.1,
                 confidence=0.91,
+                selection_reason=(
+                    "The coffee ritual and practical values express a recognizable decompression "
+                    "experience for night-shift nurses."
+                ),
             )
         ],
-        summary="The candidate has a coherent shared experience.",
+        summary="The candidate is coherent and valuable to research.",
     )
 
     result = execute_coherence(
@@ -126,46 +130,74 @@ def test_stage_04_merges_structured_provider_evaluation() -> None:
     )
 
     enriched = result.intersections[0]
-    assert result.provider_evaluations_count == 1
+    assert result.provider_selections_count == 1
     assert result.model == "gpt-4o-mini"
     assert enriched.coherence_score == 8.4
-    assert enriched.experience_hypotheses == [reasoning.evaluations[0].experience_hypothesis]
-    assert enriched.metadata["coherence_shared_signals"] == ["ritual", "decompression"]
+    assert enriched.experience_hypotheses == [reasoning.selections[0].selection_reason]
+    assert enriched.metadata["selection_reason"] == reasoning.selections[0].selection_reason
+    assert enriched.metadata["research_value_score"] == 9.1
     assert enriched.metadata["coherence_generation_method"] == "provider"
 
 
-def test_pre_research_filter_rejects_incomplete_candidates() -> None:
-    """Stage 5 does not allow structurally incomplete intersections into research."""
+def test_stage_04_requires_the_configured_research_count() -> None:
+    """AI cannot silently under-select when enough valid candidates are available."""
 
-    missing_score = IdentityIntersection(
+    intersections = [
+        IdentityIntersection(
+            intersection_id=f"intersection-{index}",
+            run_id="run-test",
+            identities=["Night-shift nurses", f"Coffee ritual {index}"],
+        )
+        for index in range(2)
+    ]
+    reasoning = Stage4ReasoningOutput(
+        selections=[
+            ResearchSelection(
+                intersection_id=intersections[0].intersection_id,
+                selection_reason="The first candidate expresses a concrete repeated ritual.",
+                coherence_score=8,
+                research_value_score=8,
+                confidence=0.9,
+            )
+        ],
+        summary="One candidate selected.",
+    )
+
+    with pytest.raises(ValueError, match="exactly the configured research count"):
+        execute_coherence(
+            CoherenceInput(intersections=intersections, max_researched_niches=2),
+            reasoning_output=reasoning,
+            model="gpt-4o-mini",
+        )
+
+
+def test_pre_research_filter_passes_through_stage_4_selection() -> None:
+    """Stage 5 preserves Stage 4's decision and no longer applies a second filter."""
+
+    selected = IdentityIntersection(
+        intersection_id="selected",
         run_id="run-test",
         identities=["Night-shift nurses", "Coffee rituals"],
-        experience_hypotheses=["A repeatable decompression ritual."],
+        eligible_for_research=True,
+        filter_reason=None,
     )
-    missing_hypothesis = IdentityIntersection(
+    not_selected = IdentityIntersection(
+        intersection_id="not-selected",
         run_id="run-test",
         identities=["Remote workers", "Home gardeners"],
-        coherence_score=8,
-    )
-    one_identity = IdentityIntersection(
-        run_id="run-test",
-        identities=["Night-shift nurses"],
-        coherence_score=8,
-        experience_hypotheses=["A shared work experience."],
+        filter_reason="Not selected by AI for the configured research budget.",
     )
 
     result = execute_pre_research_filter(
         PreResearchFilterInput(
-            intersections=[missing_score, missing_hypothesis, one_identity],
-            max_intersections=10,
+            intersections=[selected, not_selected],
+            selected_intersection_ids=["selected"],
         )
     )
 
-    assert not result.accepted
-    reasons = {item.filter_reason for item in result.rejected}
-    assert "Rejected because the intersection has no coherence score." in reasons
-    assert "Rejected because the intersection has no experience hypothesis." in reasons
-    assert "Rejected because the intersection has fewer than two valid identities." in reasons
+    assert [item.intersection_id for item in result.accepted] == ["selected"]
+    assert [item.intersection_id for item in result.rejected] == ["not-selected"]
+    assert len(result.all_intersections) == 2
 
 
 def test_stage_01_seed_discovery_with_reasoning_output() -> None:

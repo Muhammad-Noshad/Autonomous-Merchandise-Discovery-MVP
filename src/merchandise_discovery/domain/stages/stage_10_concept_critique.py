@@ -27,6 +27,9 @@ class ConceptEvaluation(BaseModel):
     clarity: float = Field(ge=0, le=10)
     wearability: float = Field(ge=0, le=10)
     commercial_potential: float = Field(ge=0, le=10)
+    personal_recognition: float = Field(ge=0, le=10)
+    niche_specificity: float = Field(ge=0, le=10)
+    visual_distinctiveness: float = Field(ge=0, le=10)
     overall_score: float = Field(ge=0, le=10)
     verdict: ConceptVerdict
     weaknesses: list[str] = Field(default_factory=list)
@@ -41,6 +44,9 @@ class ConceptCritiqueProposal(BaseModel):
     clarity: float = Field(ge=0, le=10)
     wearability: float = Field(ge=0, le=10)
     commercial_potential: float = Field(ge=0, le=10)
+    personal_recognition: float = Field(ge=0, le=10)
+    niche_specificity: float = Field(ge=0, le=10)
+    visual_distinctiveness: float = Field(ge=0, le=10)
     weaknesses: list[str] = Field(default_factory=list, max_length=8)
     rationale: str = Field(min_length=1, max_length=500)
 
@@ -75,6 +81,9 @@ def _evaluate(
         commercial_potential = 8.0 if any(
             word in concept.phrase.lower() for word in ("reset", "ritual", "relief", "belonging")
         ) else 6.5
+        personal_recognition = 8.0 if concept.recognizable_moment and concept.insider_behavior_or_language else 5.0
+        niche_specificity = concept.specificity_score or 5.0
+        visual_distinctiveness = 8.0 if concept.visual_hook else 5.0
         weaknesses: list[str] = []
         rationale = (
             "The concept scored across authenticity, clarity, wearability, "
@@ -85,6 +94,9 @@ def _evaluate(
         clarity = round(proposal.clarity, 2)
         wearability = round(proposal.wearability, 2)
         commercial_potential = round(proposal.commercial_potential, 2)
+        personal_recognition = round(proposal.personal_recognition, 2)
+        niche_specificity = round(proposal.niche_specificity, 2)
+        visual_distinctiveness = round(proposal.visual_distinctiveness, 2)
         weaknesses = list(dict.fromkeys(proposal.weaknesses))
         rationale = proposal.rationale.strip()
     overall = round((authenticity + clarity + wearability + commercial_potential) / 4, 2)
@@ -92,14 +104,30 @@ def _evaluate(
         weaknesses.append("The phrase may need simplification for quick visual comprehension.")
     if commercial_potential < 7:
         weaknesses.append("The commercial hook is not yet distinctive enough.")
+    if personal_recognition < 7:
+        weaknesses.append("The concept does not describe a personally recognizable audience moment.")
+    if niche_specificity < 7:
+        weaknesses.append("The concept is too broad to feel owned by a specific niche.")
+    if visual_distinctiveness < 7:
+        weaknesses.append("The visual hook is not distinctive enough to guide artwork generation.")
     weaknesses = list(dict.fromkeys(weaknesses))
-    verdict = ConceptVerdict.KEEP if overall >= 6 else ConceptVerdict.REJECT
+    verdict = (
+        ConceptVerdict.KEEP
+        if overall >= 6
+        and personal_recognition >= 7
+        and niche_specificity >= 7
+        and visual_distinctiveness >= 7
+        else ConceptVerdict.REJECT
+    )
     return ConceptEvaluation(
         concept_id=concept.concept_id,
         authenticity=authenticity,
         clarity=clarity,
         wearability=wearability,
         commercial_potential=commercial_potential,
+        personal_recognition=personal_recognition,
+        niche_specificity=niche_specificity,
+        visual_distinctiveness=visual_distinctiveness,
         overall_score=overall,
         verdict=verdict,
         weaknesses=weaknesses,
@@ -149,6 +177,9 @@ def execute(
                     "clarity": evaluation.clarity,
                     "wearability": evaluation.wearability,
                     "commercial_potential": evaluation.commercial_potential,
+                    "personal_recognition": evaluation.personal_recognition,
+                    "niche_specificity": evaluation.niche_specificity,
+                    "visual_distinctiveness": evaluation.visual_distinctiveness,
                 },
                 "overall_score": evaluation.overall_score,
                 "verdict": evaluation.verdict,

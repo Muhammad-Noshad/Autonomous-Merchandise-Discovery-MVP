@@ -147,14 +147,36 @@ class DiscoveryStageExecutor:
             ).model_dump(mode="python")
         if stage.stage_number == 4:
             prior = stage_03.IntersectionGenerationOutput.model_validate(previous.output_data)
-            return stage_04.CoherenceInput(intersections=prior.intersections).model_dump(mode="python")
+            return stage_04.CoherenceInput(
+                intersections=prior.intersections,
+                max_researched_niches=run.config.max_researched_niches,
+            ).model_dump(mode="python")
         if stage.stage_number == 5:
             prior = stage_04.CoherenceOutput.model_validate(previous.output_data)
             return stage_05.PreResearchFilterInput(
                 intersections=prior.intersections,
-                max_intersections=run.config.max_intersections,
+                selected_intersection_ids=prior.selected_intersection_ids,
             ).model_dump(mode="python")
         if stage.stage_number == 6:
+            # New runs take the AI-selected Stage 4 set directly. The Stage 5 lookup remains as a
+            # compatibility fallback for historical runs created before the stages were merged.
+            stage_4 = self._stage_repository.get_latest(run.run_id, 4)
+            if stage_4 is not None and stage_4.output_data:
+                stage_4_output = stage_04.CoherenceOutput.model_validate(stage_4.output_data)
+                selected_ids = stage_4_output.selected_intersection_ids
+                if selected_ids:
+                    by_id = {
+                        item.intersection_id: item for item in stage_4_output.intersections
+                    }
+                    selected = [
+                        by_id[intersection_id]
+                        for intersection_id in selected_ids
+                        if intersection_id in by_id
+                    ]
+                    return stage_06.NicheResearchInput(
+                        intersections=selected,
+                        max_researched_niches=run.config.max_researched_niches,
+                    ).model_dump(mode="python")
             prior = stage_05.PreResearchFilterOutput.model_validate(previous.output_data)
             return stage_06.NicheResearchInput(
                 intersections=prior.accepted,
@@ -178,8 +200,13 @@ class DiscoveryStageExecutor:
             ).model_dump(mode="python")
         if stage.stage_number == 9:
             prior = stage_08.OpportunityScoringOutput.model_validate(previous.output_data)
+            mined = self._stage_repository.get_latest(run.run_id, 7)
+            if mined is None or not mined.output_data:
+                raise ValueError("Stage 9 is missing Stage 7 experience signals.")
+            mined_output = stage_07.ExperienceMiningOutput.model_validate(mined.output_data)
             return stage_09.ConceptGenerationInput(
                 niches=prior.niches,
+                experience_signals=mined_output.signals,
                 concepts_per_niche=run.config.concepts_per_niche,
             ).model_dump(mode="python")
         if stage.stage_number == 10:
@@ -356,21 +383,22 @@ class DiscoveryStageExecutor:
                     structured_response = self._reasoning_provider.complete_structured(
                         system_prompt=(
                             "You are a merchandise discovery reasoning provider executing Stage 4, "
-                            "Coherence and Experience Hypothesis Evaluation. Evaluate the supplied "
-                            "intersections as written; do not create, remove, rename, or combine "
-                            "intersections. Return exactly one evaluation for every supplied "
-                            "intersection_id, preserving each ID exactly. A coherent intersection "
-                            "must describe a recognizable lived experience rather than a merely "
-                            "possible demographic overlap. Return only the requested structured output."
+                            "AI Coherence and Research Selection. Review all supplied intersections "
+                            "as written, then select only the candidates needed by the next research "
+                            "stage. Never create, remove, rename, or combine candidates, and preserve "
+                            "selected intersection IDs exactly. A strong choice describes a specific, "
+                            "recognizable lived experience rather than a generic demographic overlap. "
+                            "Return only the requested structured output."
                         ),
                         user_prompt=(
-                            "Evaluate every supplied intersection for coherence. Score from 0 to 10, "
-                            "where 0 means the identities have no meaningful shared experience and "
-                            "10 means they form a highly specific, recognizable experience with a "
-                            "credible merchandise angle. Provide a concise experience hypothesis, "
-                            "one or more shared signals, a rationale grounded only in the supplied "
-                            "identities/tags, and confidence from 0 to 1. Do not evaluate market size "
-                            "or research evidence; later stages handle those concerns.\n\n"
+                            f"Select exactly {min(input_model.max_researched_niches, len(input_model.intersections))} "
+                            "intersection(s) for niche research. Choose candidates with the strongest "
+                            "specific lived-experience coherence, concrete audience recognition, and "
+                            "research value. For every selected candidate provide a selection_reason "
+                            "that refers to the supplied identities, experience signals, or rationale; "
+                            "do not use generic reasons such as 'high potential'. Also provide a "
+                            "coherence score, research-value score, and confidence from 0 to 1. Do not "
+                            "return evaluations for candidates you did not select.\n\n"
                             f"Intersections JSON:\n{json.dumps(intersection_catalog, indent=2, default=str)}"
                         ),
                         response_model=stage_04.Stage4ReasoningOutput,
@@ -380,7 +408,7 @@ class DiscoveryStageExecutor:
                     usage = structured_response.usage
                 except Exception as error:  # Log context, then fail the live stage.
                     logger.warning(
-                        "Stage 4 provider evaluation failed; live stage will fail: %s",
+                        "Stage 4 provider selection failed; live stage will fail: %s",
                         error,
                     )
                     raise
@@ -390,9 +418,14 @@ class DiscoveryStageExecutor:
                     reasoning_output=provider_output,
                     model=usage.model if usage.provider != "fixture" else "deterministic",
                 )
-                summary = f"Evaluated {len(output.intersections)} intersections with {output.model} coherence reasoning."
+                self._intersections.replace_for_run(run.run_id, output.intersections)
+                selection_actor = "AI" if output.model != "deterministic" else "Deterministic fixture logic"
+                summary = (
+                    f"{selection_actor} selected {len(output.selected_intersection_ids)} of "
+                    f"{len(output.intersections)} intersections for niche research."
+                )
             except ValueError as error:
-                # Invalid provider coverage is a stage failure, not a reason to hide the live
+                # Invalid provider selection is a stage failure, not a reason to hide the live
                 # provider problem behind deterministic output.
                 logger.warning(
                     "Stage 4 provider output failed semantic validation; live stage will fail: %s",
@@ -404,8 +437,8 @@ class DiscoveryStageExecutor:
             output = stage_05.execute(input_model)
             self._intersections.replace_for_run(run.run_id, output.all_intersections)
             summary = (
-                f"Accepted {len(output.accepted)} of {len(output.all_intersections)} "
-                "intersections for research."
+                f"Passed through {len(output.accepted)} AI-selected intersections; "
+                f"retained {len(output.rejected)} non-selected candidates for audit."
             )
         elif stage.stage_number == 6:
             input_model = stage_06.NicheResearchInput.model_validate(input_data)
@@ -569,6 +602,7 @@ class DiscoveryStageExecutor:
                     "Stage 9 merchandise concept generation",
                     input_data,
                     stage_09.Stage9ReasoningOutput,
+                    instructions=stage_09.reasoning_instructions(),
                 )
                 if has_valid_niches
                 else (None, UsageMetrics())
@@ -581,7 +615,10 @@ class DiscoveryStageExecutor:
                 model=usage.model if usage.provider != "fixture" else "deterministic",
             )
             self._concepts.replace_for_run(run.run_id, output.concepts)
-            summary = f"Generated {len(output.concepts)} merchandise concepts using {output.model}."
+            summary = (
+                f"Generated {len(output.concepts)} specific merchandise concepts using {output.model}; "
+                f"rejected {len(output.rejected_proposals)} generic proposals."
+            )
         elif stage.stage_number == 10:
             input_model = stage_10.ConceptCritiqueInput.model_validate(input_data)
             provider_output, usage = (
@@ -589,6 +626,12 @@ class DiscoveryStageExecutor:
                     "Stage 10 concept critique",
                     input_data,
                     stage_10.Stage10ReasoningOutput,
+                    instructions=(
+                        "Score personal recognition, niche specificity, and visual distinctiveness "
+                        "in addition to authenticity, clarity, wearability, and commercial potential. "
+                        "Reject concepts that sound like broad categories or that lack a recognizable "
+                        "moment, insider cue, emotional tension, or concrete visual hook."
+                    ),
                 )
                 if input_model.concepts
                 else (None, UsageMetrics())
