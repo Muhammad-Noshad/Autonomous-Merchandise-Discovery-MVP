@@ -58,8 +58,10 @@ the worker is run again until that ceiling is reached; after that, the run remai
 longer reclaimed automatically.
 
 Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live mode,
-`OPENAI_API_KEY` enables OpenAI structured outputs for Stages 2–4, 9, 10, and 13, plus OpenAI web
-search for Stage 6. Stage 1 remains deterministic. `XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
+`OPENAI_API_KEY` enables OpenAI structured outputs for Stages 2–4, 7–10, and 13, plus OpenAI web
+search for Stage 6. Stages 1 and 5 remain deterministic, while Stage 8 uses AI only for its
+bounded qualitative components and calculates evidence strength and the final total locally.
+`XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
 continue to use the fixture provider or deterministic fallback. Token costs are estimated from the
 configured OpenAI rates; Stage 6 also adds `OPENAI_WEB_SEARCH_PRICE_PER_CALL` (default `$0.01`,
 derived from `$10 per 1,000 calls`); xAI image costs are estimated from the configured per-image rate.

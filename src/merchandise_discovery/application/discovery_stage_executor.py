@@ -455,13 +455,155 @@ class DiscoveryStageExecutor:
             )
         elif stage.stage_number == 7:
             input_model = stage_07.ExperienceMiningInput.model_validate(input_data)
-            output = stage_07.execute(input_model)
-            summary = f"Mined recurring experience signals for {len(output.signals)} niches."
+            provider_output = None
+            if self._reasoning_provider is not None and input_model.niches:
+                evidence_catalog = [
+                    {
+                        "niche_id": evidence.niche_id,
+                        "evidence_id": evidence.evidence_id,
+                        "title": evidence.title,
+                        "source": evidence.source,
+                        "excerpt": evidence.excerpt,
+                        "url": evidence.url,
+                    }
+                    for evidence in input_model.evidence
+                ]
+                niche_catalog = [
+                    {
+                        "niche_id": niche.niche_id,
+                        "name": niche.name,
+                        "intersection_id": niche.intersection_id,
+                        "coherence_score": niche.coherence_score,
+                    }
+                    for niche in input_model.niches
+                ]
+                try:
+                    structured_response = self._reasoning_provider.complete_structured(
+                        system_prompt=(
+                            "You are a merchandise discovery research analyst executing Stage 7, "
+                            "Experience Mining. Extract recurring lived-experience signals from the "
+                            "supplied evidence. Return exactly one signal record for every supplied "
+                            "niche_id, preserve all IDs exactly, and cite only evidence IDs belonging "
+                            "to that niche. Do not invent observations, citations, or unsupported "
+                            "market claims. Return only the requested structured output."
+                        ),
+                        user_prompt=(
+                            "For each niche, identify repeated community language, frustrations, "
+                            "rituals, and emotional signals that are actually supported by its evidence. "
+                            "Use concise statements, include the exact evidence IDs supporting the "
+                            "statements, and set confidence from 0 to 1 based on consistency and source "
+                            "support. If evidence is weak, return empty signal lists and explain that "
+                            "limitation in experience_summary. Do not infer demographics or demand that "
+                            "are not present in the evidence.\n\n"
+                            f"Niches JSON:\n{json.dumps(niche_catalog, indent=2, default=str)}\n\n"
+                            f"Evidence JSON:\n{json.dumps(evidence_catalog, indent=2, default=str)}"
+                        ),
+                        response_model=stage_07.Stage7ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    provider_output = structured_response.output
+                    usage = structured_response.usage
+                except Exception as error:  # noqa: BLE001  # Provider failure uses safe fallback.
+                    logger.warning(
+                        "Stage 7 provider mining failed; using deterministic evidence mapping: %s",
+                        error,
+                    )
+            try:
+                output = stage_07.execute(
+                    input_model,
+                    reasoning_output=provider_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                summary = (
+                    f"Mined recurring experience signals for {len(output.signals)} niches "
+                    f"using {output.model}."
+                )
+            except ValueError as error:
+                if provider_output is None:
+                    raise
+                # Preserve measured usage, but never allow invalid lineage to enter a persisted snapshot.
+                logger.warning(
+                    "Stage 7 provider output failed semantic validation; using deterministic fallback: %s",
+                    error,
+                )
+                output = stage_07.execute(input_model)
+                summary = (
+                    f"Mined recurring experience signals for {len(output.signals)} niches "
+                    "using deterministic fallback after provider validation failed."
+                )
         elif stage.stage_number == 8:
             input_model = stage_08.OpportunityScoreInput.model_validate(input_data)
-            output = stage_08.execute(input_model)
+            provider_output = None
+            if self._reasoning_provider is not None and input_model.niches:
+                signal_by_niche = {signal.niche_id: signal for signal in input_model.signals}
+                scoring_catalog = [
+                    {
+                        "niche_id": niche.niche_id,
+                        "name": niche.name,
+                        "coherence_score": niche.coherence_score,
+                        "evidence_count": niche.evidence_count,
+                        "validated": niche.validated,
+                        "experience_signals": (
+                            signal_by_niche[niche.niche_id].model_dump(mode="python")
+                            if niche.niche_id in signal_by_niche
+                            else None
+                        ),
+                    }
+                    for niche in input_model.niches
+                ]
+                try:
+                    structured_response = self._reasoning_provider.complete_structured(
+                        system_prompt=(
+                            "You are a merchandise discovery strategist executing Stage 8, "
+                            "Opportunity Scoring. Evaluate only the supplied researched niches and "
+                            "signals. Return exactly one evaluation for every supplied niche_id, "
+                            "preserve IDs exactly, and do not claim market size, revenue, demand, or "
+                            "competitive facts that are not present in the input. Return only the "
+                            "requested structured output."
+                        ),
+                        user_prompt=(
+                            "For each niche, assign bounded qualitative scores using these exact "
+                            "ranges: experience_clarity 0-30, audience_fit 0-20, and "
+                            "differentiation 0-20. Use the supplied research evidence count and mined "
+                            "signals as context, but do not score evidence_strength: the application "
+                            "calculates that deterministically. Give a concise rationale grounded in "
+                            "the supplied records.\n\n"
+                            f"Scoring input JSON:\n{json.dumps(scoring_catalog, indent=2, default=str)}"
+                        ),
+                        response_model=stage_08.Stage8ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    provider_output = structured_response.output
+                    usage = structured_response.usage
+                except Exception as error:  # noqa: BLE001  # Provider failure uses safe fallback.
+                    logger.warning(
+                        "Stage 8 provider scoring failed; using deterministic scoring formula: %s",
+                        error,
+                    )
+            try:
+                output = stage_08.execute(
+                    input_model,
+                    reasoning_output=provider_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                summary = (
+                    f"Scored and ranked {len(output.scores)} researched niches "
+                    f"using {output.model}."
+                )
+            except ValueError as error:
+                if provider_output is None:
+                    raise
+                # Provider scores are qualitative, but exact niche coverage is still mandatory.
+                logger.warning(
+                    "Stage 8 provider output failed semantic validation; using deterministic fallback: %s",
+                    error,
+                )
+                output = stage_08.execute(input_model)
+                summary = (
+                    f"Scored and ranked {len(output.scores)} researched niches using deterministic "
+                    "fallback after provider validation failed."
+                )
             self._niches.replace_for_run(run.run_id, output.niches)
-            summary = f"Scored and ranked {len(output.scores)} researched niches."
         elif stage.stage_number == 9:
             input_model = stage_09.ConceptGenerationInput.model_validate(input_data)
             provider_output, usage = self._reason(

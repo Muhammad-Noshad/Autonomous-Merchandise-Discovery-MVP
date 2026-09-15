@@ -1,8 +1,9 @@
 """Stage 7: extract recurring audience experiences and language.
 
-The MVP uses transparent keyword evidence mapping instead of an opaque model call. Each signal
-retains the evidence IDs that supported it, so a reviewer can distinguish observed language from a
-future interpretation layer.
+The stage owns the evidence-lineage contract, not the provider integration. OpenAI may interpret
+the research evidence into structured signals, while this module verifies that every claim points
+to evidence belonging to the same niche. The deterministic keyword implementation remains the
+portable fallback for fixture mode, provider outages, and invalid semantic responses.
 """
 
 from collections import defaultdict
@@ -32,10 +33,32 @@ class ExperienceSignal(BaseModel):
     experience_summary: str
 
 
+class MinedExperienceSignal(BaseModel):
+    """Provider response for one niche before application-owned lineage validation."""
+
+    niche_id: str = Field(min_length=1)
+    repeated_language: list[str] = Field(default_factory=list, max_length=8)
+    frustrations: list[str] = Field(default_factory=list, max_length=8)
+    rituals: list[str] = Field(default_factory=list, max_length=8)
+    emotional_signals: list[str] = Field(default_factory=list, max_length=8)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=20)
+    confidence: float = Field(ge=0, le=1)
+    experience_summary: str = Field(min_length=1, max_length=500)
+
+
+class Stage7ReasoningOutput(BaseModel):
+    """Exact structured response expected from OpenAI for Stage 7."""
+
+    signals: list[MinedExperienceSignal] = Field(min_length=1)
+    summary: str = Field(min_length=1, max_length=500)
+
+
 class ExperienceMiningOutput(BaseModel):
     """All mined signals, retaining a one-to-many link back to stored evidence."""
 
     signals: list[ExperienceSignal]
+    summary: str = ""
+    model: str = "deterministic"
 
 
 SIGNAL_RULES: dict[str, tuple[str, str]] = {
@@ -66,15 +89,83 @@ def _signals_for_evidence(evidence: list[ResearchEvidence]) -> tuple[dict[str, l
     return values, sorted(evidence_ids)
 
 
-def execute(input_data: ExperienceMiningInput) -> ExperienceMiningOutput:
-    """Derive reproducible experience signals while preserving their evidence lineage."""
+def _validate_provider_links(
+    input_data: ExperienceMiningInput,
+    reasoning_output: Stage7ReasoningOutput,
+) -> dict[str, MinedExperienceSignal]:
+    """Ensure one response exists per niche and every cited evidence ID is locally owned."""
+
+    expected_ids = {niche.niche_id for niche in input_data.niches}
+    returned_ids = [signal.niche_id for signal in reasoning_output.signals]
+    if len(returned_ids) != len(set(returned_ids)):
+        raise ValueError("Stage 7 provider output contains duplicate niche IDs.")
+    returned_id_set = set(returned_ids)
+    unknown_ids = returned_id_set - expected_ids
+    missing_ids = expected_ids - returned_id_set
+    if unknown_ids:
+        raise ValueError(f"Stage 7 provider output contains unknown niche IDs: {sorted(unknown_ids)}.")
+    if missing_ids:
+        raise ValueError(f"Stage 7 provider output is missing niche IDs: {sorted(missing_ids)}.")
+
+    evidence_by_niche: dict[str, set[str]] = defaultdict(set)
+    for evidence in input_data.evidence:
+        evidence_by_niche[evidence.niche_id].add(evidence.evidence_id)
+    validated: dict[str, MinedExperienceSignal] = {}
+    for signal in reasoning_output.signals:
+        allowed_evidence = evidence_by_niche[signal.niche_id]
+        unknown_evidence = set(signal.evidence_ids) - allowed_evidence
+        if unknown_evidence:
+            raise ValueError(
+                f"Stage 7 provider output cites evidence outside niche {signal.niche_id}: "
+                f"{sorted(unknown_evidence)}."
+            )
+        signal_groups = (
+            signal.repeated_language,
+            signal.frustrations,
+            signal.rituals,
+            signal.emotional_signals,
+        )
+        if any(signal_groups) and not signal.evidence_ids:
+            raise ValueError(
+                f"Stage 7 provider output makes unsupported claims for niche {signal.niche_id}."
+            )
+        validated[signal.niche_id] = signal
+    return validated
+
+
+def execute(
+    input_data: ExperienceMiningInput,
+    reasoning_output: Stage7ReasoningOutput | None = None,
+    model: str = "deterministic",
+) -> ExperienceMiningOutput:
+    """Derive signals from evidence or normalize a validated provider interpretation."""
 
     evidence_by_niche: dict[str, list[ResearchEvidence]] = defaultdict(list)
     for item in input_data.evidence:
         evidence_by_niche[item.niche_id].append(item)
 
+    provider_by_niche = (
+        _validate_provider_links(input_data, reasoning_output)
+        if reasoning_output is not None
+        else {}
+    )
     signals: list[ExperienceSignal] = []
     for niche in input_data.niches:
+        provider_signal = provider_by_niche.get(niche.niche_id)
+        if provider_signal is not None:
+            signals.append(
+                ExperienceSignal(
+                    niche_id=niche.niche_id,
+                    repeated_language=provider_signal.repeated_language,
+                    frustrations=provider_signal.frustrations,
+                    rituals=provider_signal.rituals,
+                    emotional_signals=provider_signal.emotional_signals,
+                    evidence_ids=list(dict.fromkeys(provider_signal.evidence_ids)),
+                    confidence=provider_signal.confidence,
+                    experience_summary=provider_signal.experience_summary.strip(),
+                )
+            )
+            continue
         values, evidence_ids = _signals_for_evidence(evidence_by_niche[niche.niche_id])
         confidence = min(1.0, len(evidence_ids) / 3)
         all_signals = [value for group in values.values() for value in group]
@@ -95,4 +186,8 @@ def execute(input_data: ExperienceMiningInput) -> ExperienceMiningOutput:
                 experience_summary=summary,
             )
         )
-    return ExperienceMiningOutput(signals=signals)
+    return ExperienceMiningOutput(
+        signals=signals,
+        summary=reasoning_output.summary if reasoning_output is not None else "",
+        model=model,
+    )

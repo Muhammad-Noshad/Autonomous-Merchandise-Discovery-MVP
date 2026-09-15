@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
+from merchandise_discovery.domain.models.artifacts import Niche, ResearchEvidence
 from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.stage_01_seed_discovery import SeedDiscoveryInput
@@ -23,6 +24,17 @@ from merchandise_discovery.domain.stages.stage_03_intersection_generation import
 )
 from merchandise_discovery.domain.stages.stage_03_intersection_generation import (
     execute as execute_intersections,
+)
+from merchandise_discovery.domain.stages.stage_07_experience_mining import (
+    ExperienceMiningInput,
+    ExperienceSignal,
+    MinedExperienceSignal,
+    Stage7ReasoningOutput,
+)
+from merchandise_discovery.domain.stages.stage_08_opportunity_scoring import (
+    OpportunityEvaluation,
+    OpportunityScoreInput,
+    Stage8ReasoningOutput,
 )
 from merchandise_discovery.infrastructure.providers.reasoning_provider import StructuredResponse
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
@@ -219,3 +231,135 @@ def test_stage_03_calls_structured_provider_and_preserves_usage() -> None:
     assert result.usage == usage
     assert result.output_data["model"] == "gpt-4o-mini"
     assert result.output_data["provider_proposals_count"] == 1
+
+
+def test_stage_07_calls_structured_provider_and_validates_evidence_lineage() -> None:
+    """Stage 7 uses one typed AI response while retaining niche-owned evidence IDs."""
+
+    niche = Niche(
+        run_id="run-test",
+        intersection_id="intersection-1",
+        name="Remote worker gardeners",
+        coherence_score=8.0,
+        evidence_count=1,
+        validated=True,
+    )
+    evidence = ResearchEvidence(
+        run_id="run-test",
+        niche_id=niche.niche_id,
+        url="https://example.com/research",
+        title="Audience ritual",
+        source="Example",
+        excerpt="People use a quiet ritual to decompress after demanding days.",
+    )
+    provider_output = Stage7ReasoningOutput(
+        signals=[
+            MinedExperienceSignal(
+                niche_id=niche.niche_id,
+                frustrations=["Need to decompress after demanding days."],
+                rituals=["A repeatable evening reset ritual."],
+                evidence_ids=[evidence.evidence_id],
+                confidence=0.9,
+                experience_summary="The audience repeatedly uses a decompression ritual after work.",
+            )
+        ],
+        summary="Evidence-grounded experience signals.",
+    )
+    usage = UsageMetrics(
+        provider="openai",
+        model="gpt-4o-mini",
+        input_tokens=120,
+        output_tokens=80,
+        total_tokens=200,
+        estimated_cost_usd=0.000066,
+        cost_is_estimate=True,
+    )
+    reasoning_provider = Mock()
+    reasoning_provider.complete_structured.return_value = StructuredResponse(
+        output=provider_output,
+        usage=usage,
+    )
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(10)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title="Stage 7 provider test")
+    stage = StageExecution(run_id=run.run_id, stage_number=7, stage_name="Experience Mining")
+    input_data = ExperienceMiningInput(niches=[niche], evidence=[evidence]).model_dump(mode="python")
+
+    result = executor.execute(run, stage, input_data)
+
+    reasoning_provider.complete_structured.assert_called_once()
+    assert (
+        reasoning_provider.complete_structured.call_args.kwargs["response_model"].__name__
+        == "Stage7ReasoningOutput"
+    )
+    assert result.usage == usage
+    assert result.output_data["model"] == "gpt-4o-mini"
+    assert result.output_data["signals"][0]["evidence_ids"] == [evidence.evidence_id]
+
+
+def test_stage_08_uses_ai_qualitative_scores_but_calculates_total() -> None:
+    """Stage 8 keeps evidence strength and the weighted total under application control."""
+
+    niche = Niche(
+        run_id="run-test",
+        intersection_id="intersection-1",
+        name="Remote worker gardeners",
+        coherence_score=8.0,
+        evidence_count=3,
+        validated=True,
+    )
+    signal = ExperienceSignal(
+        niche_id=niche.niche_id,
+        frustrations=["A recurring reset need."],
+        evidence_ids=["evidence-1"],
+        confidence=0.8,
+        experience_summary="A recurring reset need is visible.",
+    )
+    provider_output = Stage8ReasoningOutput(
+        evaluations=[
+            OpportunityEvaluation(
+                niche_id=niche.niche_id,
+                experience_clarity=25,
+                audience_fit=16,
+                differentiation=14,
+                rationale="The supplied signals describe a clear and specific use case.",
+            )
+        ],
+        summary="Qualitative opportunity evaluation.",
+    )
+    usage = UsageMetrics(
+        provider="openai",
+        model="gpt-4o-mini",
+        input_tokens=100,
+        output_tokens=70,
+        total_tokens=170,
+        estimated_cost_usd=0.000057,
+        cost_is_estimate=True,
+    )
+    reasoning_provider = Mock()
+    reasoning_provider.complete_structured.return_value = StructuredResponse(
+        output=provider_output,
+        usage=usage,
+    )
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(10)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title="Stage 8 provider test")
+    stage = StageExecution(run_id=run.run_id, stage_number=8, stage_name="Opportunity Scoring")
+    input_data = OpportunityScoreInput(niches=[niche], signals=[signal]).model_dump(mode="python")
+
+    result = executor.execute(run, stage, input_data)
+
+    reasoning_provider.complete_structured.assert_called_once()
+    assert (
+        reasoning_provider.complete_structured.call_args.kwargs["response_model"].__name__
+        == "Stage8ReasoningOutput"
+    )
+    assert result.usage == usage
+    score = result.output_data["scores"][0]
+    assert score["evidence_strength"] == 30
+    assert score["overall_score"] == 85
+    assert result.output_data["model"] == "gpt-4o-mini"
