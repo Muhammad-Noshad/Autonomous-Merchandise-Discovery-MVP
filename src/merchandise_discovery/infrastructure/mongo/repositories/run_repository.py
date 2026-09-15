@@ -10,7 +10,7 @@ from pymongo import ReturnDocument
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import ApprovalDecision, RunStatus
 from merchandise_discovery.domain.models.workflow import WorkflowRun, utc_now
 from merchandise_discovery.infrastructure.mongo.serialization import from_document, to_document
 from merchandise_discovery.shared.errors import (
@@ -159,6 +159,8 @@ class RunRepository:
         last_error: str | None = None,
         completed_stages: int | None = None,
         retry_exhausted: bool | None = None,
+        pending_action: ApprovalDecision | None = None,
+        pending_artwork_id: str | None = None,
     ) -> WorkflowRun:
         """Update state only when the caller still owns the version it read."""
 
@@ -166,6 +168,8 @@ class RunRepository:
             "status": status.value,
             "current_stage_number": current_stage_number,
             "last_error": last_error,
+            "pending_action": pending_action.value if pending_action else None,
+            "pending_artwork_id": pending_artwork_id,
             "updated_at": utc_now(),
         }
         if completed_stages is not None:

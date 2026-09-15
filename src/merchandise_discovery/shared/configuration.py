@@ -24,6 +24,7 @@ class Settings:
     openai_api_key: str | None
     xai_api_key: str | None
     xai_image_model: str
+    artwork_storage_dir: str = ".artifacts"
     max_stage_attempts: int = 3
     openai_reasoning_model: str = "gpt-4o-mini"
     openai_input_price_per_million: float = 0.15
@@ -49,6 +50,7 @@ def load_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         xai_api_key=os.getenv("XAI_API_KEY"),
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
+        artwork_storage_dir=os.getenv("ARTWORK_STORAGE_DIR", ".artifacts"),
         max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
         openai_reasoning_model=os.getenv(
             "LUNA_MODEL", os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini")

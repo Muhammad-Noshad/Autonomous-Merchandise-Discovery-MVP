@@ -2,7 +2,11 @@
 
 from merchandise_discovery.domain.models.artifacts import Artwork, MerchandiseConcept
 from merchandise_discovery.domain.models.common import ArtworkDecision, ConceptVerdict
-from merchandise_discovery.domain.stages.stage_13_design_brief import DesignBriefInput
+from merchandise_discovery.domain.stages.stage_13_design_brief import (
+    DesignBriefInput,
+    DesignBriefProposal,
+    Stage13ReasoningOutput,
+)
 from merchandise_discovery.domain.stages.stage_13_design_brief import execute as execute_brief
 from merchandise_discovery.domain.stages.stage_14_prompt_compilation import PromptCompilationInput
 from merchandise_discovery.domain.stages.stage_14_prompt_compilation import (
@@ -98,3 +102,54 @@ def test_artwork_qa_requests_regeneration_for_invalid_metadata() -> None:
 
     assert result.evaluations[0].decision == ArtworkDecision.REGENERATE
     assert "supported mime type" in [issue.lower() for issue in result.evaluations[0].issues]
+
+
+def test_provider_brief_is_complete_and_exact_phrase_is_application_owned() -> None:
+    """Stage 13 materializes a local brief while refusing provider phrase drift."""
+
+    result = execute_brief(
+        DesignBriefInput(concepts=[_concept()]),
+        reasoning_output=Stage13ReasoningOutput(
+            briefs=[
+                DesignBriefProposal(
+                    concept_id="concept-1",
+                    target_audience="People who need a small reset",
+                    core_concept="A visible reminder to pause before continuing.",
+                    exact_phrase="Reset Mode",
+                    emotional_idea="Permission to decompress without guilt.",
+                    illustration_style="Minimal editorial illustration",
+                    main_subject="A softly glowing pause icon",
+                    supporting_elements=["small motion marks"],
+                    composition="Centered icon above the phrase",
+                    typography_direction="Bold readable sans-serif",
+                    palette_direction="Deep neutral with restrained violet",
+                    detail_level="Moderate",
+                    intended_merchandise_type="T-shirt print",
+                    visual_constraints=["High contrast"],
+                    things_to_avoid=["Busy background"],
+                )
+            ],
+            summary="One complete brief.",
+        ),
+        model="gpt-4o-mini",
+    )
+
+    assert result.briefs[0].brief_id
+    assert result.briefs[0].exact_phrase == "Reset Mode"
+    assert result.briefs[0].core_concept.startswith("A visible")
+    assert result.model == "gpt-4o-mini"
+
+
+def test_live_artwork_storage_is_not_used_by_fixture_reference() -> None:
+    """Fixture runs remain offline even though Stage 15 now has a storage boundary."""
+
+    from merchandise_discovery.infrastructure.storage import LocalArtworkStorage
+
+    stored = LocalArtworkStorage().persist(
+        source_url="https://fixture.local/artwork/test/1.png",
+        storage_key="fixture-artwork/test/variant-1.png",
+        reported_size_bytes=128_000,
+    )
+
+    assert stored.storage_key == "fixture-artwork/test/variant-1.png"
+    assert stored.file_size_bytes == 128_000

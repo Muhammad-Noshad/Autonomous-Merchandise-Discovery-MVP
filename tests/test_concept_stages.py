@@ -24,7 +24,11 @@ from merchandise_discovery.domain.stages.stage_11_similarity_ip_check import Sim
 from merchandise_discovery.domain.stages.stage_11_similarity_ip_check import (
     execute as execute_similarity_check,
 )
-from merchandise_discovery.domain.stages.stage_12_final_selection import FinalSelectionInput
+from merchandise_discovery.domain.stages.stage_12_final_selection import (
+    FinalSelectionEvaluation,
+    FinalSelectionInput,
+    Stage12ReasoningOutput,
+)
 from merchandise_discovery.domain.stages.stage_12_final_selection import (
     execute as execute_selection,
 )
@@ -146,6 +150,7 @@ def test_provider_critique_requires_exact_concept_coverage() -> None:
     concepts = execute_generation(
         ConceptGenerationInput(niches=[_niche()], concepts_per_niche=2)
     ).concepts
+    concepts = [concept.model_copy(update={"verdict": ConceptVerdict.KEEP}) for concept in concepts]
     with pytest.raises(ValueError, match="missing concept IDs"):
         execute_critique(
             ConceptCritiqueInput(concepts=concepts),
@@ -235,3 +240,47 @@ def test_final_selection_assigns_stable_ranks_and_finalist_flags() -> None:
     assert [concept.rank for concept in result.finalists] == [1, 2]
     rejected = next(concept for concept in result.concepts if concept.concept_id == "concept-rejected")
     assert rejected.selected is False
+
+
+def test_final_selection_computes_provider_score_and_preserves_lineage() -> None:
+    """Stage 12 stores the locally combined score rather than trusting provider ranking."""
+
+    concepts = execute_generation(
+        ConceptGenerationInput(niches=[_niche()], concepts_per_niche=2)
+    ).concepts
+    concepts = [concept.model_copy(update={"verdict": ConceptVerdict.KEEP}) for concept in concepts]
+    first_id, second_id = (concept.concept_id for concept in concepts)
+    result = execute_selection(
+        FinalSelectionInput(concepts=concepts, max_finalists=1),
+        reasoning_output=Stage12ReasoningOutput(
+            evaluations=[
+                FinalSelectionEvaluation(
+                    concept_id=first_id,
+                    distinctiveness=9,
+                    emotional_recognition=9,
+                    natural_wording=8,
+                    giftability=8,
+                    commercial_appeal=9,
+                    visual_potential=9,
+                    rationale="Strong across the requested selection dimensions.",
+                ),
+                FinalSelectionEvaluation(
+                    concept_id=second_id,
+                    distinctiveness=5,
+                    emotional_recognition=5,
+                    natural_wording=6,
+                    giftability=5,
+                    commercial_appeal=5,
+                    visual_potential=6,
+                    rationale="Understandable but less distinctive.",
+                ),
+            ],
+            summary="Compared two concepts.",
+        ),
+        model="gpt-4o-mini",
+    )
+
+    assert result.finalists[0].concept_id == first_id
+    assert result.finalists[0].selection_score == 8.67
+    assert result.model == "gpt-4o-mini"
+    assert len(result.evaluations) == 2

@@ -123,6 +123,11 @@ def _render_queue(state: ReviewState, review_service: ReviewService) -> None:
     else:
         remaining = len(summary.pending_artwork_ids) + len(summary.open_artwork_ids)
         st.info(f"{remaining} artwork decision(s) still require review or follow-up.")
+    if state.run.pending_action and state.run.pending_artwork_id:
+        st.warning(
+            f"Follow-up request recorded: {state.run.pending_action.value.replace('_', ' ')} "
+            f"for artwork {state.run.pending_artwork_id[:8]}. The run is paused for worker handling."
+        )
     approved = [
         {
             "artwork": artwork.model_dump(mode="json"),

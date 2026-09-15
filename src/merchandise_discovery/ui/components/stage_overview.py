@@ -294,13 +294,23 @@ def _render_similarity(payload: dict[str, Any]) -> None:
 def _render_selection(payload: dict[str, Any]) -> None:
     finalists = _records(payload, "finalists")
     rejected = _records(payload, "rejected")
-    _metric_row([("Finalists", str(len(finalists))), ("Not selected", str(len(rejected)))])
+    evaluations = {
+        item.get("concept_id"): item for item in _records(payload, "evaluations")
+    }
+    metrics = [("Finalists", str(len(finalists))), ("Not selected", str(len(rejected)))]
+    if evaluations:
+        metrics.append(("AI comparisons", str(len(evaluations))))
+    _metric_row(metrics)
     _section("Selected finalists")
     for finalist in finalists:
         with st.container(border=True):
             st.markdown(f"**#{_text(finalist, 'rank')} · {_text(finalist, 'phrase')}**")
-            st.caption(f"Score {float(finalist.get('overall_score') or 0):.1f} / 10")
+            score = finalist.get("selection_score", finalist.get("overall_score"))
+            st.caption(f"Final selection score {float(score or 0):.1f} / 10")
             st.write(_short(_text(finalist, "description")))
+            evaluation = evaluations.get(finalist.get("concept_id"))
+            if evaluation and evaluation.get("rationale"):
+                st.caption(f"Comparison rationale: {_short(str(evaluation['rationale']), 220)}")
 
 
 def _render_briefs(payload: dict[str, Any]) -> None:
@@ -314,12 +324,19 @@ def _render_briefs(payload: dict[str, Any]) -> None:
                 [
                     ("Subject", _short(_text(brief, "main_subject"), 70)),
                     ("Style", _short(_text(brief, "illustration_style"), 70)),
+                    ("Merchandise", _short(_text(brief, "intended_merchandise_type"), 70)),
                 ]
             )
             st.write(_text(brief, "composition"))
+            st.caption(f"Core concept: {_text(brief, 'core_concept')}")
+            st.caption(f"Detail level: {_text(brief, 'detail_level')}")
             constraints = brief.get("constraints", [])
-            if constraints:
-                st.caption("Constraints: " + " · ".join(str(item) for item in constraints))
+            avoid = brief.get("things_to_avoid", [])
+            if constraints or avoid:
+                st.caption(
+                    "Constraints and avoid list: "
+                    + " · ".join(str(item) for item in [*constraints, *avoid])
+                )
 
 
 def _render_prompts(payload: dict[str, Any]) -> None:

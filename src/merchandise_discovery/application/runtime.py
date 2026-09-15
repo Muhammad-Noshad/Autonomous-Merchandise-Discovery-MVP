@@ -52,6 +52,7 @@ from merchandise_discovery.infrastructure.providers.research_provider import (
     FixtureResearchProvider,
     OpenAIWebResearchProvider,
 )
+from merchandise_discovery.infrastructure.storage import LocalArtworkStorage
 from merchandise_discovery.shared.configuration import Settings
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
@@ -151,6 +152,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             if live_mode and settings.xai_api_key
             else FixtureImageProvider()
         )
+        artwork_storage = LocalArtworkStorage(settings.artwork_storage_dir) if live_mode else None
         stage_executor = DiscoveryStageExecutor(
             seed_repository,
             intersection_repository,
@@ -162,6 +164,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             brief_repository,
             artwork_repository,
             image_provider,
+            artwork_storage=artwork_storage,
             reasoning_provider=reasoning_provider,
         )
         runtime = ApplicationRuntime(

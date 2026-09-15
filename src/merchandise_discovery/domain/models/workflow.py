@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from merchandise_discovery.domain.models.common import RunStatus, StageStatus
+from merchandise_discovery.domain.models.common import ApprovalDecision, RunStatus, StageStatus
 from merchandise_discovery.domain.models.usage import UsageMetrics
 
 
@@ -55,6 +55,10 @@ class WorkflowRun(BaseModel):
     current_stage_number: int | None = Field(default=None, ge=1, le=17)
     triggered_by: str = "system"
     claimed_by: str | None = None
+    # Stage 17 records follow-up requests durably; a later worker can consume these without relying
+    # on the browser session or guessing from the latest review note.
+    pending_action: ApprovalDecision | None = None
+    pending_artwork_id: str | None = None
     retry_exhausted: bool = False
     version: int = Field(default=0, ge=0)
     last_error: str | None = None

@@ -49,6 +49,7 @@ from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_rep
 from merchandise_discovery.infrastructure.providers.image_provider import ImageProvider
 from merchandise_discovery.infrastructure.providers.reasoning_provider import ReasoningProvider
 from merchandise_discovery.infrastructure.providers.research_provider import ResearchProvider
+from merchandise_discovery.infrastructure.storage import ArtworkStorage
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class DiscoveryStageExecutor:
         artwork_repository: ArtworkRepository,
         image_provider: ImageProvider,
         reasoning_provider: ReasoningProvider | None = None,
+        artwork_storage: ArtworkStorage | None = None,
     ):
         self._seeds = seed_repository
         self._intersections = intersection_repository
@@ -80,23 +82,33 @@ class DiscoveryStageExecutor:
         self._briefs = brief_repository
         self._artworks = artwork_repository
         self._image_provider = image_provider
+        self._artwork_storage = artwork_storage
         self._reasoning_provider = reasoning_provider
 
-    def _reason(self, stage_name: str, input_data: dict, response_model):
+    def _reason(
+        self,
+        stage_name: str,
+        input_data: dict,
+        response_model,
+        instructions: str | None = None,
+    ):
         """Call structured reasoning while keeping prompts and SDK details outside stage modules."""
 
         if self._reasoning_provider is None:
             return None, UsageMetrics()
+        user_prompt = (
+            f"Execute {stage_name}. Validate the following stage input and produce the requested "
+            f"Pydantic output. Input JSON:\n{json.dumps(input_data, default=str)}"
+        )
+        if instructions:
+            user_prompt = f"{instructions}\n\n{user_prompt}"
         response = self._reasoning_provider.complete_structured(
             system_prompt=(
                 "You are a merchandise discovery specialist. Return only the requested structured "
                 "output, preserve supplied IDs, do not invent citations, and keep recommendations "
                 "specific to the observed audience experience."
             ),
-            user_prompt=(
-                f"Execute {stage_name}. Validate the following stage input and produce the requested "
-                f"Pydantic output. Input JSON:\n{json.dumps(input_data, default=str)}"
-            ),
+            user_prompt=user_prompt,
             response_model=response_model,
         )
         return response.output, response.usage
@@ -600,26 +612,66 @@ class DiscoveryStageExecutor:
             )
         elif stage.stage_number == 12:
             input_model = stage_12.FinalSelectionInput.model_validate(input_data)
-            output = stage_12.execute(input_model)
+            provider_output, usage = (
+                self._reason(
+                    "Stage 12 final concept selection",
+                    input_data,
+                    stage_12.Stage12ReasoningOutput,
+                    instructions=(
+                        "Compare every concept on distinctiveness, emotional recognition, natural "
+                        "wording, giftability, commercial appeal, and visual potential. Return one "
+                        "evaluation for every concept ID exactly once, with each score from 0 to 10 "
+                        "and a concise rationale. Do not select or reject concepts; the application "
+                        "will combine the dimensions and select only concepts already marked KEEP."
+                    ),
+                )
+                if input_model.concepts
+                else (None, UsageMetrics())
+            )
+            output = stage_12.execute(
+                input_model,
+                reasoning_output=provider_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
             self._concepts.replace_for_run(run.run_id, output.concepts)
-            summary = f"Selected {len(output.finalists)} concept finalists."
+            summary = f"Selected {len(output.finalists)} concept finalists using {output.model}."
         elif stage.stage_number == 13:
             input_model = stage_13.DesignBriefInput.model_validate(input_data)
-            provider_output, usage = self._reason(
-                "Stage 13 structured design brief generation",
-                input_data,
-                stage_13.DesignBriefOutput,
+            provider_output, usage = (
+                self._reason(
+                    "Stage 13 structured design brief generation",
+                    input_data,
+                    stage_13.Stage13ReasoningOutput,
+                    instructions=(
+                        "Return one complete design brief for every supplied finalist concept. "
+                        "Preserve each concept ID and exact phrase exactly. Include target audience, "
+                        "core concept, emotional idea, illustration style, main subject, supporting "
+                        "visual elements, composition, typography direction, palette direction, "
+                        "detail level, intended merchandise type, visual constraints, and things to "
+                        "avoid."
+                    ),
+                )
+                if input_model.concepts
+                else (None, UsageMetrics())
             )
-            output = provider_output or stage_13.execute(input_model)
+            output = stage_13.execute(
+                input_model,
+                reasoning_output=provider_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
             self._briefs.replace_for_run(run.run_id, output.briefs)
-            summary = f"Created {len(output.briefs)} structured design briefs."
+            summary = f"Created {len(output.briefs)} structured design briefs using {output.model}."
         elif stage.stage_number == 14:
             input_model = stage_14.PromptCompilationInput.model_validate(input_data)
             output = stage_14.execute(input_model)
             summary = f"Compiled {len(output.prompts)} constrained artwork prompts."
         elif stage.stage_number == 15:
             input_model = stage_15.ArtworkGenerationInput.model_validate(input_data)
-            output = stage_15.execute(input_model, self._image_provider)
+            output = stage_15.execute(
+                input_model,
+                self._image_provider,
+                self._artwork_storage,
+            )
             usage = output.usage
             self._artworks.replace_for_run(run.run_id, output.artworks)
             summary = f"Generated {len(output.artworks)} artwork candidates."

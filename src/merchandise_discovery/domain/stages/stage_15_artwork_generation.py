@@ -9,6 +9,10 @@ from merchandise_discovery.infrastructure.providers.image_provider import (
     ImageGenerationRequest,
     ImageProvider,
 )
+from merchandise_discovery.infrastructure.storage import (
+    ArtworkStorage,
+    ReferenceArtworkStorage,
+)
 
 
 class ArtworkGenerationInput(BaseModel):
@@ -28,11 +32,13 @@ class ArtworkGenerationOutput(BaseModel):
 def execute(
     input_data: ArtworkGenerationInput,
     provider: ImageProvider,
+    storage: ArtworkStorage | None = None,
 ) -> ArtworkGenerationOutput:
-    """Generate only finalist variants and retain every provider reference for review."""
+    """Generate finalist variants, persist binaries, and retain references for review."""
 
     artworks: list[Artwork] = []
     usages: list[UsageMetrics] = []
+    storage_adapter = storage or ReferenceArtworkStorage()
     for prompt in input_data.prompts:
         for variant_number in range(1, input_data.artwork_variants_per_concept + 1):
             generated = provider.generate(
@@ -43,6 +49,11 @@ def execute(
                     variant_number=variant_number,
                 )
             )
+            stored = storage_adapter.persist(
+                source_url=generated.source_url,
+                storage_key=generated.storage_key,
+                reported_size_bytes=generated.file_size_bytes,
+            )
             usages.append(generated.usage)
             artworks.append(
                 Artwork(
@@ -50,12 +61,12 @@ def execute(
                     concept_id=prompt.concept_id,
                     brief_id=prompt.brief_id,
                     prompt=prompt.prompt,
-                    storage_key=generated.storage_key,
+                    storage_key=stored.storage_key,
                     source_url=generated.source_url,
                     width=generated.width,
                     height=generated.height,
                     mime_type=generated.mime_type,
-                    file_size_bytes=generated.file_size_bytes,
+                    file_size_bytes=stored.file_size_bytes,
                 )
             )
     return ArtworkGenerationOutput(artworks=artworks, usage=combine_usage(*usages))

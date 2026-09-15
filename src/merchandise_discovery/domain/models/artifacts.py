@@ -86,6 +86,9 @@ class MerchandiseConcept(BaseModel):
     description: str
     scores: dict[str, float] = Field(default_factory=dict)
     overall_score: float | None = Field(default=None, ge=0, le=10)
+    # Stage 10's critique score and Stage 12's finalist score answer different questions. Keeping
+    # both prevents finalist selection from erasing the earlier concept-quality measurement.
+    selection_score: float | None = Field(default=None, ge=0, le=10)
     verdict: ConceptVerdict | None = None
     critique: dict = Field(default_factory=dict)
     selected: bool = False
@@ -101,6 +104,7 @@ class DesignBrief(BaseModel):
     run_id: str
     concept_id: str
     target_audience: str
+    core_concept: str = ""
     exact_phrase: str
     emotional_idea: str
     illustration_style: str
@@ -109,6 +113,9 @@ class DesignBrief(BaseModel):
     composition: str
     typography_direction: str
     palette_direction: str
+    detail_level: str = "moderate"
+    intended_merchandise_type: str = "T-shirt or sweatshirt print"
+    things_to_avoid: list[str] = Field(default_factory=list)
     constraints: list[str] = Field(default_factory=list)
 
 

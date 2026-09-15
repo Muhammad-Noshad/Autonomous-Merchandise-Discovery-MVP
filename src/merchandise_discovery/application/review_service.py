@@ -8,7 +8,7 @@ receives view state and never writes review or run records directly.
 from dataclasses import dataclass
 
 from merchandise_discovery.domain.models.artifacts import Artwork, HumanReview
-from merchandise_discovery.domain.models.common import ApprovalDecision, RunStatus
+from merchandise_discovery.domain.models.common import ApprovalDecision, ArtworkDecision, RunStatus
 from merchandise_discovery.domain.models.workflow import WorkflowRun
 from merchandise_discovery.domain.stages.stage_17_human_approval import (
     HumanApprovalInput,
@@ -64,8 +64,17 @@ class ReviewService:
         run = self._runs.get_by_id(run_id)
         if run is None:
             raise RecordNotFoundError(f"Run not found: {run_id}")
-        artworks = self._artworks.list_for_run(run_id)
+        # Stage 17 is the human handoff, so only candidates that passed deterministic Stage 16 QA
+        # belong in the approval queue. Failed QA candidates remain in the run audit trail and are
+        # not accidentally presented as production-ready artwork.
+        artworks = [
+            artwork
+            for artwork in self._artworks.list_for_run(run_id)
+            if artwork.decision == ArtworkDecision.ACCEPT
+        ]
         reviews = self._reviews.list_for_run(run_id)
+        artwork_ids = {artwork.artwork_id for artwork in artworks}
+        reviews = [review for review in reviews if review.artwork_id in artwork_ids]
         latest_reviews = self._latest_reviews(reviews)
         summary = evaluate_approval(
             HumanApprovalInput(artworks=artworks, reviews=reviews)
@@ -93,6 +102,8 @@ class ReviewService:
         artwork = self._artworks.get_by_id(artwork_id)
         if artwork is None or artwork.run_id != run_id:
             raise RecordNotFoundError(f"Artwork not found for run: {artwork_id}")
+        if artwork.decision != ArtworkDecision.ACCEPT:
+            raise ValueError("Only artwork that passed deterministic Stage 16 QA can be reviewed.")
         review = self._reviews.save(
             HumanReview(
                 run_id=run_id,
@@ -111,9 +122,49 @@ class ReviewService:
                 current_stage_number=None,
                 last_error=None,
                 completed_stages=state.run.total_stages,
+                pending_action=None,
+                pending_artwork_id=None,
             )
             state = ReviewState(
                 run=completed_run,
+                artworks=state.artworks,
+                latest_reviews=state.latest_reviews,
+                summary=state.summary,
+            )
+        elif decision in {
+            ApprovalDecision.REGENERATE,
+            ApprovalDecision.REQUEST_ADJUSTMENT,
+        }:
+            # A follow-up is a durable workflow request. It deliberately pauses rather than
+            # launching a hidden, expensive generation loop from a Streamlit callback; a future
+            # worker can consume this exact request and create a new artwork revision.
+            paused_run = self._runs.update_status(
+                run_id,
+                expected_version=state.run.version,
+                status=RunStatus.PAUSED,
+                current_stage_number=17,
+                last_error=None,
+                pending_action=decision,
+                pending_artwork_id=artwork_id,
+            )
+            state = ReviewState(
+                run=paused_run,
+                artworks=state.artworks,
+                latest_reviews=state.latest_reviews,
+                summary=state.summary,
+            )
+        elif state.run.pending_action is not None:
+            cleared_run = self._runs.update_status(
+                run_id,
+                expected_version=state.run.version,
+                status=state.run.status,
+                current_stage_number=state.run.current_stage_number,
+                last_error=None,
+                pending_action=None,
+                pending_artwork_id=None,
+            )
+            state = ReviewState(
+                run=cleared_run,
                 artworks=state.artworks,
                 latest_reviews=state.latest_reviews,
                 summary=state.summary,

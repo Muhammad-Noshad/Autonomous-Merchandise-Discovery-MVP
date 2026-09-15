@@ -1,8 +1,8 @@
 """Image-generation provider boundary, fixture adapter, and xAI implementation.
 
 Stage 15 depends on this contract rather than an SDK. The default fixture provider creates
-inspectable metadata only; an xAI implementation can later return real object-storage references
-without changing the stage or the worker protocol.
+inspectable metadata only; the application storage adapter persists live provider binaries without
+changing the stage or worker protocol.
 """
 
 import re
@@ -87,8 +87,8 @@ class XAIImageProvider:
             width=1024,
             height=1024,
             mime_type="image/png",
-            # xAI returns a hosted URL, so the binary size is intentionally unknown until object
-            # storage is introduced; the review UI still exposes the provider reference.
+            # xAI returns a hosted URL; Stage 15's storage adapter downloads it and replaces this
+            # estimate with the measured binary size before MongoDB persistence.
             file_size_bytes=128_000,
             usage=UsageMetrics(
                 provider="xai",

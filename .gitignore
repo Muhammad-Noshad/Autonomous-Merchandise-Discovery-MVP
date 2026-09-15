@@ -13,6 +13,7 @@ __pycache__/
 !.env.example
 .streamlit/secrets.toml
 secrets.md
+.artifacts/
 
 # Project documents are kept locally but are not source-controlled.
 _docs/
@@ -29,4 +30,3 @@ dist/
 *.egg-info/
 .coverage
 htmlcov/
-
