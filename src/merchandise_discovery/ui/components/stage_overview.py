@@ -163,7 +163,9 @@ def _render_intersections(payload: dict[str, Any]) -> None:
 def _render_coherence(payload: dict[str, Any]) -> None:
     intersections = _records(payload, "intersections")
     _metric_row([("Scored intersections", str(len(intersections)))])
-    for record in intersections[:8]:
+    # Stage 4 is the complete coherence evaluation record. Show every scored intersection here so
+    # the UI never implies that the remaining candidates were filtered before Stage 5.
+    for record in intersections:
         score = float(record.get("coherence_score") or 0)
         with st.container(border=True):
             st.markdown(f"**{' + '.join(str(item) for item in record.get('identities', []))}**")

@@ -58,8 +58,8 @@ the worker is run again until that ceiling is reached; after that, the run remai
 longer reclaimed automatically.
 
 Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live mode,
-`OPENAI_API_KEY` enables OpenAI structured outputs for Stages 1–3, 9, 10, and 13, plus OpenAI web
-search for Stage 6. `XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
+`OPENAI_API_KEY` enables OpenAI structured outputs for Stages 2–4, 9, 10, and 13, plus OpenAI web
+search for Stage 6. Stage 1 remains deterministic. `XAI_API_KEY` enables the configured xAI image model for Stage 15. Missing keys
 continue to use the fixture provider or deterministic fallback. Token costs are estimated from the
 configured OpenAI rates; xAI image costs are estimated from the configured per-image rate.
 
@@ -74,7 +74,9 @@ application starts.
 
 The current client demo defaults to `MVP_STOP_AFTER_STAGE=1`. Stage 1 is executed and the run is
 persisted as `paused` so later stages do not run until the client approves expanding the funnel.
-The stop boundary is shared by Streamlit and the worker.
+When a run is created from Streamlit, a process-local background runner advances it independently
+of the visible page; the Run Detail view reads and polls the durable MongoDB state. The stop
+boundary is shared by Streamlit and the worker.
 
 Copy `.env.example` to `.env` when local credentials are needed. Real credentials belong in environment variables or a local Streamlit secrets file; they must not be committed.
 

@@ -5,13 +5,14 @@ and the worker receive the resulting runtime instead of constructing collections
 themselves, which keeps both entrypoints replaceable.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pymongo import MongoClient
 from pymongo.database import Database
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
+from merchandise_discovery.application.inline_run_manager import InlineRunManager
 from merchandise_discovery.application.review_service import ReviewService
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
 from merchandise_discovery.infrastructure.mongo.client import initialize_database
@@ -79,6 +80,7 @@ class ApplicationRuntime:
     review_service: ReviewService
     workflow_orchestrator: WorkflowOrchestrator
     stage_executor: DiscoveryStageExecutor
+    inline_run_manager: InlineRunManager = field(init=False)
 
     def close(self) -> None:
         """Release the MongoDB connection pool when the process boundary shuts down."""
@@ -161,7 +163,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             image_provider,
             reasoning_provider=reasoning_provider,
         )
-        return ApplicationRuntime(
+        runtime = ApplicationRuntime(
             client=client,
             database=database,
             run_repository=run_repository,
@@ -187,6 +189,8 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             workflow_orchestrator=workflow_orchestrator,
             stage_executor=stage_executor,
         )
+        runtime.inline_run_manager = InlineRunManager(runtime)
+        return runtime
     except Exception:
         # If dependency assembly fails after the client connects, do not leak its socket pool.
         client.close()

@@ -24,7 +24,9 @@ from merchandise_discovery.domain.stages.stage_03_intersection_generation import
     execute as execute_intersection_generation,
 )
 from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
+    CoherenceEvaluation,
     CoherenceInput,
+    Stage4ReasoningOutput,
 )
 from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
     execute as execute_coherence,
@@ -90,6 +92,46 @@ def test_pre_research_filter_rejects_reordered_duplicates() -> None:
     assert len(result.accepted) == 1
     assert len(result.rejected) == 1
     assert result.rejected[0].filter_reason == "Rejected as a duplicate identity combination."
+
+
+def test_stage_04_merges_structured_provider_evaluation() -> None:
+    """Stage 4 maps a complete typed provider response onto trusted intersections."""
+
+    intersection = IdentityIntersection(
+        intersection_id="intersection-1",
+        run_id="run-test",
+        identities=["Night-shift nurses", "Coffee rituals", "Practical values"],
+        metadata={"shared_tags": ["ritual", "decompression"]},
+    )
+    reasoning = Stage4ReasoningOutput(
+        evaluations=[
+            CoherenceEvaluation(
+                intersection_id=intersection.intersection_id,
+                coherence_score=8.4,
+                experience_hypothesis=(
+                    "Night-shift nurses use coffee rituals and practical tools to decompress."
+                ),
+                shared_signals=["ritual", "decompression"],
+                coherence_rationale="The identities describe a recurring work-life experience.",
+                confidence=0.91,
+            )
+        ],
+        summary="The candidate has a coherent shared experience.",
+    )
+
+    result = execute_coherence(
+        CoherenceInput(intersections=[intersection]),
+        reasoning_output=reasoning,
+        model="gpt-4o-mini",
+    )
+
+    enriched = result.intersections[0]
+    assert result.provider_evaluations_count == 1
+    assert result.model == "gpt-4o-mini"
+    assert enriched.coherence_score == 8.4
+    assert enriched.experience_hypotheses == [reasoning.evaluations[0].experience_hypothesis]
+    assert enriched.metadata["coherence_shared_signals"] == ["ritual", "decompression"]
+    assert enriched.metadata["coherence_generation_method"] == "provider"
 
 
 def test_stage_01_seed_discovery_with_reasoning_output() -> None:

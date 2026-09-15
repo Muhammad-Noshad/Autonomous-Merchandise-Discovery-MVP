@@ -368,8 +368,73 @@ class DiscoveryStageExecutor:
                 )
         elif stage.stage_number == 4:
             input_model = stage_04.CoherenceInput.model_validate(input_data)
-            output = stage_04.execute(input_model)
-            summary = f"Scored {len(output.intersections)} intersections with hypotheses."
+            provider_output = None
+            if self._reasoning_provider is not None:
+                try:
+                    intersection_catalog = [
+                        {
+                            "intersection_id": intersection.intersection_id,
+                            "identities": intersection.identities,
+                            "source_seed_ids": intersection.source_seed_ids,
+                            "shared_tags": intersection.metadata.get("shared_tags", []),
+                            "composition_rationale": intersection.metadata.get(
+                                "composition_rationale", ""
+                            ),
+                        }
+                        for intersection in input_model.intersections
+                    ]
+                    structured_response = self._reasoning_provider.complete_structured(
+                        system_prompt=(
+                            "You are a merchandise discovery reasoning provider executing Stage 4, "
+                            "Coherence and Experience Hypothesis Evaluation. Evaluate the supplied "
+                            "intersections as written; do not create, remove, rename, or combine "
+                            "intersections. Return exactly one evaluation for every supplied "
+                            "intersection_id, preserving each ID exactly. A coherent intersection "
+                            "must describe a recognizable lived experience rather than a merely "
+                            "possible demographic overlap. Return only the requested structured output."
+                        ),
+                        user_prompt=(
+                            "Evaluate every supplied intersection for coherence. Score from 0 to 10, "
+                            "where 0 means the identities have no meaningful shared experience and "
+                            "10 means they form a highly specific, recognizable experience with a "
+                            "credible merchandise angle. Provide a concise experience hypothesis, "
+                            "one or more shared signals, a rationale grounded only in the supplied "
+                            "identities/tags, and confidence from 0 to 1. Do not evaluate market size "
+                            "or research evidence; later stages handle those concerns.\n\n"
+                            f"Intersections JSON:\n{json.dumps(intersection_catalog, indent=2, default=str)}"
+                        ),
+                        response_model=stage_04.Stage4ReasoningOutput,
+                        temperature=0.0,
+                    )
+                    provider_output = structured_response.output
+                    usage = structured_response.usage
+                except Exception as error:  # noqa: BLE001  # Provider failure has a safe fallback.
+                    logger.warning(
+                        "Stage 4 provider evaluation failed; using deterministic coherence fallback: %s",
+                        error,
+                    )
+            try:
+                output = stage_04.execute(
+                    input_model,
+                    reasoning_output=provider_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                summary = f"Evaluated {len(output.intersections)} intersections with {output.model} coherence reasoning."
+            except ValueError as error:
+                if provider_output is None:
+                    raise
+                # The provider may return a valid schema with incomplete or incorrect IDs. Keep
+                # the measured usage for auditability, but use the safe local score for every item.
+                logger.warning(
+                    "Stage 4 provider output failed semantic validation; "
+                    "using deterministic coherence fallback: %s",
+                    error,
+                )
+                output = stage_04.execute(input_model)
+                summary = (
+                    f"Scored {len(output.intersections)} intersections deterministically "
+                    "after provider validation failed."
+                )
         elif stage.stage_number == 5:
             input_model = stage_05.PreResearchFilterInput.model_validate(input_data)
             output = stage_05.execute(input_model)
