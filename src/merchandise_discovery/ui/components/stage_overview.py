@@ -149,7 +149,6 @@ def _render_intersections(payload: dict[str, Any]) -> None:
     rows = [
         {
             "Identities": " + ".join(str(item) for item in record.get("identities", [])),
-            "Shared signals": ", ".join(str(item) for item in record.get("metadata", {}).get("shared_tags", [])),
             "Why this combination": str(record.get("metadata", {}).get("composition_rationale", "—")),
             "Distinctiveness": record.get("metadata", {}).get("distinctiveness", "—"),
             "Candidate ID": _text(record, "intersection_id"),
