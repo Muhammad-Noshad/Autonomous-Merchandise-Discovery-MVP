@@ -13,6 +13,13 @@ from merchandise_discovery.application.stage_executor import StageNotImplemented
 from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog
 from merchandise_discovery.shared.configuration import load_settings
+from merchandise_discovery.shared.logging import (
+    stage_ended,
+    stage_error,
+    stage_progress,
+    stage_started,
+    stage_waiting_for_review,
+)
 
 
 def _log_event(runtime, run_id: str, message: str, *, stage=None, level: str = "info") -> None:
@@ -39,6 +46,7 @@ def _process_one(runtime, worker_id: str) -> bool:
     if run is None:
         return False
     _log_event(runtime, run.run_id, f"Run claimed by {worker_id}.")
+    print(f"\nRUN {run.run_id} | CLAIMED", flush=True)
 
     while True:
         next_execution = runtime.workflow_orchestrator.next_runnable_stage(
@@ -47,7 +55,7 @@ def _process_one(runtime, worker_id: str) -> bool:
         )
         if next_execution is not None and next_execution.stage_number == 17:
             _log_event(runtime, run.run_id, "Automated stages complete; awaiting human approval.", stage=next_execution)
-            print(f"Run awaiting human approval: {run.run_id}")
+            stage_waiting_for_review(next_execution)
             return True
         execution = runtime.workflow_orchestrator.start_next_stage(
             run.run_id,
@@ -73,14 +81,17 @@ def _process_one(runtime, worker_id: str) -> bool:
             f"Stage {execution.stage_number} started (attempt {execution.attempt_number}).",
             stage=execution,
         )
+        stage_started(execution, run.run_id)
         try:
             input_data = runtime.stage_executor.prepare(run, execution)
+            stage_progress(execution, "Input prepared")
             active_execution = runtime.stage_repository.set_input_data(
                 execution.execution_id,
                 execution.version,
                 input_data,
             )
             result = runtime.stage_executor.execute(run, active_execution, input_data)
+            stage_progress(execution, f"Logic complete | {result.output_summary}")
             runtime.stage_repository.complete(
                 active_execution.execution_id,
                 active_execution.version,
@@ -89,6 +100,7 @@ def _process_one(runtime, worker_id: str) -> bool:
                 input_data=result.input_data,
                 usage=result.usage,
             )
+            stage_progress(execution, "Output persisted")
             _log_event(
                 runtime,
                 run.run_id,
@@ -100,9 +112,9 @@ def _process_one(runtime, worker_id: str) -> bool:
                 active_execution,
                 stop_after_stage=runtime.stop_after_stage,
             )
-            print(f"Stage {active_execution.stage_number} completed for run {run.run_id}.")
+            stage_ended(active_execution, result.output_summary)
             if run.status == RunStatus.PAUSED:
-                print(f"Run paused at configured MVP boundary: {run.run_id}")
+                print(f"RUN {run.run_id} | PAUSED at configured MVP boundary", flush=True)
                 return True
         except (StageNotImplementedError, ValueError) as error:
             runtime.workflow_orchestrator.fail_stage_and_run(
@@ -112,7 +124,7 @@ def _process_one(runtime, worker_id: str) -> bool:
                 max_attempts=runtime.max_stage_attempts,
             )
             _log_event(runtime, run.run_id, str(error), stage=active_execution, level="error")
-            print(f"Run failed explicitly: {run.run_id} — {error}")
+            stage_error(active_execution, error)
             return True
         except Exception as error:  # noqa: BLE001  # Persist every unexpected stage failure.
             # Unexpected failures are still persisted as stage failures so a worker crash cannot
@@ -125,7 +137,7 @@ def _process_one(runtime, worker_id: str) -> bool:
                 max_attempts=runtime.max_stage_attempts,
             )
             _log_event(runtime, run.run_id, message, stage=active_execution, level="error")
-            print(f"Run failed unexpectedly: {run.run_id} — {message}")
+            stage_error(active_execution, error)
             return True
 
 
