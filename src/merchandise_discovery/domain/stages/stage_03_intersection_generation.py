@@ -164,11 +164,11 @@ def execute(
     reasoning_output: Stage3ReasoningOutput | None = None,
     model: str = "deterministic",
 ) -> IntersectionGenerationOutput:
-    """Materialize provider proposals, or generate the legacy deterministic fallback.
+    """Materialize provider proposals, or generate deterministic candidates when no provider exists.
 
     Provider proposals are individually checked against the catalog. Invalid proposals are omitted
-    rather than persisted; if none survive, raising ``ValueError`` lets the application executor
-    rerun the deterministic fallback while preserving the provider usage record.
+    rather than persisted; if none survive, raising ``ValueError`` fails the live stage so the
+    provider problem remains visible to the operator.
     """
 
     if reasoning_output is not None:

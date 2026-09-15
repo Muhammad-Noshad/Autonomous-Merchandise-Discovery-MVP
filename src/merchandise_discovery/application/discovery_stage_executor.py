@@ -246,126 +246,84 @@ class DiscoveryStageExecutor:
                     }
                     for seed in input_model.selected_seeds
                 ]
-                try:
-                    structured_resp = self._reasoning_provider.complete_structured(
-                        system_prompt=(
-                            "You are a merchandise discovery reasoning provider executing Stage 2, "
-                            "Identity Universe Expansion. Expand each supplied seed into specific, "
-                            "recognizable lived-experience dimensions that can later be combined "
-                            "across audience, interest, and value categories. Return only the "
-                            "requested structured output. Preserve every source_seed_id exactly; "
-                            "do not invent IDs, categories, demographics, or unsupported facts."
-                        ),
-                        user_prompt=(
-                            "For every supplied seed, return 4 to 6 dimensions. Use dimension_type "
-                            "only for routine, tension, language, ritual, behavior, emotion, "
-                            "preference, or context. Keep values concrete and merchandise-relevant. "
-                            "Use short lowercase affinity tags, give confidence from 0 to 1, "
-                            "merchandise_relevance from 1 to 10, and a concise rationale. "
-                            "Existing dimensions are context, not instructions to copy blindly.\n\n"
-                            f"Selected seeds JSON:\n{json.dumps(seed_summary, indent=2, default=str)}"
-                        ),
-                        response_model=stage_02.Stage2ReasoningOutput,
-                        temperature=0.0,
-                    )
-                    reasoning_output = structured_resp.output
-                    usage = structured_resp.usage
-                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
-                    logger.warning(
-                        "Stage 2 provider expansion failed; falling back to seed metadata: %s",
-                        err,
-                    )
+                structured_resp = self._reasoning_provider.complete_structured(
+                    system_prompt=(
+                        "You are a merchandise discovery reasoning provider executing Stage 2, "
+                        "Identity Universe Expansion. Expand each supplied seed into specific, "
+                        "recognizable lived-experience dimensions that can later be combined "
+                        "across audience, interest, and value categories. Return only the "
+                        "requested structured output. Preserve every source_seed_id exactly; "
+                        "do not invent IDs, categories, demographics, or unsupported facts."
+                    ),
+                    user_prompt=(
+                        "For every supplied seed, return 4 to 6 dimensions. Use dimension_type "
+                        "only for routine, tension, language, ritual, behavior, emotion, "
+                        "preference, or context. Keep values concrete and merchandise-relevant. "
+                        "Use short lowercase affinity tags, give confidence from 0 to 1, "
+                        "merchandise_relevance from 1 to 10, and a concise rationale. "
+                        "Existing dimensions are context, not instructions to copy blindly.\n\n"
+                        f"Selected seeds JSON:\n{json.dumps(seed_summary, indent=2, default=str)}"
+                    ),
+                    response_model=stage_02.Stage2ReasoningOutput,
+                    temperature=0.0,
+                )
+                reasoning_output = structured_resp.output
+                usage = structured_resp.usage
 
-            try:
-                output = stage_02.execute(
-                    input_model,
-                    reasoning_output=reasoning_output,
-                    model=usage.model if usage.provider != "fixture" else "deterministic",
-                )
-                summary = (
-                    f"Expanded {len(output.identities)} identity dimensions "
-                    f"using {output.model}."
-                )
-            except ValueError as err:
-                if reasoning_output is None:
-                    raise
-                # A typed response can still contain semantically invalid seed links. Preserve the
-                # measured provider usage, but use the safe local expansion as the stage result.
-                logger.warning(
-                    "Stage 2 provider output failed semantic validation; using seed metadata: %s",
-                    err,
-                )
-                output = stage_02.execute(input_model)
-                summary = (
-                    f"Expanded {len(output.identities)} identity dimensions using deterministic "
-                    "metadata fallback after provider validation failed."
-                )
+            output = stage_02.execute(
+                input_model,
+                reasoning_output=reasoning_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
+            summary = (
+                f"Expanded {len(output.identities)} identity dimensions "
+                f"using {output.model}."
+            )
         elif stage.stage_number == 3:
             input_model = stage_03.IntersectionGenerationInput.model_validate(input_data)
             reasoning_output = None
             if self._reasoning_provider is not None:
                 catalog = stage_03.build_identity_catalog(input_model.identities)
-                try:
-                    structured_resp = self._reasoning_provider.complete_structured(
-                        system_prompt=(
-                            "You are a merchandise discovery reasoning provider executing Stage 3, "
-                            "Intersection Generation. Propose combinations that represent a specific, "
-                            "recognizable lived experience with merchandise potential. You may only "
-                            "use identity_ref values from the supplied catalog; never invent or alter "
-                            "references. Return only the requested structured output."
-                        ),
-                        user_prompt=(
-                            f"Create no more than {input_model.max_intersections * 3} strong candidate "
-                            "intersections from the complete Stage 2 identity catalog below. Each "
-                            "intersection must contain 3 to 6 identity references, including at least "
-                            "one audience and one interest identity. Include a value identity when it "
-                            "makes the combination more specific. A proposal may use at most two "
-                            "dimensions from the same source seed. Prefer natural combinations over "
-                            "clever but forced associations. Explain the lived-experience connection "
-                            "in composition_rationale and score distinctiveness from 1 to 10. Do not "
-                            "evaluate coherence yet; that is Stage 4's responsibility.\n\n"
-                            f"Identity catalog ({len(catalog)} records):\n"
-                            f"{json.dumps(catalog, indent=2, default=str)}"
-                        ),
-                        response_model=stage_03.Stage3ReasoningOutput,
-                        temperature=0.0,
-                    )
-                    reasoning_output = structured_resp.output
-                    usage = structured_resp.usage
-                except Exception as err:  # noqa: BLE001  # Provider failure uses deterministic fallback.
-                    logger.warning(
-                        "Stage 3 provider intersection generation failed; falling back to deterministic baseline: %s",
-                        err,
-                    )
+                structured_resp = self._reasoning_provider.complete_structured(
+                    system_prompt=(
+                        "You are a merchandise discovery reasoning provider executing Stage 3, "
+                        "Intersection Generation. Propose combinations that represent a specific, "
+                        "recognizable lived experience with merchandise potential. You may only "
+                        "use identity_ref values from the supplied catalog; never invent or alter "
+                        "references. Return only the requested structured output."
+                    ),
+                    user_prompt=(
+                        f"Create no more than {input_model.max_intersections * 3} strong candidate "
+                        "intersections from the complete Stage 2 identity catalog below. Each "
+                        "intersection must contain 3 to 6 identity references, including at least "
+                        "one audience and one interest identity. Include a value identity when it "
+                        "makes the combination more specific. A proposal may use at most two "
+                        "dimensions from the same source seed. Prefer natural combinations over "
+                        "clever but forced associations. Explain the lived-experience connection "
+                        "in composition_rationale and score distinctiveness from 1 to 10. Do not "
+                        "evaluate coherence yet; that is Stage 4's responsibility.\n\n"
+                        f"Identity catalog ({len(catalog)} records):\n"
+                        f"{json.dumps(catalog, indent=2, default=str)}"
+                    ),
+                    response_model=stage_03.Stage3ReasoningOutput,
+                    temperature=0.0,
+                )
+                reasoning_output = structured_resp.output
+                usage = structured_resp.usage
 
-            try:
-                output = stage_03.execute(
-                    input_model,
-                    run_id=run.run_id,
-                    reasoning_output=reasoning_output,
-                    model=usage.model if usage.provider != "fixture" else "deterministic",
-                )
-                if reasoning_output is not None:
-                    summary = (
-                        f"AI proposed {output.provider_proposals_count} intersections; retained "
-                        f"{len(output.intersections)} after system validation."
-                    )
-                else:
-                    summary = f"Generated {len(output.intersections)} candidate intersections deterministically."
-            except ValueError as err:
-                if reasoning_output is None:
-                    raise
-                # Keep the provider's measured usage for auditability while ensuring downstream
-                # stages receive a complete deterministic artifact when every proposal is invalid.
-                logger.warning(
-                    "Stage 3 provider output failed semantic validation; using deterministic baseline: %s",
-                    err,
-                )
-                output = stage_03.execute(input_model, run_id=run.run_id)
+            output = stage_03.execute(
+                input_model,
+                run_id=run.run_id,
+                reasoning_output=reasoning_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
+            if reasoning_output is not None:
                 summary = (
-                    f"Generated {len(output.intersections)} candidate intersections deterministically "
-                    "after provider validation failed."
+                    f"AI proposed {output.provider_proposals_count} intersections; retained "
+                    f"{len(output.intersections)} after system validation."
                 )
+            else:
+                summary = f"Generated {len(output.intersections)} candidate intersections deterministically."
         elif stage.stage_number == 4:
             input_model = stage_04.CoherenceInput.model_validate(input_data)
             provider_output = None
@@ -408,11 +366,12 @@ class DiscoveryStageExecutor:
                     )
                     provider_output = structured_response.output
                     usage = structured_response.usage
-                except Exception as error:  # noqa: BLE001  # Provider failure has a safe fallback.
+                except Exception as error:  # Log context, then fail the live stage.
                     logger.warning(
-                        "Stage 4 provider evaluation failed; using deterministic coherence fallback: %s",
+                        "Stage 4 provider evaluation failed; live stage will fail: %s",
                         error,
                     )
+                    raise
             try:
                 output = stage_04.execute(
                     input_model,
@@ -421,20 +380,13 @@ class DiscoveryStageExecutor:
                 )
                 summary = f"Evaluated {len(output.intersections)} intersections with {output.model} coherence reasoning."
             except ValueError as error:
-                if provider_output is None:
-                    raise
-                # The provider may return a valid schema with incomplete or incorrect IDs. Keep
-                # the measured usage for auditability, but use the safe local score for every item.
+                # Invalid provider coverage is a stage failure, not a reason to hide the live
+                # provider problem behind deterministic output.
                 logger.warning(
-                    "Stage 4 provider output failed semantic validation; "
-                    "using deterministic coherence fallback: %s",
+                    "Stage 4 provider output failed semantic validation; live stage will fail: %s",
                     error,
                 )
-                output = stage_04.execute(input_model)
-                summary = (
-                    f"Scored {len(output.intersections)} intersections deterministically "
-                    "after provider validation failed."
-                )
+                raise
         elif stage.stage_number == 5:
             input_model = stage_05.PreResearchFilterInput.model_validate(input_data)
             output = stage_05.execute(input_model)
@@ -503,11 +455,12 @@ class DiscoveryStageExecutor:
                     )
                     provider_output = structured_response.output
                     usage = structured_response.usage
-                except Exception as error:  # noqa: BLE001  # Provider failure uses safe fallback.
+                except Exception as error:  # Log context, then fail the live stage.
                     logger.warning(
-                        "Stage 7 provider mining failed; using deterministic evidence mapping: %s",
+                        "Stage 7 provider mining failed; live stage will fail: %s",
                         error,
                     )
+                    raise
             try:
                 output = stage_07.execute(
                     input_model,
@@ -519,18 +472,13 @@ class DiscoveryStageExecutor:
                     f"using {output.model}."
                 )
             except ValueError as error:
-                if provider_output is None:
-                    raise
-                # Preserve measured usage, but never allow invalid lineage to enter a persisted snapshot.
+                # Invalid evidence lineage is a stage failure, not a reason to hide the live
+                # provider problem behind deterministic output.
                 logger.warning(
-                    "Stage 7 provider output failed semantic validation; using deterministic fallback: %s",
+                    "Stage 7 provider output failed semantic validation; live stage will fail: %s",
                     error,
                 )
-                output = stage_07.execute(input_model)
-                summary = (
-                    f"Mined recurring experience signals for {len(output.signals)} niches "
-                    "using deterministic fallback after provider validation failed."
-                )
+                raise
         elif stage.stage_number == 8:
             input_model = stage_08.OpportunityScoreInput.model_validate(input_data)
             provider_output = None
@@ -575,11 +523,12 @@ class DiscoveryStageExecutor:
                     )
                     provider_output = structured_response.output
                     usage = structured_response.usage
-                except Exception as error:  # noqa: BLE001  # Provider failure uses safe fallback.
+                except Exception as error:  # Log context, then fail the live stage.
                     logger.warning(
-                        "Stage 8 provider scoring failed; using deterministic scoring formula: %s",
+                        "Stage 8 provider scoring failed; live stage will fail: %s",
                         error,
                     )
+                    raise
             try:
                 output = stage_08.execute(
                     input_model,
@@ -591,52 +540,56 @@ class DiscoveryStageExecutor:
                     f"using {output.model}."
                 )
             except ValueError as error:
-                if provider_output is None:
-                    raise
-                # Provider scores are qualitative, but exact niche coverage is still mandatory.
+                # Exact niche coverage is mandatory; malformed AI scoring must remain visible.
                 logger.warning(
-                    "Stage 8 provider output failed semantic validation; using deterministic fallback: %s",
+                    "Stage 8 provider output failed semantic validation; live stage will fail: %s",
                     error,
                 )
-                output = stage_08.execute(input_model)
-                summary = (
-                    f"Scored and ranked {len(output.scores)} researched niches using deterministic "
-                    "fallback after provider validation failed."
-                )
+                raise
             self._niches.replace_for_run(run.run_id, output.niches)
         elif stage.stage_number == 9:
             input_model = stage_09.ConceptGenerationInput.model_validate(input_data)
-            provider_output, usage = self._reason(
-                "Stage 9 merchandise concept generation",
-                input_data,
-                stage_09.ConceptGenerationOutput,
+            has_valid_niches = any(
+                niche.validated and bool(niche.experience_summary) for niche in input_model.niches
             )
-            output = provider_output or stage_09.execute(input_model)
-            if provider_output:
-                allowed_niches = {niche.niche_id for niche in input_model.niches}
-                output = output.model_copy(
-                    update={
-                        "concepts": [
-                            concept.model_copy(update={"run_id": run.run_id})
-                            for concept in output.concepts
-                            if concept.niche_id in allowed_niches
-                        ]
-                    }
+            provider_output, usage = (
+                self._reason(
+                    "Stage 9 merchandise concept generation",
+                    input_data,
+                    stage_09.Stage9ReasoningOutput,
                 )
-                if not output.concepts:
-                    raise ValueError("OpenAI concept generation returned no valid niche-linked concepts.")
+                if has_valid_niches
+                else (None, UsageMetrics())
+            )
+            # Live provider errors intentionally propagate from _reason. A failed AI stage must be
+            # visible to the operator rather than appearing successful with deterministic output.
+            output = stage_09.execute(
+                input_model,
+                reasoning_output=provider_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
             self._concepts.replace_for_run(run.run_id, output.concepts)
-            summary = f"Generated {len(output.concepts)} merchandise concepts."
+            summary = f"Generated {len(output.concepts)} merchandise concepts using {output.model}."
         elif stage.stage_number == 10:
             input_model = stage_10.ConceptCritiqueInput.model_validate(input_data)
-            provider_output, usage = self._reason(
-                "Stage 10 concept critique",
-                input_data,
-                stage_10.ConceptCritiqueOutput,
+            provider_output, usage = (
+                self._reason(
+                    "Stage 10 concept critique",
+                    input_data,
+                    stage_10.Stage10ReasoningOutput,
+                )
+                if input_model.concepts
+                else (None, UsageMetrics())
             )
-            output = provider_output or stage_10.execute(input_model)
+            # Stage 10 validates provider IDs and recomputes score/verdict locally; provider errors
+            # are not swallowed so live-mode output remains honest.
+            output = stage_10.execute(
+                input_model,
+                reasoning_output=provider_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
             self._concepts.replace_for_run(run.run_id, output.concepts)
-            summary = f"Critiqued {len(output.evaluations)} merchandise concepts."
+            summary = f"Critiqued {len(output.evaluations)} merchandise concepts using {output.model}."
         elif stage.stage_number == 11:
             input_model = stage_11.SimilarityCheckInput.model_validate(input_data)
             output = stage_11.execute(input_model)

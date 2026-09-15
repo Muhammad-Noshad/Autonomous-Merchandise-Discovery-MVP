@@ -2,7 +2,8 @@
 
 Stage 3 proposes combinations. This module owns the typed Stage 4 response contract and the local
 trust boundary that maps provider evaluations back onto application-owned intersection records.
-The deterministic scorer remains available as a safe fallback when live reasoning is unavailable.
+The deterministic scorer remains available when no reasoning provider is configured, such as in
+fixture mode; a configured live provider failure is surfaced by the application layer.
 """
 
 from pydantic import BaseModel, Field
@@ -102,7 +103,7 @@ def _apply_provider_evaluations(
 
 
 def _apply_deterministic_scoring(intersections: list[IdentityIntersection]) -> CoherenceOutput:
-    """Provide a reproducible local result when the live provider cannot be used."""
+    """Provide a reproducible local result when no provider is configured."""
 
     scored: list[IdentityIntersection] = []
     for intersection in intersections:
@@ -142,7 +143,7 @@ def execute(
     reasoning_output: Stage4ReasoningOutput | None = None,
     model: str = "deterministic",
 ) -> CoherenceOutput:
-    """Apply provider judgments after validating them, or use the deterministic fallback."""
+    """Apply validated provider judgments, or run deterministically when no provider is supplied."""
 
     if reasoning_output is not None:
         return _apply_provider_evaluations(input_data.intersections, reasoning_output, model=model)

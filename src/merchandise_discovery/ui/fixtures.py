@@ -228,7 +228,7 @@ def get_demo_run() -> RunFixture:
         ("Niche Opportunity Scoring", "Combine evidence and qualitative opportunity signals."),
         ("Merchandise Concept Generation", "Turn validated experiences into merchandise concepts."),
         ("Single-Call Concept Critique", "Evaluate authenticity, wearability, and commercial appeal."),
-        ("Similarity and IP Check", "Optionally identify duplication and potential IP risks."),
+        ("Duplicate Phrase Screen", "Optionally identify duplicate merchandise phrases within this run."),
         ("Final Concept Selection", "Rank surviving concepts and select finalists."),
         ("Structured Design Brief", "Convert each finalist into a visual design brief."),
         ("Grok Prompt Compilation", "Apply consistent merchandise prompt constraints."),

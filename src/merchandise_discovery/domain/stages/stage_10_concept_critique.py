@@ -1,8 +1,10 @@
 """Stage 10: critique each merchandise concept with one structured evaluation.
 
-Critique output is deterministic in the MVP and stored on each concept. The criteria mirror the
-future structured reasoning response, making a later provider-backed implementation a replaceable
-stage dependency rather than a UI or persistence rewrite.
+OpenAI supplies bounded component judgments and qualitative weaknesses. This module owns the
+integrity boundary: it requires exactly one evaluation per input concept, calculates the weighted
+overall score, and derives the keep/reject verdict locally. The deterministic evaluator remains
+available for fixture mode, but live provider failures are intentionally allowed to fail the stage
+so the UI does not present fallback output as successful AI work.
 """
 
 from pydantic import BaseModel, Field
@@ -31,34 +33,67 @@ class ConceptEvaluation(BaseModel):
     rationale: str
 
 
+class ConceptCritiqueProposal(BaseModel):
+    """Provider critique without application-owned overall score or verdict."""
+
+    concept_id: str = Field(min_length=1)
+    authenticity: float = Field(ge=0, le=10)
+    clarity: float = Field(ge=0, le=10)
+    wearability: float = Field(ge=0, le=10)
+    commercial_potential: float = Field(ge=0, le=10)
+    weaknesses: list[str] = Field(default_factory=list, max_length=8)
+    rationale: str = Field(min_length=1, max_length=500)
+
+
+class Stage10ReasoningOutput(BaseModel):
+    """Exact structured response expected from OpenAI for Stage 10."""
+
+    evaluations: list[ConceptCritiqueProposal] = Field(min_length=1, max_length=500)
+    summary: str = Field(min_length=1, max_length=500)
+
+
 class ConceptCritiqueOutput(BaseModel):
     """Concepts updated with their critique and a separate evaluation record per candidate."""
 
     concepts: list[MerchandiseConcept]
     evaluations: list[ConceptEvaluation]
+    summary: str = ""
+    model: str = "deterministic"
 
 
-def _evaluate(concept: MerchandiseConcept) -> ConceptEvaluation:
-    """Score transparent concept traits and reject candidates below the 6.0 threshold."""
+def _evaluate(
+    concept: MerchandiseConcept,
+    proposal: ConceptCritiqueProposal | None = None,
+) -> ConceptEvaluation:
+    """Calculate the final score and verdict from deterministic policy-owned rules."""
 
-    phrase_words = len(concept.phrase.split())
-    authenticity = 8.0 if "experience" in concept.description.lower() else 6.5
-    clarity = round(min(10.0, max(5.0, 11 - phrase_words * 0.8)), 2)
-    wearability = 8.0 if phrase_words <= 5 else 6.0
-    commercial_potential = 8.0 if any(
-        word in concept.phrase.lower() for word in ("reset", "ritual", "relief", "belonging")
-    ) else 6.5
+    if proposal is None:
+        phrase_words = len(concept.phrase.split())
+        authenticity = 8.0 if "experience" in concept.description.lower() else 6.5
+        clarity = round(min(10.0, max(5.0, 11 - phrase_words * 0.8)), 2)
+        wearability = 8.0 if phrase_words <= 5 else 6.0
+        commercial_potential = 8.0 if any(
+            word in concept.phrase.lower() for word in ("reset", "ritual", "relief", "belonging")
+        ) else 6.5
+        weaknesses: list[str] = []
+        rationale = (
+            "The concept scored across authenticity, clarity, wearability, "
+            "and commercial potential using deterministic rules."
+        )
+    else:
+        authenticity = round(proposal.authenticity, 2)
+        clarity = round(proposal.clarity, 2)
+        wearability = round(proposal.wearability, 2)
+        commercial_potential = round(proposal.commercial_potential, 2)
+        weaknesses = list(dict.fromkeys(proposal.weaknesses))
+        rationale = proposal.rationale.strip()
     overall = round((authenticity + clarity + wearability + commercial_potential) / 4, 2)
-    weaknesses: list[str] = []
     if clarity < 7:
         weaknesses.append("The phrase may need simplification for quick visual comprehension.")
     if commercial_potential < 7:
         weaknesses.append("The commercial hook is not yet distinctive enough.")
+    weaknesses = list(dict.fromkeys(weaknesses))
     verdict = ConceptVerdict.KEEP if overall >= 6 else ConceptVerdict.REJECT
-    rationale = (
-        f"The concept scored {overall:.2f}/10 across authenticity, clarity, wearability, "
-        "and commercial potential."
-    )
     return ConceptEvaluation(
         concept_id=concept.concept_id,
         authenticity=authenticity,
@@ -72,10 +107,39 @@ def _evaluate(concept: MerchandiseConcept) -> ConceptEvaluation:
     )
 
 
-def execute(input_data: ConceptCritiqueInput) -> ConceptCritiqueOutput:
-    """Attach one reproducible critique to every generated concept."""
+def _validate_provider_links(
+    input_data: ConceptCritiqueInput,
+    reasoning_output: Stage10ReasoningOutput,
+) -> dict[str, ConceptCritiqueProposal]:
+    """Require exactly one provider evaluation for every input concept."""
 
-    evaluations = [_evaluate(concept) for concept in input_data.concepts]
+    expected_ids = {concept.concept_id for concept in input_data.concepts}
+    returned_ids = [evaluation.concept_id for evaluation in reasoning_output.evaluations]
+    if len(returned_ids) != len(set(returned_ids)):
+        raise ValueError("Stage 10 provider output contains duplicate concept IDs.")
+    returned_id_set = set(returned_ids)
+    unknown_ids = returned_id_set - expected_ids
+    missing_ids = expected_ids - returned_id_set
+    if unknown_ids:
+        raise ValueError(f"Stage 10 provider output contains unknown concept IDs: {sorted(unknown_ids)}.")
+    if missing_ids:
+        raise ValueError(f"Stage 10 provider output is missing concept IDs: {sorted(missing_ids)}.")
+    return {evaluation.concept_id: evaluation for evaluation in reasoning_output.evaluations}
+
+
+def execute(
+    input_data: ConceptCritiqueInput,
+    reasoning_output: Stage10ReasoningOutput | None = None,
+    model: str = "deterministic",
+) -> ConceptCritiqueOutput:
+    """Attach one provider or deterministic critique to every generated concept."""
+
+    proposals_by_id = (
+        _validate_provider_links(input_data, reasoning_output)
+        if reasoning_output is not None
+        else {}
+    )
+    evaluations = [_evaluate(concept, proposals_by_id.get(concept.concept_id)) for concept in input_data.concepts]
     evaluation_by_id = {evaluation.concept_id: evaluation for evaluation in evaluations}
     concepts = [
         concept.model_copy(
@@ -97,4 +161,9 @@ def execute(input_data: ConceptCritiqueInput) -> ConceptCritiqueOutput:
         for concept in input_data.concepts
         if (evaluation := evaluation_by_id[concept.concept_id])
     ]
-    return ConceptCritiqueOutput(concepts=concepts, evaluations=evaluations)
+    return ConceptCritiqueOutput(
+        concepts=concepts,
+        evaluations=evaluations,
+        summary=reasoning_output.summary if reasoning_output is not None else "",
+        model=model,
+    )

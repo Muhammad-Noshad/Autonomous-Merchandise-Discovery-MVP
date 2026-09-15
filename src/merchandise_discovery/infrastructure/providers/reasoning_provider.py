@@ -1,8 +1,8 @@
 """Reasoning-model adapters for provider-backed structured generation and critique.
 
 Stages depend on this boundary rather than importing the OpenAI SDK. Live provider use is injected
-by the application runtime, while fixture or deterministic fallbacks remain available when live mode
-is disabled or a provider request fails.
+by the application runtime, while fixture or deterministic paths remain available when live mode is
+disabled or no live provider is configured. Provider failures are propagated to stage handling.
 """
 
 from dataclasses import dataclass
@@ -52,8 +52,8 @@ class OpenAIReasoningProvider:
         output_price_per_million: float = 0.60,
         timeout_seconds: float = 60.0,
     ):
-        # A bounded timeout keeps a failed live provider from holding a Streamlit request open
-        # indefinitely. Stage execution catches this provider error and records a visible fallback.
+        # A bounded timeout prevents a failed live provider from holding a background stage open
+        # indefinitely. The stage runner records the resulting provider error as a failure.
         self._client = OpenAI(api_key=api_key, timeout=timeout_seconds)
         self._model = model
         self._input_price = input_price_per_million

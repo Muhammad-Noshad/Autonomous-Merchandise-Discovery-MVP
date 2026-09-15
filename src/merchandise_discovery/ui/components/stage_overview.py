@@ -249,7 +249,7 @@ def _render_opportunity_scoring(payload: dict[str, Any]) -> None:
 def _render_concepts(payload: dict[str, Any]) -> None:
     concepts = _records(payload, "concepts")
     _metric_row([("Concept candidates", str(len(concepts)))])
-    for concept in concepts[:8]:
+    for concept in concepts:
         with st.container(border=True):
             st.markdown(f"**{_text(concept, 'phrase')}**")
             st.write(_short(_text(concept, "description")))
@@ -261,7 +261,7 @@ def _render_critique(payload: dict[str, Any]) -> None:
     evaluations = _records(payload, "evaluations")
     kept = sum(_text(item, "verdict", default="reject") == "keep" for item in evaluations)
     _metric_row([("Reviewed", str(len(evaluations))), ("Kept", str(kept))])
-    for evaluation in evaluations[:8]:
+    for evaluation in evaluations:
         with st.container(border=True):
             verdict = _text(evaluation, "verdict", default="pending").upper()
             st.markdown(f"**{_text(evaluation, 'concept_id')}** · {verdict}")

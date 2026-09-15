@@ -1,12 +1,22 @@
 """Tests for concept generation, critique, optional screening, and finalist selection."""
 
+import pytest
+
 from merchandise_discovery.domain.models.artifacts import MerchandiseConcept, Niche
 from merchandise_discovery.domain.models.common import ConceptVerdict
-from merchandise_discovery.domain.stages.stage_09_concept_generation import ConceptGenerationInput
+from merchandise_discovery.domain.stages.stage_09_concept_generation import (
+    ConceptGenerationInput,
+    ConceptProposal,
+    Stage9ReasoningOutput,
+)
 from merchandise_discovery.domain.stages.stage_09_concept_generation import (
     execute as execute_generation,
 )
-from merchandise_discovery.domain.stages.stage_10_concept_critique import ConceptCritiqueInput
+from merchandise_discovery.domain.stages.stage_10_concept_critique import (
+    ConceptCritiqueInput,
+    ConceptCritiqueProposal,
+    Stage10ReasoningOutput,
+)
 from merchandise_discovery.domain.stages.stage_10_concept_critique import (
     execute as execute_critique,
 )
@@ -45,6 +55,50 @@ def test_concept_generation_is_experience_led_and_bounded() -> None:
     assert all(concept.niche_id == "niche-1" for concept in result.concepts)
 
 
+def test_provider_concept_proposals_receive_local_ids() -> None:
+    """Stage 9 persists only validated-niche proposals and assigns IDs inside the application."""
+
+    result = execute_generation(
+        ConceptGenerationInput(niches=[_niche()], concepts_per_niche=2),
+        reasoning_output=Stage9ReasoningOutput(
+            concepts=[
+                ConceptProposal(
+                    niche_id="niche-1",
+                    phrase="A specific reset ritual",
+                    description="A wearable expression of the audience's observed reset ritual.",
+                )
+            ],
+            summary="One validated concept proposal.",
+        ),
+        model="gpt-4o-mini",
+    )
+
+    assert len(result.concepts) == 1
+    assert result.concepts[0].concept_id
+    assert result.concepts[0].run_id == "run-test"
+    assert result.model == "gpt-4o-mini"
+
+
+def test_provider_concept_proposals_reject_non_validated_niches() -> None:
+    """AI cannot create concepts for a niche that did not pass research validation."""
+
+    invalid_niche = _niche().model_copy(update={"validated": False})
+    with pytest.raises(ValueError, match="non-validated or unknown niche ID"):
+        execute_generation(
+            ConceptGenerationInput(niches=[invalid_niche], concepts_per_niche=1),
+            reasoning_output=Stage9ReasoningOutput(
+                concepts=[
+                    ConceptProposal(
+                        niche_id=invalid_niche.niche_id,
+                        phrase="Unsupported concept",
+                        description="This must not be persisted.",
+                    )
+                ],
+                summary="Invalid proposal.",
+            ),
+        )
+
+
 def test_critique_records_scores_and_verdicts() -> None:
     """Every concept receives the same inspectable criteria used to decide whether it survives."""
 
@@ -55,6 +109,60 @@ def test_critique_records_scores_and_verdicts() -> None:
     assert all(evaluation.verdict == ConceptVerdict.KEEP for evaluation in result.evaluations)
     assert all(concept.overall_score is not None for concept in result.concepts)
     assert all("authenticity" in concept.scores for concept in result.concepts)
+
+
+def test_provider_critique_scores_and_verdict_are_calculated_locally() -> None:
+    """Stage 10 uses AI components but owns the weighted overall score and threshold decision."""
+
+    concept = execute_generation(ConceptGenerationInput(niches=[_niche()], concepts_per_niche=1)).concepts[0]
+    result = execute_critique(
+        ConceptCritiqueInput(concepts=[concept]),
+        reasoning_output=Stage10ReasoningOutput(
+            evaluations=[
+                ConceptCritiqueProposal(
+                    concept_id=concept.concept_id,
+                    authenticity=2,
+                    clarity=3,
+                    wearability=4,
+                    commercial_potential=5,
+                    rationale="The concept is not sufficiently clear or distinctive.",
+                )
+            ],
+            summary="One critique.",
+        ),
+        model="gpt-4o-mini",
+    )
+
+    assert result.evaluations[0].overall_score == 3.5
+    assert result.evaluations[0].verdict == ConceptVerdict.REJECT
+    assert result.concepts[0].overall_score == 3.5
+    assert result.concepts[0].verdict == ConceptVerdict.REJECT
+    assert result.model == "gpt-4o-mini"
+
+
+def test_provider_critique_requires_exact_concept_coverage() -> None:
+    """A partial provider response cannot silently drop a concept from the critique."""
+
+    concepts = execute_generation(
+        ConceptGenerationInput(niches=[_niche()], concepts_per_niche=2)
+    ).concepts
+    with pytest.raises(ValueError, match="missing concept IDs"):
+        execute_critique(
+            ConceptCritiqueInput(concepts=concepts),
+            reasoning_output=Stage10ReasoningOutput(
+                evaluations=[
+                    ConceptCritiqueProposal(
+                        concept_id=concepts[0].concept_id,
+                        authenticity=8,
+                        clarity=8,
+                        wearability=8,
+                        commercial_potential=8,
+                        rationale="Only one concept was evaluated.",
+                    )
+                ],
+                summary="No evaluations.",
+            ),
+        )
 
 
 def test_similarity_check_rejects_lower_scoring_duplicate() -> None:

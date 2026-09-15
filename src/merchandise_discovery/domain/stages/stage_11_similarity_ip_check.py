@@ -1,8 +1,8 @@
-"""Stage 11: optionally check duplication, similarity, and IP risk before image generation.
+"""Stage 11: optionally screen duplicate phrases before image generation.
 
-This MVP check is a deterministic duplicate screen, not legal advice or a trademark search. Its
-purpose is to demonstrate the optional branch and preserve a clear place for a future specialist
-screening provider.
+This MVP check compares normalized phrases within the current run. It is not a semantic similarity
+search, trademark search, or legal IP assessment; naming the stage as a duplicate screen keeps the
+client-facing result honest while preserving a future provider insertion point.
 """
 
 import re
@@ -38,13 +38,14 @@ class SimilarityCheckOutput(BaseModel):
 
 
 def _normalized_phrase(phrase: str) -> str:
-    """Normalize punctuation and whitespace for exact duplicate detection."""
+    """Normalize case, punctuation, and repeated whitespace for exact duplicate detection."""
 
-    return re.sub(r"[^a-z0-9 ]+", "", phrase.lower()).strip()
+    without_punctuation = re.sub(r"[^\w\s]+", " ", phrase.casefold(), flags=re.UNICODE)
+    return re.sub(r"\s+", " ", without_punctuation).strip()
 
 
 def execute(input_data: SimilarityCheckInput) -> SimilarityCheckOutput:
-    """Reject later duplicate phrases while retaining every candidate and its reason."""
+    """Reject later duplicate phrases globally within this run, keeping the highest score."""
 
     seen: dict[str, MerchandiseConcept] = {}
     survivors: list[MerchandiseConcept] = []

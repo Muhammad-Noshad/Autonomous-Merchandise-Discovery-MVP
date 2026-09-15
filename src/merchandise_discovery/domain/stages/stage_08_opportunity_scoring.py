@@ -3,7 +3,8 @@
 AI supplies bounded qualitative judgments for clarity, audience fit, and differentiation. The
 application still owns evidence strength and the weighted total, so a provider cannot invent
 research volume or silently change the scoring equation. The deterministic formula remains the
-fallback and provides a reproducible baseline for fixture mode and provider failures.
+deterministic path and provides a reproducible baseline for fixture mode or when no provider is
+configured. Live provider failures remain visible to the workflow.
 """
 
 from pydantic import BaseModel, Field

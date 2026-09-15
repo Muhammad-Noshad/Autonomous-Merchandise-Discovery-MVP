@@ -25,7 +25,7 @@ STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     StageDefinition(8, "Niche Opportunity Scoring", "Combine evidence strength and audience opportunity signals into a reproducible score."),
     StageDefinition(9, "Merchandise Concept Generation", "Translate validated experiences into specific, wearable merchandise concepts."),
     StageDefinition(10, "Single-Call Concept Critique", "Evaluate concept authenticity, clarity, wearability, and commercial potential."),
-    StageDefinition(11, "Similarity and IP Check", "Optionally identify duplication and potential intellectual-property risks.", optional=True),
+    StageDefinition(11, "Duplicate Phrase Screen", "Optionally identify duplicate merchandise phrases within this run.", optional=True),
     StageDefinition(12, "Final Concept Selection", "Rank surviving concepts and select the strongest finalists for visual development."),
     StageDefinition(13, "Structured Design Brief", "Convert each finalist into a detailed visual design brief."),
     StageDefinition(14, "Grok Prompt Compilation", "Compile a constrained image prompt from the design brief."),

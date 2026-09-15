@@ -3,7 +3,7 @@
 The stage owns the evidence-lineage contract, not the provider integration. OpenAI may interpret
 the research evidence into structured signals, while this module verifies that every claim points
 to evidence belonging to the same niche. The deterministic keyword implementation remains the
-portable fallback for fixture mode, provider outages, and invalid semantic responses.
+portable path for fixture mode or when no provider is configured; live provider errors are surfaced.
 """
 
 from collections import defaultdict

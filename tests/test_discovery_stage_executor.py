@@ -2,8 +2,15 @@
 
 from unittest.mock import Mock
 
+import pytest
+
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
-from merchandise_discovery.domain.models.artifacts import Niche, ResearchEvidence
+from merchandise_discovery.domain.models.artifacts import (
+    IdentityIntersection,
+    MerchandiseConcept,
+    Niche,
+    ResearchEvidence,
+)
 from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages.stage_01_seed_discovery import SeedDiscoveryInput
@@ -25,6 +32,7 @@ from merchandise_discovery.domain.stages.stage_03_intersection_generation import
 from merchandise_discovery.domain.stages.stage_03_intersection_generation import (
     execute as execute_intersections,
 )
+from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import CoherenceInput
 from merchandise_discovery.domain.stages.stage_07_experience_mining import (
     ExperienceMiningInput,
     ExperienceSignal,
@@ -36,6 +44,8 @@ from merchandise_discovery.domain.stages.stage_08_opportunity_scoring import (
     OpportunityScoreInput,
     Stage8ReasoningOutput,
 )
+from merchandise_discovery.domain.stages.stage_09_concept_generation import ConceptGenerationInput
+from merchandise_discovery.domain.stages.stage_10_concept_critique import ConceptCritiqueInput
 from merchandise_discovery.infrastructure.providers.reasoning_provider import StructuredResponse
 from merchandise_discovery.shared.seed_loader import load_seed_fixture
 
@@ -363,3 +373,122 @@ def test_stage_08_uses_ai_qualitative_scores_but_calculates_total() -> None:
     assert score["evidence_strength"] == 30
     assert score["overall_score"] == 85
     assert result.output_data["model"] == "gpt-4o-mini"
+
+
+def test_live_stage_09_provider_failure_is_not_converted_to_success() -> None:
+    """A live provider outage propagates to stage-runner failure handling without fallback output."""
+
+    niche = Niche(
+        run_id="run-test",
+        intersection_id="intersection-1",
+        name="Remote worker gardeners",
+        experience_summary="A recurring reset ritual is observed.",
+        validated=True,
+    )
+    reasoning_provider = Mock()
+    reasoning_provider.complete_structured.side_effect = RuntimeError("provider unavailable")
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(10)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title="Stage 9 provider failure test")
+    stage = StageExecution(run_id=run.run_id, stage_number=9, stage_name="Concept Generation")
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        executor.execute(
+            run,
+            stage,
+            ConceptGenerationInput(niches=[niche], concepts_per_niche=1).model_dump(mode="python"),
+        )
+
+
+def test_live_stage_10_provider_failure_is_not_converted_to_success() -> None:
+    """Stage 10 also exposes provider failure so the persisted stage is visibly failed."""
+
+    concept = MerchandiseConcept(
+        run_id="run-test",
+        niche_id="niche-1",
+        phrase="A specific reset ritual",
+        description="A wearable expression of an observed experience.",
+    )
+    reasoning_provider = Mock()
+    reasoning_provider.complete_structured.side_effect = RuntimeError("provider unavailable")
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(10)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title="Stage 10 provider failure test")
+    stage = StageExecution(run_id=run.run_id, stage_number=10, stage_name="Concept Critique")
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        executor.execute(
+            run,
+            stage,
+            ConceptCritiqueInput(concepts=[concept]).model_dump(mode="python"),
+        )
+
+
+@pytest.mark.parametrize("stage_number", [2, 3, 4, 7, 8])
+def test_reasoning_provider_failures_propagate_for_all_ai_stages(stage_number: int) -> None:
+    """Every AI-backed stage exposes provider failures to durable stage error handling."""
+
+    seed = load_seed_fixture()[0]
+    if stage_number == 2:
+        input_model = IdentityExpansionInput(selected_seeds=[seed])
+    elif stage_number == 3:
+        expanded = execute_identity_expansion(IdentityExpansionInput(selected_seeds=[seed]))
+        input_model = IntersectionGenerationInput(
+            identities=expanded.identities,
+            max_intersections=10,
+        )
+    elif stage_number == 4:
+        input_model = CoherenceInput(
+            intersections=[
+                IdentityIntersection(
+                    run_id="run-test",
+                    identities=["Remote workers", "Home gardeners"],
+                )
+            ]
+        )
+    else:
+        niche = Niche(
+            run_id="run-test",
+            intersection_id="intersection-1",
+            name="Remote worker gardeners",
+            experience_summary="A recurring reset ritual is observed.",
+            evidence_count=1,
+            validated=True,
+        )
+        if stage_number == 7:
+            evidence = ResearchEvidence(
+                run_id="run-test",
+                niche_id=niche.niche_id,
+                url="https://example.com/research",
+                title="Audience ritual",
+                source="Example",
+                excerpt="People use a quiet ritual to decompress.",
+            )
+            input_model = ExperienceMiningInput(niches=[niche], evidence=[evidence])
+        else:
+            input_model = OpportunityScoreInput(niches=[niche], signals=[ExperienceSignal(
+                niche_id=niche.niche_id,
+                evidence_ids=["evidence-1"],
+                confidence=0.8,
+                experience_summary="A recurring reset ritual is observed.",
+            )])
+
+    reasoning_provider = Mock()
+    reasoning_provider.complete_structured.side_effect = RuntimeError("provider unavailable")
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(10)),
+        reasoning_provider=reasoning_provider,
+    )
+    run = WorkflowRun(title=f"Stage {stage_number} provider failure test")
+    stage = StageExecution(
+        run_id=run.run_id,
+        stage_number=stage_number,
+        stage_name=f"Stage {stage_number}",
+    )
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        executor.execute(run, stage, input_model.model_dump(mode="python"))
