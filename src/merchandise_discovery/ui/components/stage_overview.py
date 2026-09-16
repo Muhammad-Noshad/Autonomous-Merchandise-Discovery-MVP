@@ -179,6 +179,13 @@ def _render_coherence(payload: dict[str, Any]) -> None:
             st.markdown(f"**{' + '.join(str(item) for item in record.get('identities', []))}**")
             score = float(record.get("coherence_score") or 0)
             st.progress(min(1.0, score / 10), text=f"Coherence {score:.1f} / 10")
+            confidence = metadata.get("coherence_confidence")
+            if confidence is not None:
+                confidence = max(0.0, min(1.0, float(confidence)))
+                st.progress(
+                    confidence,
+                    text=f"Confidence {confidence:.2f} / 1.00 ({confidence:.0%})",
+                )
             st.write(f"**Why selected:** {metadata.get('selection_reason', '—')}")
             st.caption(
                 f"Research value: {float(metadata.get('research_value_score', 0)):.1f} / 10"

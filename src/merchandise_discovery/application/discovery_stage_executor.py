@@ -397,7 +397,8 @@ class DiscoveryStageExecutor:
                             "research value. For every selected candidate provide a selection_reason "
                             "that refers to the supplied identities, experience signals, or rationale; "
                             "do not use generic reasons such as 'high potential'. Also provide a "
-                            "coherence score, research-value score, and confidence from 0 to 1. Do not "
+                            "coherence and research-value scores from 0 to 10, and confidence from 0 to 1. "
+                            "Do not "
                             "return evaluations for candidates you did not select.\n\n"
                             f"Intersections JSON:\n{json.dumps(intersection_catalog, indent=2, default=str)}"
                         ),

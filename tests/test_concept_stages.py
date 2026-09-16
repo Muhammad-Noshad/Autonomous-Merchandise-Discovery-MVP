@@ -117,6 +117,32 @@ def test_provider_concept_proposals_reject_non_validated_niches() -> None:
         )
 
 
+def test_provider_concept_failure_reports_specificity_reasons() -> None:
+    """A failed niche explains the local quality gate instead of losing rejection context."""
+
+    with pytest.raises(ValueError, match="below the minimum threshold of 7/10"):
+        execute_generation(
+            ConceptGenerationInput(niches=[_niche()], concepts_per_niche=1),
+            reasoning_output=Stage9ReasoningOutput(
+                concepts=[
+                    ConceptProposal(
+                        niche_id="niche-1",
+                        phrase="A broad thought",
+                        description="A generic concept.",
+                        specific_audience="People with lifestyles",
+                        recognizable_moment="A normal day",
+                        insider_behavior_or_language="A broad phrase",
+                        emotional_tension="Wanting something meaningful",
+                        visual_hook="A generic symbol",
+                        audience_identification_reason="It may resonate broadly.",
+                        specificity_score=6.9,
+                    )
+                ],
+                summary="One rejected concept.",
+            ),
+        )
+
+
 def test_critique_records_scores_and_verdicts() -> None:
     """Every concept receives the same inspectable criteria used to decide whether it survives."""
 

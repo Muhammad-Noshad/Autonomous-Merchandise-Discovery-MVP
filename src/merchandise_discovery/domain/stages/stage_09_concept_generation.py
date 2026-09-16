@@ -34,7 +34,14 @@ class ConceptProposal(BaseModel):
     emotional_tension: str = Field(min_length=1, max_length=300)
     visual_hook: str = Field(min_length=1, max_length=300)
     audience_identification_reason: str = Field(min_length=1, max_length=400)
-    specificity_score: float = Field(ge=0, le=10)
+    specificity_score: float = Field(
+        ge=0,
+        le=10,
+        description=(
+            "Specificity score from 0.0 to 10.0, where 10 is highly personal and experience-led. "
+            "This is not a confidence or probability value from 0.0 to 1.0."
+        ),
+    )
 
 
 class Stage9ReasoningOutput(BaseModel):
@@ -91,8 +98,12 @@ def reasoning_instructions() -> str:
         "cue, one emotional tension, and one distinctive visual hook. The merchandise phrase must "
         "work as standalone copy on a shirt or other product. Reject ideas that could apply equally "
         "to almost any audience. Do not invent demographics or facts absent from the supplied input. "
-        "Return no more than the configured concepts per niche and make the concepts meaningfully "
-        "different from one another."
+        "The specificity_score is a 0 to 10 score, not a 0 to 1 confidence value; use at least "
+        "7.0 for a concept that should pass the application gate. Before returning, self-check "
+        "that every supplied validated niche has at least one concept with a score of 7.0 or "
+        "higher and that its phrase, moment, insider cue, emotional tension, and visual hook all "
+        "refer to that niche's supplied evidence. Return no more than the configured concepts per "
+        "niche and make the concepts meaningfully different from one another."
     )
 
 
@@ -158,9 +169,17 @@ def _validate_provider_links(
 
     missing_niches = [niche_id for niche_id, proposals in proposals_by_niche.items() if not proposals]
     if missing_niches:
+        rejection_reasons: dict[str, list[str]] = {niche_id: [] for niche_id in missing_niches}
+        for item in rejected:
+            if item.niche_id in rejection_reasons and len(rejection_reasons[item.niche_id]) < 3:
+                rejection_reasons[item.niche_id].append(item.reason)
+        details = "; ".join(
+            f"{niche_id}: {', '.join(reasons) or 'no proposal returned'}"
+            for niche_id, reasons in rejection_reasons.items()
+        )
         raise ValueError(
             "Stage 9 provider output has no specificity-approved concept for niches: "
-            f"{missing_niches}."
+            f"{missing_niches}. Rejection details: {details}."
         )
     for niche_id, proposals in proposals_by_niche.items():
         if len(proposals) > input_data.concepts_per_niche:

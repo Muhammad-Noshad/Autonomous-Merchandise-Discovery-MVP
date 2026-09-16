@@ -23,9 +23,24 @@ class ResearchSelection(BaseModel):
 
     intersection_id: str = Field(min_length=1)
     selection_reason: str = Field(min_length=1, max_length=500)
-    coherence_score: float = Field(ge=0, le=10)
-    research_value_score: float = Field(ge=0, le=10)
-    confidence: float = Field(ge=0, le=1)
+    coherence_score: float = Field(
+        ge=0,
+        le=10,
+        description="Coherence score from 0.0 to 10.0, not a probability or confidence value.",
+    )
+    research_value_score: float = Field(
+        ge=0,
+        le=10,
+        description="Research value score from 0.0 to 10.0, not a probability or confidence value.",
+    )
+    confidence: float = Field(
+        ge=0,
+        le=1,
+        description=(
+            "Confidence in this selection as a probability-like value from 0.0 to 1.0. "
+            "This is not a 0-to-10 score."
+        ),
+    )
 
 
 class Stage4ReasoningOutput(BaseModel):
