@@ -15,6 +15,7 @@ from merchandise_discovery.domain.stages.registry import stage_definitions_for
 from merchandise_discovery.domain.stages.stage_06_compact_research_development import (
     CompactDevelopmentInput,
     build_reasoning_prompt,
+    reasoning_instructions,
 )
 from merchandise_discovery.domain.stages.stage_06_compact_research_development import (
     execute as execute_compact_stage,
@@ -109,6 +110,16 @@ def test_compact_reasoning_prompt_isolates_evidence_by_niche() -> None:
     assert f'"allowed_evidence_ids": ["{first_evidence.evidence_id}"]' in prompt
     assert f'"allowed_evidence_ids": ["{second_evidence.evidence_id}"]' in prompt
     assert "never cite an ID from another block" in prompt
+
+
+def test_compact_reasoning_contract_requires_audience_recognition_copy() -> None:
+    """Compact concepts must use lived-experience copy instead of generic merchandise titles."""
+
+    instructions = reasoning_instructions()
+
+    assert "That is literally me" in instructions
+    assert "I Garden Between Naps" in instructions
+    assert "product category, club name, campaign title" in instructions
 
 
 def test_create_run_passes_selected_pipeline_variant_to_stage_setup() -> None:

@@ -118,6 +118,32 @@ def test_provider_concept_proposals_allow_more_than_eight_words() -> None:
     assert result.rejected_proposals == []
 
 
+def test_provider_concept_proposals_reject_generic_club_titles() -> None:
+    """A club label is rejected so the artwork copy remains an audience recognition line."""
+
+    with pytest.raises(ValueError, match="broad category label"):
+        execute_generation(
+            ConceptGenerationInput(niches=[_niche()], concepts_per_niche=1),
+            reasoning_output=Stage9ReasoningOutput(
+                concepts=[
+                    ConceptProposal(
+                        niche_id="niche-1",
+                        phrase="Nap-Window Garden Club",
+                        description="A gardening concept for a specific audience.",
+                        specific_audience="New parents protecting a gardening ritual between naps",
+                        recognizable_moment="Labeling seeds before the nap window ends",
+                        insider_behavior_or_language="Checking the monitor while saving cuttings",
+                        emotional_tension="Wanting to keep a personal interest alive amid interruptions",
+                        visual_hook="A seed packet beside a baby monitor and trowel",
+                        audience_identification_reason="The phrase should identify the lived experience.",
+                        specificity_score=9,
+                    )
+                ],
+                summary="One generic title.",
+            ),
+        )
+
+
 def test_provider_concept_proposals_reject_non_validated_niches() -> None:
     """AI cannot create concepts for a niche that did not pass research validation."""
 

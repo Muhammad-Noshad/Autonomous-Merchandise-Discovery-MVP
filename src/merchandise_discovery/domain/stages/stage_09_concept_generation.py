@@ -80,6 +80,7 @@ CONCEPT_TEMPLATES = (
 GENERIC_LABEL_SUFFIXES = {
     "adventures",
     "challenges",
+    "club",
     "community",
     "experiences",
     "lifestyle",
@@ -95,9 +96,14 @@ def reasoning_instructions() -> str:
         "descriptions, demographic summaries, or generic themes. Ground every concept in the "
         "supplied evidence-linked experience signals. Each concept must describe one specific "
         "audience, one recognizable moment or repeated behavior, one insider phrase or language "
-        "cue, one emotional tension, and one distinctive visual hook. The merchandise phrase must "
-        "work as standalone copy on a shirt or other product. Reject ideas that could apply equally "
-        "to almost any audience. Do not invent demographics or facts absent from the supplied input. "
+        "cue, one emotional tension, and one distinctive visual hook. The merchandise phrase is the "
+        "primary audience-recognition copy printed on the product: write it as an insider statement "
+        "or shared truth that makes the target audience think, 'That is literally me.' Prefer first "
+        "person or direct audience language and include the specific behavior, constraint, or relief "
+        "that defines the niche. Do not return a product category, club name, campaign title, broad "
+        "theme, or abstract slogan in place of the phrase. The phrase must work as standalone copy on "
+        "a shirt or other product. Reject ideas that could apply equally to almost any audience. Do not "
+        "invent demographics or facts absent from the supplied input. "
         "The specificity_score is a 0 to 10 score, not a 0 to 1 confidence value; use at least "
         "7.0 for a concept that should pass the application gate. Before returning, self-check "
         "that every supplied validated niche has at least one concept with a score of 7.0 or "

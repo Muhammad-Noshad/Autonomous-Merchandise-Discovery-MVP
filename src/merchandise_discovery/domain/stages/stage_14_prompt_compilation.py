@@ -35,7 +35,7 @@ def _compile(brief: DesignBrief) -> str:
         "Create merchandise artwork only, not a product mockup. "
         "Use an isolated, print-ready composition with no unnecessary background scene. "
         "Use a square 1:1 aspect ratio unless the brief explicitly requests another ratio. "
-        f'Exact text: "{brief.exact_phrase}". '
+        f'Exact text: "{brief.exact_phrase}" (primary audience-recognition copy). '
         f"Target audience: {brief.target_audience}. "
         f"Mandatory audience recognition cues that must be visibly represented: "
         f"{', '.join(brief.audience_visual_cues)}. "
@@ -50,7 +50,9 @@ def _compile(brief: DesignBrief) -> str:
         f"Detail level: {brief.detail_level}. "
         f"Intended merchandise: {brief.intended_merchandise_type}. "
         f"Visual constraints and avoid list: {constraints}. "
-        "Audience identity must be recognizable from the mandatory cues, not only from the phrase. "
+        "Render the exact text prominently as an insider statement, not as a product category, club "
+        "name, campaign title, or generic theme. Audience identity must be recognizable from the "
+        "phrase and mandatory cues together, not from generic props alone. "
         "Permanent rules: no extra text, no logos or brand marks, no product mockup unless "
         "explicitly requested, no unnecessary scene, preserve exact spelling, and keep the "
         "design legible at merchandise scale."

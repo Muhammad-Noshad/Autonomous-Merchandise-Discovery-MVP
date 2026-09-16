@@ -47,8 +47,9 @@ def test_design_brief_and_prompt_preserve_exact_phrase_and_constraints() -> None
 
     assert len(briefs.briefs) == 1
     assert briefs.briefs[0].exact_phrase == "Reset Mode"
-    assert 'Exact text: "Reset Mode"' in prompts.prompts[0].prompt
+    assert 'Exact text: "Reset Mode" (primary audience-recognition copy)' in prompts.prompts[0].prompt
     assert "Mandatory audience recognition cues" in prompts.prompts[0].prompt
+    assert "Render the exact text prominently as an insider statement" in prompts.prompts[0].prompt
     assert "No logos or existing brand marks" in prompts.prompts[0].prompt
 
 
