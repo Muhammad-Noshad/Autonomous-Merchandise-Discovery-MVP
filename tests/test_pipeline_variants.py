@@ -46,6 +46,7 @@ def test_compact_registry_contains_only_its_executed_stages() -> None:
     assert len(definitions) == 9
     assert [definition.number for definition in definitions] == list(range(1, 10))
     assert definitions[5].name == "AI Merchandise Development"
+    assert definitions[8].name == "Artwork Results"
     assert len(stage_definitions_for(PipelineVariant.BASELINE)) == 17
 
 
@@ -185,6 +186,7 @@ def test_compact_detail_view_hides_folded_stages() -> None:
     assert [stage.number for stage in fixture.stages] == list(range(1, 10))
     assert fixture.total_stages == 9
     assert fixture.completed_stages == 6
+    assert fixture.stages[8].name == "Artwork Results"
     assert fixture.stages[6].summary == "Generate artwork candidates from compact-stage prompts."
     assert fixture.stages[7].summary == "Run deterministic artwork quality checks."
-    assert fixture.stages[8].summary == "Record the final reviewer decision and close the merchandise workflow."
+    assert fixture.stages[8].summary == "Display all generated artwork candidates for visual review."

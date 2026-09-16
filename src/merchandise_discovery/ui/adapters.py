@@ -135,6 +135,10 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         definition.number: definition.purpose
         for definition in stage_definitions_for(run.config.pipeline_variant)
     }
+    stage_names = {
+        definition.number: definition.name
+        for definition in stage_definitions_for(run.config.pipeline_variant)
+    }
     stages = [
         stage for stage in _latest_stages(snapshot.stages) if stage.stage_number in visible_numbers
     ]
@@ -158,7 +162,7 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
     stage_fixtures = [
         StageFixture(
             number=stage.stage_number,
-            name=stage.stage_name,
+            name=stage_names.get(stage.stage_number, stage.stage_name),
             summary=(
                 "Search selected niches, synthesize lived experience, and generate concepts, briefs, and artwork prompts."
                 if stage.stage_number == 6 and "AI Merchandise" in stage.stage_name

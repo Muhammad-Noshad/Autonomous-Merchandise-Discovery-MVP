@@ -23,6 +23,7 @@ from merchandise_discovery.domain.stages import (
 from merchandise_discovery.domain.stages import stage_06_niche_research as stage_06
 from merchandise_discovery.domain.stages import stage_07_experience_mining as stage_07
 from merchandise_discovery.domain.stages import stage_08_opportunity_scoring as stage_08
+from merchandise_discovery.domain.stages import stage_09_compact_artwork_gallery as stage_09_gallery
 from merchandise_discovery.domain.stages import stage_09_concept_generation as stage_09
 from merchandise_discovery.domain.stages import stage_10_concept_critique as stage_10
 from merchandise_discovery.domain.stages import stage_11_similarity_ip_check as stage_11
@@ -58,7 +59,7 @@ logger = logging.getLogger(__name__)
 
 
 class DiscoveryStageExecutor:
-    """Load, run, and persist Stages 1-16 without coupling domain code to MongoDB."""
+    """Load, run, and persist automated stages without coupling domain code to MongoDB."""
 
     def __init__(
         self,
@@ -221,6 +222,12 @@ class DiscoveryStageExecutor:
             return stage_08.OpportunityScoreInput(
                 niches=research_output.niches,
                 signals=mined.signals,
+            ).model_dump(mode="python")
+        if stage.stage_number == 9 and run.config.pipeline_variant.value == "compact_research_first":
+            prior = stage_16.ArtworkCritiqueOutput.model_validate(previous.output_data)
+            return stage_09_gallery.ArtworkGalleryInput(
+                artworks=prior.artworks,
+                evaluations=prior.evaluations,
             ).model_dump(mode="python")
         if stage.stage_number == 9:
             prior = stage_08.OpportunityScoringOutput.model_validate(previous.output_data)
@@ -513,6 +520,10 @@ class DiscoveryStageExecutor:
             self._artworks.replace_for_run(run.run_id, output.artworks)
             accepted = sum(item.decision.value == "accept" for item in output.artworks)
             summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
+        elif stage.stage_number == 9 and run.config.pipeline_variant.value == "compact_research_first":
+            input_model = stage_09_gallery.ArtworkGalleryInput.model_validate(input_data)
+            output = stage_09_gallery.execute(input_model)
+            summary = output.summary
         elif stage.stage_number == 7:
             input_model = stage_07.ExperienceMiningInput.model_validate(input_data)
             provider_output = None

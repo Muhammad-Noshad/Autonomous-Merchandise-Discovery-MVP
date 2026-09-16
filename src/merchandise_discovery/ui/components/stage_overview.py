@@ -5,7 +5,9 @@ in domain language rather than storage-shaped JSON. Each renderer below owns one
 summary while shared helpers keep spacing, cards, scores, and empty states consistent.
 """
 
+import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
@@ -421,6 +423,53 @@ def _render_artwork_generation(payload: dict[str, Any]) -> None:
                 st.markdown(f"Provider reference: [{url}]({url})")
 
 
+def _artwork_source(record: dict[str, Any]) -> str:
+    """Prefer the durable local artifact and fall back to the provider reference URL."""
+
+    storage_key = record.get("storage_key")
+    if storage_key:
+        root = Path(os.getenv("ARTWORK_STORAGE_DIR", ".artifacts")).resolve()
+        candidate = (root / str(storage_key)).resolve()
+        try:
+            if candidate.is_file() and candidate.is_relative_to(root):
+                return str(candidate)
+        except (OSError, ValueError):
+            # A missing or malformed local artifact should not hide a usable provider URL.
+            pass
+    return str(record.get("source_url") or "")
+
+
+def _render_artwork_gallery(payload: dict[str, Any]) -> None:
+    """Display every compact-pipeline artwork without exposing approval controls."""
+
+    artworks = _records(payload, "artworks")
+    _metric_row([("Artwork results", str(len(artworks)))])
+    if not artworks:
+        st.info("No artwork candidates are available yet.")
+        return
+
+    for index in range(0, len(artworks), 2):
+        columns = st.columns(2)
+        for column, artwork in zip(columns, artworks[index : index + 2]):
+            with column:
+                st.markdown(f"**{_text(artwork, 'phrase', 'concept_id', default='Artwork candidate')}**")
+                source = _artwork_source(artwork)
+                if source:
+                    try:
+                        st.image(source, caption="Generated artwork", width=420)
+                    except (OSError, RuntimeError, ValueError):
+                        st.warning("The artwork preview is unavailable.")
+                else:
+                    st.info("No preview reference was recorded for this artwork.")
+                st.caption(
+                    f"{_text(artwork, 'mime_type', default='Unknown format')} · "
+                    f"{_text(artwork, 'width')} × {_text(artwork, 'height')}"
+                )
+                url = _text(artwork, "source_url", default="")
+                if url:
+                    st.markdown(f"[Open provider reference]({url})")
+
+
 def _render_artwork_critique(payload: dict[str, Any]) -> None:
     evaluations = _records(payload, "evaluations")
     accepted = sum(_text(item, "decision", default="") == "accept" for item in evaluations)
@@ -509,10 +558,15 @@ def render_stage_overview(stage: StageFixture) -> None:
         return
     # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
     # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
-    if "Artwork Generation" in stage.name:
+    if "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:
+        renderer = _render_artwork_gallery
+    elif "Artwork Generation" in stage.name:
         renderer = _render_artwork_generation
     elif "Artwork Critique" in stage.name:
         renderer = _render_artwork_critique
+    elif stage.number == 9 and "artworks" in stage.output_payload:
+        # Legacy compact runs used the old Human Approval label before Stage 9 became a gallery.
+        renderer = _render_artwork_gallery
     elif "Human Approval" in stage.name:
         renderer = _render_approval
     else:

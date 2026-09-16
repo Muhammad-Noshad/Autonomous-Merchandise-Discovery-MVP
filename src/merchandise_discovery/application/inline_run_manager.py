@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog, WorkflowRun
 from merchandise_discovery.shared.logging import stage_waiting_for_review
 
@@ -110,7 +110,11 @@ class InlineRunManager:
                     run.run_id,
                     max_attempts=self._runtime.max_stage_attempts,
                 )
-                if next_execution is not None and next_execution.stage_number == run.total_stages:
+                if (
+                    next_execution is not None
+                    and next_execution.stage_number == run.total_stages
+                    and run.config.pipeline_variant == PipelineVariant.BASELINE
+                ):
                     stage_waiting_for_review(next_execution)
                     self._save_log(
                         run.run_id,

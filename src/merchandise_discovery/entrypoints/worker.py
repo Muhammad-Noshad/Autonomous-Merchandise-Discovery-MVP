@@ -1,7 +1,8 @@
 """Command-line entrypoint for the background workflow worker.
 
-The worker executes automated stages and stops cleanly at Stage 17, where the browser owns human
-approval. This prevents a pending reviewer decision from being misreported as an unavailable stage.
+The baseline worker stops cleanly at its human-approval stage, while compact runs finish after the
+display-only artwork results stage. This prevents a pending reviewer decision from being confused
+with an unavailable automated stage.
 """
 
 import argparse
@@ -10,7 +11,7 @@ from uuid import uuid4
 
 from merchandise_discovery.application.runtime import build_runtime
 from merchandise_discovery.application.stage_executor import StageNotImplementedError
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog
 from merchandise_discovery.shared.configuration import load_settings
 from merchandise_discovery.shared.logging import (
@@ -53,7 +54,11 @@ def _process_one(runtime, worker_id: str) -> bool:
             run.run_id,
             max_attempts=runtime.max_stage_attempts,
         )
-        if next_execution is not None and next_execution.stage_number == run.total_stages:
+        if (
+            next_execution is not None
+            and next_execution.stage_number == run.total_stages
+            and run.config.pipeline_variant == PipelineVariant.BASELINE
+        ):
             _log_event(runtime, run.run_id, "Automated stages complete; awaiting human approval.", stage=next_execution)
             stage_waiting_for_review(next_execution)
             return True

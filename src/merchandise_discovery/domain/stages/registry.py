@@ -51,7 +51,7 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
         ),
         StageDefinition(7, "Merchandise Artwork Generation", "Generate artwork candidates from compact-stage prompts."),
         StageDefinition(8, "Artwork Critique", "Run deterministic artwork quality checks."),
-        StageDefinition(9, "Human Approval", "Record the final reviewer decision and close the merchandise workflow."),
+        StageDefinition(9, "Artwork Results", "Display all generated artwork candidates for visual review."),
     )
 
 
