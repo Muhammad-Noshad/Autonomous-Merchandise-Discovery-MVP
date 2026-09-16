@@ -60,6 +60,36 @@ class CoherenceOutput(BaseModel):
     model: str = "deterministic"
 
 
+def reasoning_instructions() -> str:
+    """Return the provider contract for hopeful, non-overlapping research selection.
+
+    Stage 4 receives independent candidates but produces one bounded research portfolio. The
+    prompt therefore makes set-level diversity an explicit decision criterion instead of allowing
+    the provider to select several individually strong variations of the same market opportunity.
+    """
+
+    return (
+        "You are a merchandise discovery reasoning provider executing Stage 4, AI Coherence and "
+        "Research Selection. Review all supplied intersections as written, then select only the "
+        "candidates needed by the next research stage. Never create, remove, rename, or combine "
+        "candidates, and preserve selected intersection IDs exactly. Treat the selected candidates "
+        "as one research portfolio, not as independent winners. First assess each candidate's "
+        "specific lived-experience coherence, hopeful human outcome, and research value. Then make "
+        "a second portfolio-level comparison and prefer candidates that differ in primary audience, "
+        "core activity, emotional job, repeated ritual, and likely visual language. Do not select the "
+        "top individual scores when the candidates would produce similar concepts or artwork. When "
+        "viable alternatives exist, select at most one candidate from the same broad audience-plus-"
+        "emotional-need theme. For example, several recent-relocator candidates about making a new "
+        "city feel like home are one portfolio theme even if one uses music, one cycling, and one "
+        "board games; choose only one of them when distinct alternatives are available. Prefer "
+        "hopeful opportunities involving agency, belonging, progress, creative energy, practical "
+        "relief, or meaningful connection. Avoid candidates whose central promise is merely generic "
+        "lifestyle aspiration, demographic overlap, isolation, or consumption. Each selection_reason "
+        "must explain both the candidate's specific lived experience and what distinct portfolio "
+        "angle it contributes. Return only the requested structured output."
+    )
+
+
 def _validate_selection_ids(
     intersections: list[IdentityIntersection],
     selections: list[ResearchSelection],

@@ -29,6 +29,7 @@ from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
     CoherenceInput,
     ResearchSelection,
     Stage4ReasoningOutput,
+    reasoning_instructions,
 )
 from merchandise_discovery.domain.stages.stage_04_coherence_hypothesis import (
     execute as execute_coherence,
@@ -69,6 +70,18 @@ def test_discovery_funnel_produces_bounded_inspectable_results() -> None:
     assert len(filtered.accepted) + len(filtered.rejected) == 30
     assert all(item.eligible_for_research for item in filtered.accepted)
     assert all(item.filter_reason for item in filtered.rejected)
+
+
+def test_stage_04_provider_contract_selects_a_diverse_hopeful_portfolio() -> None:
+    """Stage 4 asks AI to avoid several individually strong versions of one opportunity theme."""
+
+    instructions = reasoning_instructions()
+
+    assert "one research portfolio" in instructions
+    assert "prefer candidates that differ in primary audience" in instructions
+    assert "hopeful opportunities" in instructions
+    assert "recent-relocator candidates" in instructions
+    assert "distinct portfolio angle" in instructions
 
 
 def test_pre_research_filter_does_not_reapply_deduplication() -> None:

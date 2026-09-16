@@ -412,21 +412,15 @@ class DiscoveryStageExecutor:
                         for intersection in input_model.intersections
                     ]
                     structured_response = self._reasoning_provider.complete_structured(
-                        system_prompt=(
-                            "You are a merchandise discovery reasoning provider executing Stage 4, "
-                            "AI Coherence and Research Selection. Review all supplied intersections "
-                            "as written, then select only the candidates needed by the next research "
-                            "stage. Never create, remove, rename, or combine candidates, and preserve "
-                            "selected intersection IDs exactly. A strong choice describes a specific, "
-                            "recognizable lived experience rather than a generic demographic overlap. "
-                            "Return only the requested structured output."
-                        ),
+                        system_prompt=stage_04.reasoning_instructions(),
                         user_prompt=(
                             f"Select exactly {min(input_model.max_researched_niches, len(input_model.intersections))} "
                             "intersection(s) for niche research. Choose candidates with the strongest "
-                            "specific lived-experience coherence, concrete audience recognition, and "
-                            "research value. For every selected candidate provide a selection_reason "
-                            "that refers to the supplied identities, experience signals, or rationale; "
+                            "specific lived-experience coherence, hopeful human outcome, concrete "
+                            "audience recognition, and research value while maximizing diversity across "
+                            "the selected set. For every selected candidate provide a selection_reason "
+                            "that refers to the supplied identities, experience signals, or rationale "
+                            "and explains its distinct portfolio angle; "
                             "do not use generic reasons such as 'high potential'. Also provide a "
                             "coherence and research-value scores from 0 to 10, and confidence from 0 to 1. "
                             "Do not "
