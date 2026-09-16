@@ -221,7 +221,11 @@ def _render_filter(payload: dict[str, Any]) -> None:
 def _render_research(payload: dict[str, Any]) -> None:
     niches = _records(payload, "niches")
     evidence = _records(payload, "evidence")
-    _metric_row([("Niches researched", str(len(niches))), ("Evidence records", str(len(evidence)))])
+    concepts = _records(payload, "concepts")
+    metrics = [("Niches researched", str(len(niches))), ("Evidence records", str(len(evidence)))]
+    if concepts:
+        metrics.append(("Concepts generated", str(len(concepts))))
+    _metric_row(metrics)
     for niche in niches:
         with st.container(border=True):
             st.markdown(f"**{_text(niche, 'name')}**")
@@ -230,6 +234,14 @@ def _render_research(payload: dict[str, Any]) -> None:
             for item in niche_evidence[:2]:
                 st.markdown(f"[{_text(item, 'title')}]({_text(item, 'url', default='#')})")
                 st.write(_short(_text(item, "excerpt")))
+    if concepts:
+        _section("Evidence-backed concepts")
+        for concept in concepts:
+            with st.container(border=True):
+                st.markdown(f"**{_text(concept, 'phrase')}**")
+                st.caption(_text(concept, "specific_audience"))
+                st.write(_short(_text(concept, "description")))
+                st.caption(f"Recognizable moment: {_text(concept, 'recognizable_moment')}")
 
 
 def _render_experience_mining(payload: dict[str, Any]) -> None:
@@ -495,5 +507,14 @@ def render_stage_overview(stage: StageFixture) -> None:
             st.info(stage.output_summary)
             st.caption("Structured stage output will appear here after execution.")
         return
-    renderer = RENDERERS.get(stage.number, _render_generic)
+    # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
+    # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
+    if "Artwork Generation" in stage.name:
+        renderer = _render_artwork_generation
+    elif "Artwork Critique" in stage.name:
+        renderer = _render_artwork_critique
+    elif "Human Approval" in stage.name:
+        renderer = _render_approval
+    else:
+        renderer = RENDERERS.get(stage.number, _render_generic)
     renderer(stage.output_payload)

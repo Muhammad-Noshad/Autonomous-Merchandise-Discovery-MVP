@@ -20,7 +20,7 @@ from merchandise_discovery.domain.models.workflow import (
     StageLog,
     WorkflowRun,
 )
-from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
+from merchandise_discovery.domain.stages.registry import stage_definitions_for
 from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
     ArtworkRepository,
 )
@@ -107,12 +107,14 @@ class DiscoveryService:
         config: RunConfig | None = None,
         triggered_by: str = "manual",
     ) -> WorkflowRun:
-        """Create a run and initialize its stage records from the stable stage registry."""
+        """Create a run and initialize stage records for the selected pipeline variant."""
 
+        run_config = config or RunConfig()
+        stage_definitions = stage_definitions_for(run_config.pipeline_variant)
         run = WorkflowRun(
             title=title,
-            config=config or RunConfig(),
-            total_stages=len(STAGE_DEFINITIONS),
+            config=run_config,
+            total_stages=len(stage_definitions),
             triggered_by=triggered_by,
         )
         self._runs.create(run)
@@ -120,7 +122,7 @@ class DiscoveryService:
             run.run_id,
             [
                 (definition.number, definition.name, definition.optional, definition.version)
-                for definition in STAGE_DEFINITIONS
+                for definition in stage_definitions
             ],
             enable_optional=run.config.enable_similarity_ip_check,
         )

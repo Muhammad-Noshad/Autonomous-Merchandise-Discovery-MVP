@@ -10,15 +10,16 @@ from datetime import datetime
 from merchandise_discovery.application.discovery_service import RunSnapshot
 from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
-from merchandise_discovery.domain.stages.registry import STAGE_DEFINITIONS
+from merchandise_discovery.domain.stages.registry import (
+    stage_definitions_for,
+    visible_stage_numbers,
+)
 from merchandise_discovery.ui.fixtures import (
     EvidenceFixture,
     RunFixture,
     RunListItemFixture,
     StageFixture,
 )
-
-STAGE_PURPOSES = {definition.number: definition.purpose for definition in STAGE_DEFINITIONS}
 
 
 def _format_duration(stage: StageExecution) -> str:
@@ -56,6 +57,12 @@ def _latest_stages(stages: list[StageExecution]) -> list[StageExecution]:
         if current is None or stage.attempt_number >= current.attempt_number:
             latest[stage.stage_number] = stage
     return [latest[number] for number in sorted(latest)]
+
+
+def _visible_stage_count(run: WorkflowRun) -> int:
+    """Return the active stage count used by the selected pipeline's UI progress summary."""
+
+    return len(visible_stage_numbers(run.config.pipeline_variant))
 
 
 def _stage_metrics(stage: StageExecution) -> dict[str, str]:
@@ -105,10 +112,12 @@ def _evidence_fixtures(payload: dict) -> list[EvidenceFixture]:
 def workflow_to_list_item(run: WorkflowRun) -> RunListItemFixture:
     """Map a persisted run aggregate to the compact history-row contract."""
 
-    progress = round(run.completed_stages / run.total_stages * 100)
+    total_stages = _visible_stage_count(run)
+    progress = round(min(run.completed_stages, total_stages) / total_stages * 100)
     return RunListItemFixture(
         run_id=run.run_id,
         title=run.title,
+        pipeline_variant=run.config.pipeline_variant.value,
         selection_seed=run.config.selection_seed,
         status=run.status,
         progress=progress,
@@ -121,7 +130,16 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
     """Map a persisted run snapshot to the existing pipeline/detail view model."""
 
     run = snapshot.run
-    stages = _latest_stages(snapshot.stages)
+    visible_numbers = visible_stage_numbers(run.config.pipeline_variant)
+    stage_purposes = {
+        definition.number: definition.purpose
+        for definition in stage_definitions_for(run.config.pipeline_variant)
+    }
+    stages = [
+        stage for stage in _latest_stages(snapshot.stages) if stage.stage_number in visible_numbers
+    ]
+    total_stages = len(visible_numbers)
+    completed_stages = min(run.completed_stages, total_stages)
     total_tokens = sum(stage.usage.total_tokens for stage in stages)
     estimated_cost = round(sum(stage.usage.estimated_cost_usd for stage in stages), 8)
     cost_is_estimate = any(stage.usage.cost_is_estimate for stage in stages)
@@ -141,7 +159,11 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         StageFixture(
             number=stage.stage_number,
             name=stage.stage_name,
-            summary=STAGE_PURPOSES.get(stage.stage_number, "Persisted workflow stage."),
+            summary=(
+                "Search selected niches, synthesize lived experience, and generate concepts, briefs, and artwork prompts."
+                if stage.stage_number == 6 and "AI Merchandise" in stage.stage_name
+                else stage_purposes.get(stage.stage_number, "Persisted workflow stage.")
+            ),
             status=stage.status,
             duration=_format_duration(stage),
             progress=_progress_percent(stage),
@@ -162,10 +184,11 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
     return RunFixture(
         run_id=run.run_id,
         title=run.title,
+        pipeline_variant=run.config.pipeline_variant.value,
         selection_seed=run.config.selection_seed,
         status=run.status,
-        completed_stages=run.completed_stages,
-        total_stages=run.total_stages,
+        completed_stages=completed_stages,
+        total_stages=total_stages,
         estimated_remaining="Calculating" if run.status == RunStatus.RUNNING else "—",
         started=_format_timestamp(run.created_at),
         triggered_by=run.triggered_by,

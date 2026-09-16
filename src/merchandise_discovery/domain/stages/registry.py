@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from merchandise_discovery.domain.models.common import PipelineVariant
+
 
 @dataclass(frozen=True)
 class StageDefinition:
@@ -33,3 +35,27 @@ STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     StageDefinition(16, "Single-Call Artwork Critique", "Check artwork readability, composition, quality, and concept alignment."),
     StageDefinition(17, "Human Approval", "Record the final reviewer decision and close the merchandise workflow."),
 )
+
+
+def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ...]:
+    """Return the actual stage sequence for a selected pipeline variant."""
+
+    if variant == PipelineVariant.BASELINE:
+        return STAGE_DEFINITIONS
+    return (
+        *STAGE_DEFINITIONS[:5],
+        StageDefinition(
+            6,
+            "AI Merchandise Development",
+            "Search the selected niches, synthesize evidence, and generate concepts, briefs, and artwork prompts.",
+        ),
+        StageDefinition(7, "Merchandise Artwork Generation", "Generate artwork candidates from compact-stage prompts."),
+        StageDefinition(8, "Artwork Critique", "Run deterministic artwork quality checks."),
+        StageDefinition(9, "Human Approval", "Record the final reviewer decision and close the merchandise workflow."),
+    )
+
+
+def visible_stage_numbers(variant: PipelineVariant) -> set[int]:
+    """Return stages that belong in the selected variant's client-facing pipeline view."""
+
+    return {definition.number for definition in stage_definitions_for(variant)}

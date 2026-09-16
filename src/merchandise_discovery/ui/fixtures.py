@@ -46,6 +46,7 @@ class RunFixture(BaseModel):
 
     run_id: str
     title: str
+    pipeline_variant: str = "baseline"
     selection_seed: int | None = None
     status: RunStatus
     completed_stages: int
@@ -73,6 +74,7 @@ class RunListItemFixture(BaseModel):
 
     run_id: str
     title: str
+    pipeline_variant: str = "baseline"
     selection_seed: int | None = None
     status: RunStatus
     progress: int = Field(ge=0, le=100)

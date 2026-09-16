@@ -11,7 +11,12 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from merchandise_discovery.domain.models.common import ApprovalDecision, RunStatus, StageStatus
+from merchandise_discovery.domain.models.common import (
+    ApprovalDecision,
+    PipelineVariant,
+    RunStatus,
+    StageStatus,
+)
 from merchandise_discovery.domain.models.usage import UsageMetrics
 
 
@@ -31,6 +36,7 @@ class RunConfig(BaseModel):
     """Small, configurable funnel limits and reproducibility settings for one run."""
 
     seed_source: str = Field(default="mvp_seed_library", min_length=1)
+    pipeline_variant: PipelineVariant = PipelineVariant.BASELINE
     # The seed belongs to the run, not to an individual knowledge-base record. Persisting it in
     # the aggregate lets operators reproduce the exact Stage 1 selection from MongoDB later.
     selection_seed: int = Field(default_factory=new_selection_seed, ge=0, le=4_294_967_295)

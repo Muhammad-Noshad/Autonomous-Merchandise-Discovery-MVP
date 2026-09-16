@@ -40,6 +40,7 @@ def _render_run_row(
             [0.34, 0.16, 0.23, 0.14, 0.13]
         )
         with identity:
+            st.caption(f"Pipeline: {run.pipeline_variant.replace('_', ' ').title()}")
             st.markdown(f"**#{run.run_id} · {run.title}**")
             st.caption(
                 f"Triggered by {run.triggered_by} · Updated {run.updated} · "

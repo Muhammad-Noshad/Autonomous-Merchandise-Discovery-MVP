@@ -147,7 +147,7 @@ def render_run_header(run: RunFixture) -> None:
         st.caption(
             f"{run.title}  ·  Started {run.started}  ·  Triggered by {run.triggered_by}  ·  "
             f"Selection seed: {run.selection_seed if run.selection_seed is not None else 'not recorded'}  ·  "
-            f"{run.version}"
+            f"Pipeline: {run.pipeline_variant.replace('_', ' ').title()}  ·  {run.version}"
         )
     with header_right:
         st.markdown(

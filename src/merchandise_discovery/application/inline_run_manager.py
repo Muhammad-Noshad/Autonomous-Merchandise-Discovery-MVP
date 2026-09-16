@@ -110,7 +110,7 @@ class InlineRunManager:
                     run.run_id,
                     max_attempts=self._runtime.max_stage_attempts,
                 )
-                if next_execution is not None and next_execution.stage_number == 17:
+                if next_execution is not None and next_execution.stage_number == run.total_stages:
                     stage_waiting_for_review(next_execution)
                     self._save_log(
                         run.run_id,

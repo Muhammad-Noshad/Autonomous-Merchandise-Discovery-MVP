@@ -65,11 +65,14 @@ def render_pipeline(run: RunFixture) -> None:
     )
 
     for stage in run.stages:
-        if stage.number in PHASES:
+        phase = PHASES.get(stage.number)
+        if stage.number == 6 and "AI Merchandise" in stage.name:
+            phase = "Develop"
+        if phase:
             st.markdown(
                 f'<div style="color:#C4B5FD; font-size:0.75rem; font-weight:700; '
                 f'text-transform:uppercase; letter-spacing:0.12em; margin:1rem 0 0.45rem;">'
-                f'{PHASES[stage.number]}</div>',
+                f'{phase}</div>',
                 unsafe_allow_html=True,
             )
 

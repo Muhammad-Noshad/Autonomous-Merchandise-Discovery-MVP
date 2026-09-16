@@ -142,7 +142,7 @@ class ReviewService:
                 run_id,
                 expected_version=state.run.version,
                 status=RunStatus.PAUSED,
-                current_stage_number=17,
+                current_stage_number=state.run.total_stages,
                 last_error=None,
                 pending_action=decision,
                 pending_artwork_id=artwork_id,

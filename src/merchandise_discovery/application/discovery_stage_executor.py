@@ -17,6 +17,9 @@ from merchandise_discovery.domain.stages import stage_02_identity_expansion as s
 from merchandise_discovery.domain.stages import stage_03_intersection_generation as stage_03
 from merchandise_discovery.domain.stages import stage_04_coherence_hypothesis as stage_04
 from merchandise_discovery.domain.stages import stage_05_pre_research_filter as stage_05
+from merchandise_discovery.domain.stages import (
+    stage_06_compact_research_development as stage_06_compact,
+)
 from merchandise_discovery.domain.stages import stage_06_niche_research as stage_06
 from merchandise_discovery.domain.stages import stage_07_experience_mining as stage_07
 from merchandise_discovery.domain.stages import stage_08_opportunity_scoring as stage_08
@@ -173,22 +176,43 @@ class DiscoveryStageExecutor:
                         for intersection_id in selected_ids
                         if intersection_id in by_id
                     ]
+                    if run.config.pipeline_variant.value == "compact_research_first":
+                        return stage_06_compact.CompactDevelopmentInput(
+                            intersections=selected,
+                            max_researched_niches=run.config.max_researched_niches,
+                            concepts_per_niche=run.config.concepts_per_niche,
+                        ).model_dump(mode="python")
                     return stage_06.NicheResearchInput(
                         intersections=selected,
                         max_researched_niches=run.config.max_researched_niches,
                     ).model_dump(mode="python")
             prior = stage_05.PreResearchFilterOutput.model_validate(previous.output_data)
+            if run.config.pipeline_variant.value == "compact_research_first":
+                return stage_06_compact.CompactDevelopmentInput(
+                    intersections=prior.accepted,
+                    max_researched_niches=run.config.max_researched_niches,
+                    concepts_per_niche=run.config.concepts_per_niche,
+                ).model_dump(mode="python")
             return stage_06.NicheResearchInput(
                 intersections=prior.accepted,
                 max_researched_niches=run.config.max_researched_niches,
             ).model_dump(mode="python")
         if stage.stage_number == 7:
+            if run.config.pipeline_variant.value == "compact_research_first":
+                combined = stage_06_compact.CompactDevelopmentOutput.model_validate(previous.output_data)
+                return stage_15.ArtworkGenerationInput(
+                    prompts=combined.prompts,
+                    artwork_variants_per_concept=run.config.artwork_variants_per_concept,
+                ).model_dump(mode="python")
             prior = stage_06.NicheResearchOutput.model_validate(previous.output_data)
             return stage_07.ExperienceMiningInput(
                 niches=prior.niches,
                 evidence=prior.evidence,
             ).model_dump(mode="python")
         if stage.stage_number == 8:
+            if run.config.pipeline_variant.value == "compact_research_first":
+                prior = stage_15.ArtworkGenerationOutput.model_validate(previous.output_data)
+                return stage_16.ArtworkCritiqueInput(artworks=prior.artworks).model_dump(mode="python")
             research = self._stage_repository.get_latest(run.run_id, 6)
             if research is None or not research.output_data:
                 raise ValueError("Stage 8 is missing Stage 6 research output.")
@@ -442,6 +466,28 @@ class DiscoveryStageExecutor:
                 f"retained {len(output.rejected)} non-selected candidates for audit."
             )
         elif stage.stage_number == 6:
+            if run.config.pipeline_variant.value == "compact_research_first":
+                input_model = stage_06_compact.CompactDevelopmentInput.model_validate(input_data)
+                output = stage_06_compact.execute(
+                    input_model,
+                    research_provider=self._research_provider,
+                    reasoning_provider=self._reasoning_provider,
+                    run_id=run.run_id,
+                )
+                usage = output.usage
+                self._niches.replace_for_run(run.run_id, output.niches)
+                self._evidence.replace_for_run(run.run_id, output.evidence)
+                self._concepts.replace_for_run(run.run_id, output.concepts)
+                summary = (
+                    f"Researched {len(output.niches)} niches and generated "
+                    f"{len(output.concepts)} evidence-backed concepts using {output.model}."
+                )
+                return StageResult(
+                    input_data=input_data,
+                    output_data=output.model_dump(mode="python"),
+                    output_summary=summary,
+                    usage=usage,
+                )
             input_model = stage_06.NicheResearchInput.model_validate(input_data)
             output = stage_06.execute(input_model, self._research_provider, run_id=run.run_id)
             usage = output.usage
@@ -451,6 +497,22 @@ class DiscoveryStageExecutor:
                 f"Researched {len(output.niches)} niches and stored "
                 f"{len(output.evidence)} source records."
             )
+        elif stage.stage_number == 7 and run.config.pipeline_variant.value == "compact_research_first":
+            input_model = stage_15.ArtworkGenerationInput.model_validate(input_data)
+            output = stage_15.execute(
+                input_model,
+                self._image_provider,
+                self._artwork_storage,
+            )
+            usage = output.usage
+            self._artworks.replace_for_run(run.run_id, output.artworks)
+            summary = f"Generated {len(output.artworks)} compact-pipeline artwork candidates."
+        elif stage.stage_number == 8 and run.config.pipeline_variant.value == "compact_research_first":
+            input_model = stage_16.ArtworkCritiqueInput.model_validate(input_data)
+            output = stage_16.execute(input_model)
+            self._artworks.replace_for_run(run.run_id, output.artworks)
+            accepted = sum(item.decision.value == "accept" for item in output.artworks)
+            summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
         elif stage.stage_number == 7:
             input_model = stage_07.ExperienceMiningInput.model_validate(input_data)
             provider_output = None

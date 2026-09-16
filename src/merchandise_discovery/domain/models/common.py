@@ -14,6 +14,13 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class PipelineVariant(str, Enum):
+    """Selectable discovery strategies used for controlled pipeline comparisons."""
+
+    BASELINE = "baseline"
+    COMPACT_RESEARCH_FIRST = "compact_research_first"
+
+
 class SeedCategory(str, Enum):
     """The three controlled axes used to build discovery intersections."""
 

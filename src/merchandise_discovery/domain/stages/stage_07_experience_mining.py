@@ -92,6 +92,7 @@ def _signals_for_evidence(evidence: list[ResearchEvidence]) -> tuple[dict[str, l
 def _validate_provider_links(
     input_data: ExperienceMiningInput,
     reasoning_output: Stage7ReasoningOutput,
+    stage_label: str = "Stage 7",
 ) -> dict[str, MinedExperienceSignal]:
     """Ensure one response exists per niche and every cited evidence ID is locally owned."""
 
@@ -116,7 +117,7 @@ def _validate_provider_links(
         unknown_evidence = set(signal.evidence_ids) - allowed_evidence
         if unknown_evidence:
             raise ValueError(
-                f"Stage 7 provider output cites evidence outside niche {signal.niche_id}: "
+                f"{stage_label} provider output cites evidence outside niche {signal.niche_id}: "
                 f"{sorted(unknown_evidence)}."
             )
         signal_groups = (
@@ -127,7 +128,7 @@ def _validate_provider_links(
         )
         if any(signal_groups) and not signal.evidence_ids:
             raise ValueError(
-                f"Stage 7 provider output makes unsupported claims for niche {signal.niche_id}."
+                f"{stage_label} provider output makes unsupported claims for niche {signal.niche_id}."
             )
         validated[signal.niche_id] = signal
     return validated
@@ -137,6 +138,7 @@ def execute(
     input_data: ExperienceMiningInput,
     reasoning_output: Stage7ReasoningOutput | None = None,
     model: str = "deterministic",
+    validation_label: str = "Stage 7",
 ) -> ExperienceMiningOutput:
     """Derive signals from evidence or normalize a validated provider interpretation."""
 
@@ -145,7 +147,7 @@ def execute(
         evidence_by_niche[item.niche_id].append(item)
 
     provider_by_niche = (
-        _validate_provider_links(input_data, reasoning_output)
+        _validate_provider_links(input_data, reasoning_output, validation_label)
         if reasoning_output is not None
         else {}
     )

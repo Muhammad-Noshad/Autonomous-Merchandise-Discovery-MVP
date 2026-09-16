@@ -53,7 +53,7 @@ def _process_one(runtime, worker_id: str) -> bool:
             run.run_id,
             max_attempts=runtime.max_stage_attempts,
         )
-        if next_execution is not None and next_execution.stage_number == 17:
+        if next_execution is not None and next_execution.stage_number == run.total_stages:
             _log_event(runtime, run.run_id, "Automated stages complete; awaiting human approval.", stage=next_execution)
             stage_waiting_for_review(next_execution)
             return True

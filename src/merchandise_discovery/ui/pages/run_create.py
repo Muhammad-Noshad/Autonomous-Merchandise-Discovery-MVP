@@ -9,6 +9,7 @@ from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.runtime import ApplicationRuntime
+from merchandise_discovery.domain.models.common import PipelineVariant
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
@@ -21,11 +22,13 @@ def build_run_config(
     concepts: int,
     artwork_variants: int,
     similarity_check: bool = False,
+    pipeline_variant: PipelineVariant = PipelineVariant.BASELINE,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
 
     return RunConfig(
         seed_source=seed_source.lower().replace(" ", "_"),
+        pipeline_variant=pipeline_variant,
         max_intersections=intersections,
         max_researched_niches=niches,
         concepts_per_niche=concepts,
@@ -69,6 +72,15 @@ def render_run_create(
             help="A human-readable name used in run history and review screens.",
         )
         seed_source = st.selectbox("Seed source", ["MVP seed library"])
+        pipeline_variant = st.selectbox(
+            "Pipeline",
+            options=[PipelineVariant.BASELINE, PipelineVariant.COMPACT_RESEARCH_FIRST],
+            format_func=lambda value: {
+                PipelineVariant.BASELINE: "Baseline — staged research pipeline",
+                PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
+            }[value],
+            help="Choose which pipeline variant this run should execute for A/B comparison.",
+        )
 
         st.markdown("### Funnel limits")
         intersections = st.slider("Identity intersections", min_value=1, max_value=25, value=10)
@@ -95,6 +107,7 @@ def render_run_create(
                 niches,
                 concepts,
                 artwork_variants,
+                pipeline_variant=pipeline_variant,
             ),
             triggered_by="manual",
         )
