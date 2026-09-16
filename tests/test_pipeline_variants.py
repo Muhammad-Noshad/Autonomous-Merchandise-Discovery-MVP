@@ -118,7 +118,10 @@ def test_compact_reasoning_contract_requires_audience_recognition_copy() -> None
     instructions = reasoning_instructions()
 
     assert "That is literally me" in instructions
-    assert "I Garden Between Naps" in instructions
+    assert "first-person, second-person, a shared observation" in instructions
+    assert "Do not force a grammatical template" in instructions
+    assert "do not begin every concept with 'I'" in instructions
+    assert "I Garden Between Naps" not in instructions
     assert "product category, club name, campaign title" in instructions
 
 

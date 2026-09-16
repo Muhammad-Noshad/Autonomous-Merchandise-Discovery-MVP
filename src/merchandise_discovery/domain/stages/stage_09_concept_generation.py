@@ -88,6 +88,25 @@ GENERIC_LABEL_SUFFIXES = {
 }
 
 
+def audience_copy_instructions() -> str:
+    """Return the shared semantic contract for audience-recognition merchandise copy.
+
+    The contract specifies the intended reaction without prescribing one grammatical shape. This
+    lets the provider choose a natural voice for each niche while preventing generic category names
+    from reaching artwork generation.
+    """
+
+    return (
+        "The merchandise phrase is the primary audience-recognition copy printed on the product: "
+        "write it as an insider statement or shared truth that makes the target audience think, "
+        "'That is literally me.' It may be first-person, second-person, a shared observation, or a "
+        "concise insider phrase; choose the voice that sounds natural for this niche. Do not force a "
+        "grammatical template, and do not begin every concept with 'I'. Include the specific "
+        "behavior, constraint, or relief that defines the niche. Do not return a product category, "
+        "club name, campaign title, broad theme, or abstract slogan in place of the phrase."
+    )
+
+
 def reasoning_instructions() -> str:
     """Return the Stage 9-specific creative contract used by the provider adapter."""
 
@@ -96,12 +115,8 @@ def reasoning_instructions() -> str:
         "descriptions, demographic summaries, or generic themes. Ground every concept in the "
         "supplied evidence-linked experience signals. Each concept must describe one specific "
         "audience, one recognizable moment or repeated behavior, one insider phrase or language "
-        "cue, one emotional tension, and one distinctive visual hook. The merchandise phrase is the "
-        "primary audience-recognition copy printed on the product: write it as an insider statement "
-        "or shared truth that makes the target audience think, 'That is literally me.' Prefer first "
-        "person or direct audience language and include the specific behavior, constraint, or relief "
-        "that defines the niche. Do not return a product category, club name, campaign title, broad "
-        "theme, or abstract slogan in place of the phrase. The phrase must work as standalone copy on "
+        "cue, one emotional tension, and one distinctive visual hook. "
+        f"{audience_copy_instructions()} The phrase must work as standalone copy on "
         "a shirt or other product. Reject ideas that could apply equally to almost any audience. Do not "
         "invent demographics or facts absent from the supplied input. "
         "The specificity_score is a 0 to 10 score, not a 0 to 1 confidence value; use at least "
