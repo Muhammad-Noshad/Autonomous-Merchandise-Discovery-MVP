@@ -59,6 +59,18 @@ class OpenAIReasoningProvider:
         self._input_price = input_price_per_million
         self._output_price = output_price_per_million
 
+    def _supports_temperature(self) -> bool:
+        """Return whether this model family accepts the legacy sampling parameter.
+
+        The stage contract keeps ``temperature`` so callers do not need to know provider
+        quirks. Newer reasoning families (including GPT-5.x and the o-series) control
+        generation through reasoning settings and reject ``temperature`` in many modes,
+        so the adapter must omit it at the provider boundary.
+        """
+
+        model = self._model.casefold()
+        return not model.startswith(("gpt-5", "o1", "o3", "o4"))
+
     def complete_structured(
         self,
         *,
@@ -69,18 +81,29 @@ class OpenAIReasoningProvider:
     ) -> StructuredResponse:
         """Submit one typed request and convert provider usage into the application contract."""
 
+        # Keep model-specific request shaping here. Stages can request deterministic behavior
+        # without coupling themselves to the parameter rules of whichever reasoning model is
+        # configured for the run.
+        request_kwargs: dict[str, object] = {
+            "model": self._model,
+            "input": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "text_format": response_model,
+        }
+        if self._supports_temperature():
+            request_kwargs["temperature"] = temperature
+
         try:
-            response = self._client.responses.parse(
-                model=self._model,
-                input=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                text_format=response_model,
-                temperature=temperature,
-            )
+            response = self._client.responses.parse(**request_kwargs)
         except (OpenAIError, TypeError, ValueError) as error:
-            raise ReasoningProviderError("Structured reasoning request failed.") from error
+            # Preserve the provider's actionable reason while keeping the application-facing
+            # exception stable enough for stage logging and UI rendering.
+            detail = str(error).strip() or type(error).__name__
+            raise ReasoningProviderError(
+                f"Structured reasoning request failed: {detail[:500]}"
+            ) from error
         if response.output_parsed is None:
             raise ReasoningProviderError("Structured reasoning response was empty or invalid.")
         provider_usage = response.usage
