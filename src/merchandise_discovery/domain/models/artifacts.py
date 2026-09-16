@@ -103,7 +103,7 @@ class MerchandiseConcept(BaseModel):
 
 
 class DesignBrief(BaseModel):
-    """Structured visual instructions separating merchandise reasoning from image generation."""
+    """Structured visual instructions separating audience reasoning from image generation."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -111,6 +111,9 @@ class DesignBrief(BaseModel):
     run_id: str
     concept_id: str
     target_audience: str
+    # Audience labels are descriptive; concrete cues make identity visible while still allowing
+    # the brief to prohibit logos and real institutions.
+    audience_visual_cues: list[str] = Field(default_factory=list, max_length=8)
     core_concept: str = ""
     exact_phrase: str
     emotional_idea: str

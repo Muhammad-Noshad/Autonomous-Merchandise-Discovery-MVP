@@ -37,6 +37,8 @@ def _compile(brief: DesignBrief) -> str:
         "Use a square 1:1 aspect ratio unless the brief explicitly requests another ratio. "
         f'Exact text: "{brief.exact_phrase}". '
         f"Target audience: {brief.target_audience}. "
+        f"Mandatory audience recognition cues that must be visibly represented: "
+        f"{', '.join(brief.audience_visual_cues)}. "
         f"Core concept: {brief.core_concept}. "
         f"Emotional idea: {brief.emotional_idea}. "
         f"Main subject: {brief.main_subject}. "
@@ -48,6 +50,7 @@ def _compile(brief: DesignBrief) -> str:
         f"Detail level: {brief.detail_level}. "
         f"Intended merchandise: {brief.intended_merchandise_type}. "
         f"Visual constraints and avoid list: {constraints}. "
+        "Audience identity must be recognizable from the mandatory cues, not only from the phrase. "
         "Permanent rules: no extra text, no logos or brand marks, no product mockup unless "
         "explicitly requested, no unnecessary scene, preserve exact spelling, and keep the "
         "design legible at merchandise scale."

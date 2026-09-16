@@ -48,6 +48,7 @@ def test_design_brief_and_prompt_preserve_exact_phrase_and_constraints() -> None
     assert len(briefs.briefs) == 1
     assert briefs.briefs[0].exact_phrase == "Reset Mode"
     assert 'Exact text: "Reset Mode"' in prompts.prompts[0].prompt
+    assert "Mandatory audience recognition cues" in prompts.prompts[0].prompt
     assert "No logos or existing brand marks" in prompts.prompts[0].prompt
 
 
@@ -114,6 +115,7 @@ def test_provider_brief_is_complete_and_exact_phrase_is_application_owned() -> N
                 DesignBriefProposal(
                     concept_id="concept-1",
                     target_audience="People who need a small reset",
+                    audience_visual_cues=["quiet decompression ritual", "pause icon held between tasks"],
                     core_concept="A visible reminder to pause before continuing.",
                     exact_phrase="Reset Mode",
                     emotional_idea="Permission to decompress without guilt.",

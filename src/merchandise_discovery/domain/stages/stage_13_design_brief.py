@@ -28,6 +28,7 @@ class DesignBriefProposal(BaseModel):
 
     concept_id: str = Field(min_length=1)
     target_audience: str = Field(min_length=1, max_length=500)
+    audience_visual_cues: list[str] = Field(min_length=2, max_length=8)
     core_concept: str = Field(min_length=1, max_length=800)
     exact_phrase: str = Field(min_length=1, max_length=200)
     emotional_idea: str = Field(min_length=1, max_length=800)
@@ -85,6 +86,7 @@ def execute(
                     run_id=concept.run_id,
                     concept_id=concept.concept_id,
                     target_audience=proposal.target_audience,
+                    audience_visual_cues=proposal.audience_visual_cues,
                     core_concept=proposal.core_concept,
                     exact_phrase=concept.phrase,
                     emotional_idea=proposal.emotional_idea,
@@ -111,6 +113,10 @@ def execute(
             run_id=concept.run_id,
             concept_id=concept.concept_id,
             target_audience="People sharing the researched experience",
+            audience_visual_cues=[
+                concept.specific_audience,
+                concept.recognizable_moment,
+            ],
             core_concept=concept.description,
             exact_phrase=concept.phrase,
             emotional_idea=concept.description,

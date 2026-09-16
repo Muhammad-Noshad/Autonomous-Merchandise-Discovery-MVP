@@ -762,7 +762,9 @@ class DiscoveryStageExecutor:
                     instructions=(
                         "Return one complete design brief for every supplied finalist concept. "
                         "Preserve each concept ID and exact phrase exactly. Include target audience, "
-                        "core concept, emotional idea, illustration style, main subject, supporting "
+                        "2 to 4 concrete audience_visual_cues that visibly identify the audience "
+                        "without logos or identifiable institutions, core concept, emotional idea, "
+                        "illustration style, main subject, supporting "
                         "visual elements, composition, typography direction, palette direction, "
                         "detail level, intended merchandise type, visual constraints, and things to "
                         "avoid."

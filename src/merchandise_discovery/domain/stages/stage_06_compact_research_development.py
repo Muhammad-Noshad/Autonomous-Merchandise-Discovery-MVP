@@ -53,6 +53,7 @@ class CompactBriefProposal(BaseModel):
 
     phrase: str = Field(min_length=1, max_length=200)
     target_audience: str = Field(min_length=1, max_length=500)
+    audience_visual_cues: list[str] = Field(min_length=2, max_length=8)
     core_concept: str = Field(min_length=1, max_length=800)
     emotional_idea: str = Field(min_length=1, max_length=800)
     illustration_style: str = Field(min_length=1, max_length=500)
@@ -103,8 +104,13 @@ def reasoning_instructions() -> str:
         "for patterns only: do not copy existing phrases, artwork, brands, or designs. Confidence "
         "is 0 to 1. Specificity score is 0 to 10, and must be at least 7.0 for a concept that should "
         "pass validation. Return at least one approved concept for every supplied niche. For "
-        "every concept, return exactly one visual brief keyed by its exact phrase, including "
-        "style, typography, palette, composition, merchandise type, and constraints."
+        "every concept, return exactly one visual brief keyed by its exact phrase. The brief must "
+        "include 2 to 4 concrete audience_visual_cues that make the target audience recognizable "
+        "through objects, setting, ritual, clothing, or insider behavior. These cues must be visible "
+        "in the artwork, not merely implied by target_audience. Use non-branded cues: for healthcare "
+        "shift workers, examples include a generic scrub silhouette, blank badge clip, shift-change "
+        "clock, locker hook, or break-room meal. Do not use hospital logos or identifiable institutions. "
+        "Also include style, typography, palette, composition, merchandise type, and constraints."
     )
 
 
@@ -163,6 +169,7 @@ def _briefs_for_concepts(
             brief_stage.DesignBriefProposal(
                 concept_id=concept.concept_id,
                 target_audience=proposal.target_audience,
+                audience_visual_cues=proposal.audience_visual_cues,
                 core_concept=proposal.core_concept,
                 exact_phrase=concept.phrase,
                 emotional_idea=proposal.emotional_idea,

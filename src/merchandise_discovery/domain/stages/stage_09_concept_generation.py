@@ -140,15 +140,7 @@ def _validate_provider_links(
             )
         phrase_words = proposal.phrase.split()
         phrase_suffix = phrase_words[-1].casefold() if phrase_words else ""
-        if len(phrase_words) > 8:
-            rejected.append(
-                ConceptRejection(
-                    niche_id=proposal.niche_id,
-                    phrase=proposal.phrase,
-                    reason="The merchandise phrase is too long to work as standalone product copy.",
-                )
-            )
-        elif phrase_suffix in GENERIC_LABEL_SUFFIXES:
+        if phrase_suffix in GENERIC_LABEL_SUFFIXES:
             rejected.append(
                 ConceptRejection(
                     niche_id=proposal.niche_id,

@@ -90,6 +90,34 @@ def test_provider_concept_proposals_receive_local_ids() -> None:
     assert result.model == "gpt-4o-mini"
 
 
+def test_provider_concept_proposals_allow_more_than_eight_words() -> None:
+    """A specific phrase is not rejected solely because it contains more than eight words."""
+
+    result = execute_generation(
+        ConceptGenerationInput(niches=[_niche()], concepts_per_niche=1),
+        reasoning_output=Stage9ReasoningOutput(
+            concepts=[
+                ConceptProposal(
+                    niche_id="niche-1",
+                    phrase="I love flexible hours because they keep me away from traffic",
+                    description="A wearable expression of the audience's observed reset ritual.",
+                    specific_audience="Remote workers who use a short end-of-day reset",
+                    recognizable_moment="Choosing a flexible start to avoid the morning commute",
+                    insider_behavior_or_language="The small ritual after the last call",
+                    emotional_tension="Wanting relief while still feeling mentally at work",
+                    visual_hook="A laptop becoming a small doorway into quiet space",
+                    audience_identification_reason="This moment is familiar to the researched audience.",
+                    specificity_score=8,
+                )
+            ],
+            summary="One longer but valid merchandise phrase.",
+        ),
+    )
+
+    assert result.concepts[0].phrase == "I love flexible hours because they keep me away from traffic"
+    assert result.rejected_proposals == []
+
+
 def test_provider_concept_proposals_reject_non_validated_niches() -> None:
     """AI cannot create concepts for a niche that did not pass research validation."""
 
