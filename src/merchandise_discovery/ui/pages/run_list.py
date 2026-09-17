@@ -68,48 +68,44 @@ def _render_run_row(
                 st.session_state["pending_delete_run_id"] = run.run_id
 
 
+@st.dialog("Delete run", width="small")
 def _render_delete_confirmation(
-    run_items: list[RunListItemFixture],
+    target: RunListItemFixture,
     discovery_service: DiscoveryService,
 ) -> None:
-    """Confirm and execute a run-scoped cascade, keeping the irreversible action deliberate."""
+    """Confirm and execute a run-scoped cascade inside a centered modal dialog."""
 
-    pending_id = st.session_state.get("pending_delete_run_id")
-    if not pending_id:
-        return
-    target = next((run for run in run_items if run.run_id == pending_id), None)
-    if target is None:
-        st.session_state.pop("pending_delete_run_id", None)
-        return
-
-    with st.container(border=True):
-        st.warning(
-            f"Delete run #{target.run_id} ({target.title}) permanently? "
-            "This removes its stages, logs, intersections, research, concepts, artwork, and reviews."
-        )
-        confirm_column, cancel_column = st.columns(2)
-        with confirm_column:
-            if st.button(
-                "Delete permanently",
-                key=f"confirm-delete-run-{target.run_id}",
-                width="stretch",
-                type="primary",
-            ):
-                try:
-                    summary = discovery_service.delete_run(target.run_id)
-                except (PyMongoError, RepositoryError, ValueError, RuntimeError):
-                    st.error("The run could not be deleted. It may no longer exist or the database may be unavailable.")
-                else:
-                    st.session_state["run_delete_notice"] = (
-                        f"Deleted run #{target.run_id} and {summary.total_deleted} associated database records."
-                    )
-                    st.session_state.pop("pending_delete_run_id", None)
-                    st.session_state.pop("selected_run_id", None)
-                    st.rerun()
-        with cancel_column:
-            if st.button("Cancel", key=f"cancel-delete-run-{target.run_id}", width="stretch"):
+    st.warning(
+        f"Delete run #{target.run_id} ({target.title}) permanently? "
+        "This removes its stages, logs, intersections, research, concepts, artwork, and reviews."
+    )
+    confirm_column, cancel_column = st.columns(2)
+    with confirm_column:
+        if st.button(
+            "Delete permanently",
+            key=f"confirm-delete-run-{target.run_id}",
+            width="stretch",
+            type="primary",
+        ):
+            try:
+                summary = discovery_service.delete_run(target.run_id)
+            except (PyMongoError, RepositoryError, ValueError, RuntimeError):
+                st.error(
+                    "The run could not be deleted. It may no longer exist or the database "
+                    "may be unavailable."
+                )
+            else:
+                st.session_state["run_delete_notice"] = (
+                    f"Deleted run #{target.run_id} and {summary.total_deleted} associated "
+                    "database records."
+                )
                 st.session_state.pop("pending_delete_run_id", None)
+                st.session_state.pop("selected_run_id", None)
                 st.rerun()
+    with cancel_column:
+        if st.button("Cancel", key=f"cancel-delete-run-{target.run_id}", width="stretch"):
+            st.session_state.pop("pending_delete_run_id", None)
+            st.rerun()
 
 
 def render_run_list(
@@ -145,7 +141,12 @@ def render_run_list(
         notice = st.session_state.pop("run_delete_notice", None)
         if notice:
             st.success(notice)
-        _render_delete_confirmation(all_run_items, discovery_service)
+        pending_id = st.session_state.get("pending_delete_run_id")
+        target = next((run for run in all_run_items if run.run_id == pending_id), None)
+        if target is None and pending_id:
+            st.session_state.pop("pending_delete_run_id", None)
+        elif target is not None:
+            _render_delete_confirmation(target, discovery_service)
 
     if runs is None:
         st.info("These are demo runs for the MVP shell. Live run history will be loaded from MongoDB in a later chunk.")
