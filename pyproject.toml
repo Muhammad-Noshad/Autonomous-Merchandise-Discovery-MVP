@@ -22,6 +22,14 @@ dev = [
     "ruff>=0.6,<1",
 ]
 
+# Streamlit Cloud detects this file and uses Poetry when resolving dependencies. The application
+# follows a src-layout, so Poetry needs the package location declared explicitly even though the
+# local editable install is configured through setuptools above.
+[tool.poetry]
+packages = [
+    { include = "merchandise_discovery", from = "src" },
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
