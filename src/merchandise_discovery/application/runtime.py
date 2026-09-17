@@ -158,6 +158,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
                 settings.xai_api_key,
                 settings.xai_image_model,
                 settings.xai_image_price,
+                settings.xai_image_edit_price,
             )
             if live_mode and settings.xai_api_key
             else FixtureImageProvider()
@@ -176,6 +177,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             image_provider,
             artwork_storage=artwork_storage,
             reasoning_provider=reasoning_provider,
+            openai_image_detail=settings.openai_image_detail,
         )
         runtime = ApplicationRuntime(
             client=client,

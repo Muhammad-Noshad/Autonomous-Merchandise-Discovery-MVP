@@ -37,8 +37,14 @@ class ReasoningProvider(Protocol):
         user_prompt: str,
         response_model: type[BaseModel],
         temperature: float = 0.0,
+        image_url: str | None = None,
+        image_detail: str = "high",
     ) -> StructuredResponse:
-        """Return a validated Pydantic response and measured usage for one request."""
+        """Return a validated Pydantic response and measured usage for one request.
+
+        ``image_url`` is optional so the same boundary serves text-only stages and vision-aware
+        artwork critique. The adapter owns the provider-specific multimodal request shape.
+        """
 
 
 class OpenAIReasoningProvider:
@@ -88,17 +94,32 @@ class OpenAIReasoningProvider:
         user_prompt: str,
         response_model: type[BaseModel],
         temperature: float = 0.0,
+        image_url: str | None = None,
+        image_detail: str = "high",
     ) -> StructuredResponse:
         """Submit one typed request and convert provider usage into the application contract."""
 
         # Keep model-specific request shaping here. Stages can request deterministic behavior
         # without coupling themselves to the parameter rules of whichever reasoning model is
         # configured for the run.
+        user_content: str | list[dict[str, object]] = user_prompt
+        if image_url:
+            if image_detail not in {"low", "high", "auto", "original"}:
+                raise ValueError(f"Unsupported OpenAI image detail level: {image_detail}")
+            user_content = [
+                {"type": "input_text", "text": user_prompt},
+                {
+                    "type": "input_image",
+                    "image_url": image_url,
+                    "detail": image_detail,
+                },
+            ]
+
         request_kwargs: dict[str, object] = {
             "model": self._model,
             "input": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
             "text_format": response_model,
         }

@@ -33,9 +33,8 @@ STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     StageDefinition(14, "Grok Prompt Compilation", "Compile a constrained image prompt from the design brief."),
     StageDefinition(15, "Merchandise Artwork Generation", "Generate a small set of artwork candidates for each finalist."),
     StageDefinition(16, "Single-Call Artwork Critique", "Check artwork readability, composition, quality, and concept alignment."),
-    # Baseline keeps number 17 for run-history compatibility, but now ends with the same
-    # display-only artwork gallery contract used by compact Stage 9.
-    StageDefinition(17, "Artwork Results", "Display all generated artwork candidates for visual review."),
+    StageDefinition(17, "Artwork Revision", "Apply targeted Grok edits to artwork flagged by Luna."),
+    StageDefinition(18, "Artwork Results", "Display all generated artwork candidates for visual review."),
 )
 
 
@@ -54,8 +53,9 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
             "Search the selected niches, synthesize evidence, and generate concepts, briefs, and artwork prompts.",
         ),
         StageDefinition(7, "Merchandise Artwork Generation", "Generate artwork candidates from compact-stage prompts."),
-        StageDefinition(8, "Artwork Critique", "Run deterministic artwork quality checks."),
-        StageDefinition(9, "Artwork Results", "Display all generated artwork candidates for visual review."),
+        StageDefinition(8, "Artwork Critique", "Have Luna review each artwork against its niche and audience."),
+        StageDefinition(9, "Artwork Revision", "Apply targeted Grok edits to artwork flagged by Luna."),
+        StageDefinition(10, "Artwork Results", "Display all generated artwork candidates for visual review."),
     )
 
 

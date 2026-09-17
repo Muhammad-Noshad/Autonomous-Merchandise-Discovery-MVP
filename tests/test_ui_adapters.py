@@ -43,7 +43,7 @@ def test_workflow_adapter_calculates_history_progress() -> None:
 
     item = workflow_to_list_item(run)
 
-    assert item.progress == 47
+    assert item.progress == 44
 
 
 def test_completed_run_history_is_displayed_as_fully_complete() -> None:
@@ -55,7 +55,7 @@ def test_completed_run_history_is_displayed_as_fully_complete() -> None:
     fixture = snapshot_to_fixture(RunSnapshot(run=run, stages=[]))
 
     assert item.progress == 100
-    assert fixture.completed_stages == fixture.total_stages == 17
+    assert fixture.completed_stages == fixture.total_stages == 18
 
 
 def test_snapshot_adapter_shows_provider_usage_only_when_ai_is_used() -> None:
@@ -81,3 +81,48 @@ def test_snapshot_adapter_shows_provider_usage_only_when_ai_is_used() -> None:
     assert fixture.stages[0].metrics["Provider"] == "openai"
     assert fixture.stages[0].metrics["Tokens"] == "150"
     assert fixture.stages[0].metrics["Est. cost"] == "$0.000200"
+
+
+def test_snapshot_adapter_recovers_original_artwork_for_legacy_final_gallery() -> None:
+    """Older final snapshots can use the preceding critique output for before/after comparison."""
+
+    run = WorkflowRun(title="Legacy artwork comparison", completed_stages=18)
+    original = {
+        "artwork_id": "artwork-1",
+        "source_url": "https://example.com/original.png",
+        "storage_key": "artwork/original.png",
+    }
+    revised = {
+        "artwork_id": "artwork-1",
+        "source_url": "https://example.com/revised.png",
+        "storage_key": "artwork/revised.png",
+    }
+    critique = StageExecution(
+        run_id=run.run_id,
+        stage_number=16,
+        stage_name="Artwork Critique",
+        status=StageStatus.COMPLETED,
+        output_data={"artworks": [original], "evaluations": [{"artwork_id": "artwork-1"}]},
+    )
+    revision = StageExecution(
+        run_id=run.run_id,
+        stage_number=17,
+        stage_name="Artwork Revision",
+        status=StageStatus.COMPLETED,
+        output_data={
+            "artworks": [revised],
+            "evaluations": [{"artwork_id": "artwork-1"}],
+            "revisions": [{"artwork_id": "artwork-1", "revised": True}],
+        },
+    )
+    final = StageExecution(
+        run_id=run.run_id,
+        stage_number=18,
+        stage_name="Artwork Results",
+        status=StageStatus.COMPLETED,
+        output_data={"artworks": [revised], "evaluations": [{"artwork_id": "artwork-1"}]},
+    )
+
+    fixture = snapshot_to_fixture(RunSnapshot(run=run, stages=[critique, revision, final]))
+
+    assert fixture.stages[-1].output_payload["original_artworks"] == [original]

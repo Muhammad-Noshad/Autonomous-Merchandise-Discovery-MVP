@@ -36,12 +36,14 @@ def _initialize_configured_runtime(
     max_stage_attempts: int = 3,
     openai_reasoning_model: str = "gpt-4o-mini",
     openai_reasoning_timeout_seconds: float = 420.0,
+    openai_image_detail: str = "high",
     openai_input_price_per_million: float = 0.15,
     openai_output_price_per_million: float = 0.60,
     openai_web_search_price_per_call: float = 0.01,
     xai_image_price: float = 0.02,
+    xai_image_edit_price: float = 0.022,
     provider_mode: str = "fixture",
-    stop_after_stage: int = 17,
+    stop_after_stage: int = 18,
 ) -> ApplicationRuntime:
     """Cache one application runtime per configuration."""
 
@@ -55,10 +57,12 @@ def _initialize_configured_runtime(
         max_stage_attempts=max_stage_attempts,
         openai_reasoning_model=openai_reasoning_model,
         openai_reasoning_timeout_seconds=openai_reasoning_timeout_seconds,
+        openai_image_detail=openai_image_detail,
         openai_input_price_per_million=openai_input_price_per_million,
         openai_output_price_per_million=openai_output_price_per_million,
         openai_web_search_price_per_call=openai_web_search_price_per_call,
         xai_image_price=xai_image_price,
+        xai_image_edit_price=xai_image_edit_price,
         provider_mode=provider_mode,
         stop_after_stage=stop_after_stage,
     )
@@ -91,10 +95,12 @@ def render_database_status() -> ApplicationRuntime | None:
                 max_stage_attempts=settings.max_stage_attempts,
                 openai_reasoning_model=settings.openai_reasoning_model,
                 openai_reasoning_timeout_seconds=settings.openai_reasoning_timeout_seconds,
+                openai_image_detail=settings.openai_image_detail,
                 openai_input_price_per_million=settings.openai_input_price_per_million,
                 openai_output_price_per_million=settings.openai_output_price_per_million,
                 openai_web_search_price_per_call=settings.openai_web_search_price_per_call,
                 xai_image_price=settings.xai_image_price,
+                xai_image_edit_price=settings.xai_image_edit_price,
                 provider_mode=settings.provider_mode,
                 stop_after_stage=settings.stop_after_stage,
             )

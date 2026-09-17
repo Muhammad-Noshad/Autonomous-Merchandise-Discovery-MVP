@@ -21,7 +21,7 @@ def test_create_run_persists_configured_run_and_stage_records() -> None:
     stage_repository.create_for_run.assert_called_once()
     assert run.title == "Client demo"
     assert run.config == config
-    assert len(stage_repository.create_for_run.call_args.args[1]) == 17
+    assert len(stage_repository.create_for_run.call_args.args[1]) == 18
 
 
 def test_get_run_snapshot_combines_run_and_stage_reads() -> None:

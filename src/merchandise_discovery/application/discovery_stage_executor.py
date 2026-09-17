@@ -10,7 +10,7 @@ import logging
 
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
 from merchandise_discovery.domain.models.common import StageStatus
-from merchandise_discovery.domain.models.usage import UsageMetrics
+from merchandise_discovery.domain.models.usage import UsageMetrics, combine_usage
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.domain.stages import stage_01_seed_discovery as stage_01
 from merchandise_discovery.domain.stages import stage_02_identity_expansion as stage_02
@@ -32,6 +32,7 @@ from merchandise_discovery.domain.stages import stage_13_design_brief as stage_1
 from merchandise_discovery.domain.stages import stage_14_prompt_compilation as stage_14
 from merchandise_discovery.domain.stages import stage_15_artwork_generation as stage_15
 from merchandise_discovery.domain.stages import stage_16_artwork_critique as stage_16
+from merchandise_discovery.domain.stages import stage_17_artwork_revision as stage_17
 from merchandise_discovery.infrastructure.mongo.repositories.artwork_repository import (
     ArtworkRepository,
 )
@@ -75,6 +76,7 @@ class DiscoveryStageExecutor:
         image_provider: ImageProvider,
         reasoning_provider: ReasoningProvider | None = None,
         artwork_storage: ArtworkStorage | None = None,
+        openai_image_detail: str = "high",
     ):
         self._seeds = seed_repository
         self._intersections = intersection_repository
@@ -88,6 +90,7 @@ class DiscoveryStageExecutor:
         self._image_provider = image_provider
         self._artwork_storage = artwork_storage
         self._reasoning_provider = reasoning_provider
+        self._openai_image_detail = openai_image_detail
 
     def _reason(
         self,
@@ -116,6 +119,63 @@ class DiscoveryStageExecutor:
             response_model=response_model,
         )
         return response.output, response.usage
+
+    def _critique_artworks(
+        self,
+        input_model: stage_16.ArtworkCritiqueInput,
+    ) -> tuple[stage_16.ArtworkCritiqueOutput, UsageMetrics]:
+        """Run one structured Luna vision request per artwork and materialize the review set.
+
+        One request per image keeps usage and failures attributable to a specific candidate. The
+        provider receives the original prompt and combination name alongside the image so it can
+        judge audience recognition rather than generic visual polish.
+        """
+
+        if self._reasoning_provider is None or not input_model.artworks:
+            return stage_16.execute(input_model), UsageMetrics()
+
+        proposals: list[stage_16.ArtworkCritiqueProposal] = []
+        usages: list[UsageMetrics] = []
+        for artwork in input_model.artworks:
+            if not artwork.source_url:
+                raise ValueError(
+                    f"Artwork {artwork.artwork_id} has no public source URL for Luna review."
+                )
+            response = self._reasoning_provider.complete_structured(
+                system_prompt=(
+                    "You are Luna, a strict merchandise artwork reviewer. Return only the supplied "
+                    "structured output. The image must be judged against the specific audience and "
+                    "lived-experience combination, not a broad category. Preserve the artwork_id "
+                    "exactly and do not invent audience facts."
+                ),
+                user_prompt=(
+                    f"{stage_16.reasoning_instructions()}\n\n"
+                    f"Artwork ID: {artwork.artwork_id}\n"
+                    f"Audience/interest/value combination: {artwork.combination_name or 'not supplied'}\n"
+                    f"Original generation prompt:\n{artwork.prompt}"
+                ),
+                response_model=stage_16.ArtworkCritiqueProposal,
+                image_url=artwork.source_url,
+                image_detail=self._openai_image_detail,
+                temperature=0.0,
+            )
+            proposal = response.output
+            if proposal.artwork_id != artwork.artwork_id:
+                raise ValueError(
+                    f"Luna returned artwork ID {proposal.artwork_id!r}; expected {artwork.artwork_id!r}."
+                )
+            proposals.append(proposal)
+            usages.append(response.usage)
+
+        usage = combine_usage(*usages)
+        return (
+            stage_16.execute(
+                input_model,
+                reasoning_outputs=proposals,
+                model=usage.model,
+            ),
+            usage,
+        )
 
     def prepare(self, run: WorkflowRun, stage: StageExecution) -> dict:
         """Build a serializable input payload from run configuration and prior stage output."""
@@ -246,9 +306,16 @@ class DiscoveryStageExecutor:
             ).model_dump(mode="python")
         if stage.stage_number == 9 and run.config.pipeline_variant.value == "compact_research_first":
             prior = stage_16.ArtworkCritiqueOutput.model_validate(previous.output_data)
+            return stage_17.ArtworkRevisionInput(
+                artworks=prior.artworks,
+                evaluations=prior.evaluations,
+            ).model_dump(mode="python")
+        if stage.stage_number == 10 and run.config.pipeline_variant.value == "compact_research_first":
+            prior = stage_17.ArtworkRevisionOutput.model_validate(previous.output_data)
             return stage_09_gallery.ArtworkGalleryInput(
                 artworks=prior.artworks,
                 evaluations=prior.evaluations,
+                revisions=prior.revisions,
             ).model_dump(mode="python")
         if stage.stage_number == 9:
             prior = stage_08.OpportunityScoringOutput.model_validate(previous.output_data)
@@ -295,9 +362,23 @@ class DiscoveryStageExecutor:
             return stage_16.ArtworkCritiqueInput(artworks=prior.artworks).model_dump(mode="python")
         if stage.stage_number == 17:
             prior = stage_16.ArtworkCritiqueOutput.model_validate(previous.output_data)
+            if stage.stage_name == "Artwork Results":
+                # Runs created before the revision stage used Stage 17 as their terminal gallery.
+                # Keep those immutable snapshots readable while new runs use Stage 17 for edits.
+                return stage_09_gallery.ArtworkGalleryInput(
+                    artworks=prior.artworks,
+                    evaluations=prior.evaluations,
+                ).model_dump(mode="python")
+            return stage_17.ArtworkRevisionInput(
+                artworks=prior.artworks,
+                evaluations=prior.evaluations,
+            ).model_dump(mode="python")
+        if stage.stage_number == 18:
+            prior = stage_17.ArtworkRevisionOutput.model_validate(previous.output_data)
             return stage_09_gallery.ArtworkGalleryInput(
                 artworks=prior.artworks,
                 evaluations=prior.evaluations,
+                revisions=prior.revisions,
             ).model_dump(mode="python")
         raise StageNotImplementedError(
             f"Stage {stage.stage_number} ({stage.stage_name}) has no registered handler yet."
@@ -540,11 +621,22 @@ class DiscoveryStageExecutor:
             summary = f"Generated {len(output.artworks)} compact-pipeline artwork candidates."
         elif stage.stage_number == 8 and run.config.pipeline_variant.value == "compact_research_first":
             input_model = stage_16.ArtworkCritiqueInput.model_validate(input_data)
-            output = stage_16.execute(input_model)
+            output, usage = self._critique_artworks(input_model)
             self._artworks.replace_for_run(run.run_id, output.artworks)
-            accepted = sum(item.decision.value == "accept" for item in output.artworks)
-            summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
+            accepted = sum(item.decision.value == "accept" for item in output.evaluations)
+            summary = f"Luna reviewed {len(output.evaluations)} artworks; {accepted} need no edit."
         elif stage.stage_number == 9 and run.config.pipeline_variant.value == "compact_research_first":
+            input_model = stage_17.ArtworkRevisionInput.model_validate(input_data)
+            output = stage_17.execute(
+                input_model,
+                self._image_provider,
+                self._artwork_storage,
+            )
+            usage = output.usage
+            self._artworks.replace_for_run(run.run_id, output.artworks)
+            revised = sum(item.revised for item in output.revisions)
+            summary = f"Grok revised {revised} artwork candidates; {len(output.artworks) - revised} unchanged."
+        elif stage.stage_number == 10 and run.config.pipeline_variant.value == "compact_research_first":
             input_model = stage_09_gallery.ArtworkGalleryInput.model_validate(input_data)
             output = stage_09_gallery.execute(input_model)
             summary = output.summary
@@ -820,14 +912,31 @@ class DiscoveryStageExecutor:
             summary = f"Generated {len(output.artworks)} artwork candidates."
         elif stage.stage_number == 16:
             input_model = stage_16.ArtworkCritiqueInput.model_validate(input_data)
-            output = stage_16.execute(input_model)
+            output, usage = self._critique_artworks(input_model)
             self._artworks.replace_for_run(run.run_id, output.artworks)
-            accepted = sum(item.decision.value == "accept" for item in output.artworks)
-            summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
+            accepted = sum(item.decision.value == "accept" for item in output.evaluations)
+            summary = f"Luna reviewed {len(output.evaluations)} artworks; {accepted} need no edit."
         elif stage.stage_number == 17:
-            # Baseline Stage 17 intentionally shares compact Stage 9's pass-through gallery. The
-            # workflow is complete once this durable snapshot exists; no approval decision is
-            # generated or required by the automated pipeline.
+            if stage.stage_name == "Artwork Results":
+                # Historical Stage 17 was already a terminal gallery; do not reinterpret its
+                # persisted input as a revision request when an old run is opened or resumed.
+                input_model = stage_09_gallery.ArtworkGalleryInput.model_validate(input_data)
+                output = stage_09_gallery.execute(input_model)
+                summary = output.summary
+            else:
+                input_model = stage_17.ArtworkRevisionInput.model_validate(input_data)
+                output = stage_17.execute(
+                    input_model,
+                    self._image_provider,
+                    self._artwork_storage,
+                )
+                usage = output.usage
+                self._artworks.replace_for_run(run.run_id, output.artworks)
+                revised = sum(item.revised for item in output.revisions)
+                summary = f"Grok revised {revised} artwork candidates; {len(output.artworks) - revised} unchanged."
+        elif stage.stage_number == 18:
+            # Final results are display-only. No human approval gate or second Luna verification is
+            # introduced after Grok's targeted edit.
             input_model = stage_09_gallery.ArtworkGalleryInput.model_validate(input_data)
             output = stage_09_gallery.execute(input_model)
             summary = output.summary

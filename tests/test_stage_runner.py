@@ -27,8 +27,8 @@ def test_execute_stage_success() -> None:
     runtime.stage_repository.set_input_data.return_value = execution
     stage_result = StageResult(
         input_data=input_payload,
-        output_data={"selected_seeds": []},
-        output_summary="Selected 0 seeds.",
+        output_data={"selected_seeds": [{"seed_id": "seed-1"}]},
+        output_summary="Selected 1 seed.",
     )
     runtime.stage_executor.execute.return_value = stage_result
     completed_execution = execution.model_copy(update={"status": StageStatus.COMPLETED})
@@ -75,3 +75,41 @@ def test_execute_stage_failure_marks_stage_and_run_failed() -> None:
         run, execution, "Stage execution error", max_attempts=3
     )
     runtime.stage_log_repository.save.assert_called_once()
+
+
+def test_execute_stage_fails_before_completion_when_required_output_is_empty() -> None:
+    """An empty required handoff becomes a failed stage instead of a successful no-op."""
+
+    runtime = Mock()
+    runtime.max_stage_attempts = 3
+    run = WorkflowRun(title="Empty output", status=RunStatus.RUNNING)
+    execution = StageExecution(
+        run_id=run.run_id,
+        stage_number=9,
+        stage_name="Merchandise Concept Generation",
+        status=StageStatus.RUNNING,
+    )
+    input_payload = {
+        "niches": [{"niche_id": "niche-1", "validated": True}],
+        "concepts_per_niche": 1,
+        "experience_signals": [],
+    }
+    runtime.stage_executor.prepare.return_value = input_payload
+    runtime.stage_repository.set_input_data.return_value = execution
+    runtime.stage_executor.execute.return_value = StageResult(
+        input_data=input_payload,
+        output_data={"concepts": []},
+        output_summary="Generated 0 concepts.",
+    )
+
+    with pytest.raises(ValueError, match="Stage 09.*concepts"):
+        execute_stage(runtime, run, execution)
+
+    runtime.stage_repository.complete.assert_not_called()
+    runtime.workflow_orchestrator.fail_stage_and_run.assert_called_once_with(
+        run,
+        execution,
+        "Stage 09 (Merchandise Concept Generation) produced no usable output in: concepts. "
+        "The run cannot continue because the next stage has no candidates.",
+        max_attempts=3,
+    )

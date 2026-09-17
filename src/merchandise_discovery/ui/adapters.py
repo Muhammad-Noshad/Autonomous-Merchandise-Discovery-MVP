@@ -91,6 +91,37 @@ def _stage_metrics(stage: StageExecution) -> dict[str, str]:
     return metrics
 
 
+def _final_stage_output(
+    stage: StageExecution,
+    all_stages: list[StageExecution],
+    final_stage_number: int,
+) -> dict:
+    """Enrich the final gallery with original artwork from the preceding critique snapshot.
+
+    This recovery path is needed for runs created before Stage 17 started persisting original
+    references in its revision records. It is UI enrichment only; MongoDB remains the source of
+    truth and no workflow state is mutated.
+    """
+
+    output = dict(stage.output_data)
+    is_historical_gallery = stage.stage_name == "Artwork Results"
+    if (stage.stage_number != final_stage_number and not is_historical_gallery) or "artworks" not in output:
+        return output
+
+    critique_stages = [
+        candidate
+        for candidate in all_stages
+        if candidate.stage_number < final_stage_number
+        and "Critique" in candidate.stage_name
+        and isinstance(candidate.output_data.get("artworks"), list)
+        and isinstance(candidate.output_data.get("evaluations"), list)
+    ]
+    if critique_stages:
+        critique_stage = max(critique_stages, key=lambda candidate: candidate.stage_number)
+        output.setdefault("original_artworks", critique_stage.output_data["artworks"])
+    return output
+
+
 def _evidence_fixtures(payload: dict) -> list[EvidenceFixture]:
     """Map Stage 6's serialized evidence into the citations used by the detail panel."""
 
@@ -140,9 +171,8 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         definition.number: definition.name
         for definition in stage_definitions_for(run.config.pipeline_variant)
     }
-    stages = [
-        stage for stage in _latest_stages(snapshot.stages) if stage.stage_number in visible_numbers
-    ]
+    all_latest_stages = _latest_stages(snapshot.stages)
+    stages = [stage for stage in all_latest_stages if stage.stage_number in visible_numbers]
     total_stages = len(visible_numbers)
     completed_stages = (
         total_stages
@@ -164,32 +194,35 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         ),
         1,
     )
-    stage_fixtures = [
-        StageFixture(
-            number=stage.stage_number,
-            name=stage_names.get(stage.stage_number, stage.stage_name),
-            summary=(
-                "Search selected niches, synthesize lived experience, and generate concepts, briefs, and artwork prompts."
-                if stage.stage_number == 6 and "AI Merchandise" in stage.stage_name
-                else stage_purposes.get(stage.stage_number, "Persisted workflow stage.")
-            ),
-            status=stage.status,
-            duration=_format_duration(stage),
-            progress=_progress_percent(stage),
-            output_summary=stage.output_summary or "Stage output will appear after execution.",
-            inputs={str(key): str(value) for key, value in stage.input_data.items()},
-            input_payload=stage.input_data,
-            output_payload=stage.output_data,
-            metrics=_stage_metrics(stage),
-            evidence=_evidence_fixtures(stage.output_data),
-            artifacts=[str(item) for item in stage.output_data.get("artifacts", [])]
-            if isinstance(stage.output_data.get("artifacts", []), list)
-            else [],
-            error_message=stage.error_message,
-            logs=logs_by_stage.get(stage.stage_number, []),
+    final_stage_number = max(visible_numbers)
+    stage_fixtures = []
+    for stage in stages:
+        output_payload = _final_stage_output(stage, all_latest_stages, final_stage_number)
+        stage_fixtures.append(
+            StageFixture(
+                number=stage.stage_number,
+                name=stage_names.get(stage.stage_number, stage.stage_name),
+                summary=(
+                    "Search selected niches, synthesize lived experience, and generate concepts, briefs, and artwork prompts."
+                    if stage.stage_number == 6 and "AI Merchandise" in stage.stage_name
+                    else stage_purposes.get(stage.stage_number, "Persisted workflow stage.")
+                ),
+                status=stage.status,
+                duration=_format_duration(stage),
+                progress=_progress_percent(stage),
+                output_summary=stage.output_summary or "Stage output will appear after execution.",
+                inputs={str(key): str(value) for key, value in stage.input_data.items()},
+                input_payload=stage.input_data,
+                output_payload=output_payload,
+                metrics=_stage_metrics(stage),
+                evidence=_evidence_fixtures(output_payload),
+                artifacts=[str(item) for item in output_payload.get("artifacts", [])]
+                if isinstance(output_payload.get("artifacts", []), list)
+                else [],
+                error_message=stage.error_message,
+                logs=logs_by_stage.get(stage.stage_number, []),
+            )
         )
-        for stage in stages
-    ]
     return RunFixture(
         run_id=run.run_id,
         title=run.title,

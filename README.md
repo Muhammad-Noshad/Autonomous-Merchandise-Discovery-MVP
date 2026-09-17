@@ -61,14 +61,18 @@ Set `MVP_PROVIDER_MODE=live` only when you intend to spend API credits. In live 
 `OPENAI_API_KEY` enables OpenAI structured outputs for Stages 2–4, 7–10, and 13, plus OpenAI web
 search for Stage 6. Stages 1 and 5 remain deterministic, while Stage 8 uses AI only for its
 bounded qualitative components and calculates evidence strength and the final total locally.
-`OPENAI_API_KEY` also enables the batched structured comparison in Stage 12. Stage 16 artwork
-critique remains deterministic for the MVP. `XAI_API_KEY` enables the configured xAI image model
-for Stage 15. Missing keys
+`OPENAI_API_KEY` also enables the batched structured comparison in Stage 12 and Luna's multimodal
+artwork critique in long Stage 16 or compact Stage 8. `OPENAI_IMAGE_DETAIL` controls the vision
+detail level and defaults to `high`. `XAI_API_KEY` enables the configured xAI image model for
+generation and targeted artwork edits in long Stage 17 or compact Stage 9. `XAI_IMAGE_EDIT_PRICE`
+defaults to `$0.022` for edit-cost estimates. Missing keys
 continue to use the fixture provider or deterministic fallback. Token costs are estimated from the
 configured OpenAI rates; Stage 6 also adds `OPENAI_WEB_SEARCH_PRICE_PER_CALL` (default `$0.01`,
 derived from `$10 per 1,000 calls`); xAI image costs are estimated from the configured per-image rate.
-Live Stage 15 binaries are downloaded into `ARTWORK_STORAGE_DIR` (default `.artifacts`) behind an
+Live artwork binaries are downloaded into `ARTWORK_STORAGE_DIR` (default `.artifacts`) behind an
 object-storage boundary; fixture artwork remains reference-only and does not perform network I/O.
+The final gallery is long Stage 18 or compact Stage 10. Luna's review is not repeated after a Grok
+edit; the stage history records the edit as `edited_without_reverification`.
 
 When `MONGODB_URI` is present in `.env`, starting Streamlit performs the same health check and
 initialization automatically. MongoDB databases are created lazily, so the app creates an

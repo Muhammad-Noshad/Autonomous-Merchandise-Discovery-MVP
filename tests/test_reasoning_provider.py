@@ -66,6 +66,27 @@ def test_chat_models_keep_temperature() -> None:
     assert provider._client.responses.parse.call_args.kwargs["temperature"] == 0.0
 
 
+def test_provider_builds_multimodal_structured_request() -> None:
+    """Artwork critique sends text context and the image through the same Responses boundary."""
+
+    provider = _provider("gpt-5.6-luna")
+    provider.complete_structured(
+        system_prompt="system",
+        user_prompt="review this artwork",
+        response_model=ExampleOutput,
+        image_url="https://example.com/artwork.png",
+        image_detail="high",
+    )
+
+    content = provider._client.responses.parse.call_args.kwargs["input"][1]["content"]
+    assert content[0] == {"type": "input_text", "text": "review this artwork"}
+    assert content[1] == {
+        "type": "input_image",
+        "image_url": "https://example.com/artwork.png",
+        "detail": "high",
+    }
+
+
 def test_direct_provider_uses_environment_timeout(monkeypatch) -> None:
     """Direct adapter construction follows the same timeout contract as application runtimes."""
 

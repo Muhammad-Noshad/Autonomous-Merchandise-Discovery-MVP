@@ -56,9 +56,9 @@ class WorkflowRun(BaseModel):
     title: str
     status: RunStatus = RunStatus.PENDING
     config: RunConfig = Field(default_factory=RunConfig)
-    completed_stages: int = Field(default=0, ge=0, le=17)
-    total_stages: int = Field(default=17, ge=1, le=17)
-    current_stage_number: int | None = Field(default=None, ge=1, le=17)
+    completed_stages: int = Field(default=0, ge=0, le=18)
+    total_stages: int = Field(default=18, ge=1, le=18)
+    current_stage_number: int | None = Field(default=None, ge=1, le=18)
     triggered_by: str = "system"
     claimed_by: str | None = None
     # Retained for compatibility with historical human-review records; automated pipelines no
@@ -79,7 +79,7 @@ class StageExecution(BaseModel):
 
     execution_id: str = Field(default_factory=lambda: str(uuid4()))
     run_id: str
-    stage_number: int = Field(ge=1, le=17)
+    stage_number: int = Field(ge=1, le=18)
     stage_name: str
     status: StageStatus = StageStatus.PENDING
     stage_version: str = "0.1.0"
@@ -110,7 +110,7 @@ class StageLog(BaseModel):
 
     log_id: str = Field(default_factory=lambda: str(uuid4()))
     run_id: str
-    stage_number: int | None = Field(default=None, ge=1, le=17)
+    stage_number: int | None = Field(default=None, ge=1, le=18)
     execution_id: str | None = None
     level: str = Field(default="info", min_length=1, max_length=20)
     message: str = Field(min_length=1, max_length=2_000)

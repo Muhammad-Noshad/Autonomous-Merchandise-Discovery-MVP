@@ -1,5 +1,7 @@
 """Tests for design briefs, prompts, artwork generation, and artwork QA."""
 
+from unittest.mock import MagicMock, patch
+
 from merchandise_discovery.domain.models.artifacts import Artwork, MerchandiseConcept
 from merchandise_discovery.domain.models.common import ArtworkDecision, ConceptVerdict
 from merchandise_discovery.domain.stages.stage_13_design_brief import (
@@ -16,11 +18,22 @@ from merchandise_discovery.domain.stages.stage_15_artwork_generation import Artw
 from merchandise_discovery.domain.stages.stage_15_artwork_generation import (
     execute as execute_generation,
 )
-from merchandise_discovery.domain.stages.stage_16_artwork_critique import ArtworkCritiqueInput
+from merchandise_discovery.domain.stages.stage_16_artwork_critique import (
+    ArtworkCritiqueInput,
+    ArtworkCritiqueProposal,
+)
 from merchandise_discovery.domain.stages.stage_16_artwork_critique import (
     execute as execute_critique,
 )
-from merchandise_discovery.infrastructure.providers.image_provider import FixtureImageProvider
+from merchandise_discovery.domain.stages.stage_17_artwork_revision import ArtworkRevisionInput
+from merchandise_discovery.domain.stages.stage_17_artwork_revision import (
+    execute as execute_revision,
+)
+from merchandise_discovery.infrastructure.providers.image_provider import (
+    FixtureImageProvider,
+    ImageEditRequest,
+    XAIImageProvider,
+)
 
 
 def _concept(*, selected: bool = True) -> MerchandiseConcept:
@@ -104,6 +117,163 @@ def test_artwork_qa_requests_regeneration_for_invalid_metadata() -> None:
 
     assert result.evaluations[0].decision == ArtworkDecision.REGENERATE
     assert "supported mime type" in [issue.lower() for issue in result.evaluations[0].issues]
+
+
+def test_luna_review_preserves_edit_instruction_for_flagged_artwork() -> None:
+    """The structured critique contract carries a targeted Grok instruction into Stage 17."""
+
+    artwork = Artwork(
+        artwork_id="artwork-review",
+        run_id="run-test",
+        concept_id="concept-1",
+        brief_id="brief-1",
+        prompt='Exact text: "Reset Mode".',
+        combination_name="Night-shift nurses + Coffee rituals",
+        source_url="https://example.com/artwork.png",
+        width=1024,
+        height=1024,
+        mime_type="image/png",
+        file_size_bytes=10_000,
+    )
+    result = execute_critique(
+        ArtworkCritiqueInput(artworks=[artwork]),
+        reasoning_outputs=[
+            ArtworkCritiqueProposal(
+                artwork_id=artwork.artwork_id,
+                audience_relevance_score=4,
+                niche_specificity_score=5,
+                text_quality_score=8,
+                composition_score=7,
+                print_suitability_score=8,
+                strengths=["Readable type"],
+                issues=["The image does not identify the night-shift nurse context."],
+                rationale="The phrase is readable, but the visual is generic for the stated audience.",
+                outcome="regenerate",
+                edit_prompt="Keep the existing typography and add a subtle medication-cart handoff cue.",
+            )
+        ],
+        model="gpt-5.6-luna",
+    )
+
+    evaluation = result.evaluations[0]
+    assert evaluation.decision == ArtworkDecision.REGENERATE
+    assert evaluation.edit_prompt.startswith("Keep the existing")
+    assert result.artworks[0].critique["review_model"] == "gpt-5.6-luna"
+
+
+def test_artwork_revision_edits_only_flagged_candidates() -> None:
+    """Grok is called only for flagged candidates and the edited result is marked unverified."""
+
+    artwork = Artwork(
+        artwork_id="artwork-edit",
+        run_id="run-test",
+        concept_id="concept-1",
+        brief_id="brief-1",
+        prompt='Exact text: "Reset Mode".',
+        source_url="https://example.com/artwork.png",
+        width=1024,
+        height=1024,
+        mime_type="image/png",
+        file_size_bytes=10_000,
+    )
+    evaluation = ArtworkCritiqueProposal(
+        artwork_id=artwork.artwork_id,
+        audience_relevance_score=4,
+        niche_specificity_score=5,
+        text_quality_score=8,
+        composition_score=7,
+        print_suitability_score=8,
+        visual_quality_score=7,
+        rationale="Needs a more specific audience cue.",
+        outcome="regenerate",
+        edit_prompt="Add a subtle medication-cart handoff cue.",
+    )
+    critique = execute_critique(
+        ArtworkCritiqueInput(artworks=[artwork]),
+        reasoning_outputs=[evaluation],
+    )
+
+    revised = execute_revision(
+        ArtworkRevisionInput(
+            artworks=critique.artworks,
+            evaluations=critique.evaluations,
+        ),
+        FixtureImageProvider(),
+    )
+
+    assert revised.revisions[0].revised is True
+    assert revised.artworks[0].revision_number == 1
+    assert revised.artworks[0].revision_prompt == evaluation.edit_prompt
+    assert revised.artworks[0].decision is None
+    assert revised.artworks[0].critique["revision_status"] == "edited_without_reverification"
+    assert revised.revisions[0].original_source_url == artwork.source_url
+    assert revised.revisions[0].original_storage_key == artwork.storage_key
+
+
+def test_rejected_artwork_is_retained_for_final_comparison() -> None:
+    """A rejected image remains visible in the final gallery and never incurs an edit call."""
+
+    artwork = Artwork(
+        artwork_id="artwork-rejected",
+        run_id="run-test",
+        concept_id="concept-1",
+        brief_id="brief-1",
+        prompt='Exact text: "Reset Mode".',
+        source_url="https://example.com/rejected.png",
+        width=1024,
+        height=1024,
+        mime_type="image/png",
+        file_size_bytes=10_000,
+    )
+    critique = execute_critique(
+        ArtworkCritiqueInput(artworks=[artwork]),
+        reasoning_outputs=[
+            ArtworkCritiqueProposal(
+                artwork_id=artwork.artwork_id,
+                audience_relevance_score=2,
+                niche_specificity_score=2,
+                text_quality_score=5,
+                composition_score=4,
+                print_suitability_score=4,
+                rationale="The image is too generic for the stated niche and should not continue.",
+                outcome="rejected",
+            )
+        ],
+    )
+
+    final = execute_revision(
+        ArtworkRevisionInput(artworks=critique.artworks, evaluations=critique.evaluations),
+        FixtureImageProvider(),
+    )
+
+    assert final.artworks[0].decision == ArtworkDecision.REJECT
+    assert final.revisions[0].status == "rejected"
+    assert final.revisions[0].revised is False
+
+
+def test_xai_edit_uses_json_endpoint_and_records_provider_cost() -> None:
+    """The xAI adapter sends the source URL and converts returned cost ticks to dollars."""
+
+    response = MagicMock()
+    response.json.return_value = {
+        "data": [{"url": "https://example.com/edited.jpeg", "mime_type": "image/jpeg"}],
+        "usage": {"cost_in_usd_ticks": 220_000_000},
+    }
+    with patch("merchandise_discovery.infrastructure.providers.image_provider.httpx.Client") as client:
+        client.return_value.__enter__.return_value.post.return_value = response
+        provider = XAIImageProvider("test-key", "grok-imagine-image", 0.02, 0.022)
+        result = provider.edit(
+            ImageEditRequest(
+                artwork_id="artwork-1",
+                source_url="https://example.com/original.png",
+                prompt="Add a specific night-shift nurse cue.",
+            )
+        )
+
+    request = client.return_value.__enter__.return_value.post.call_args
+    assert request.args[0] == "https://api.x.ai/v1/images/edits"
+    assert request.kwargs["json"]["image"]["url"] == "https://example.com/original.png"
+    assert result.usage.estimated_cost_usd == 0.022
 
 
 def test_provider_brief_is_complete_and_exact_phrase_is_application_owned() -> None:

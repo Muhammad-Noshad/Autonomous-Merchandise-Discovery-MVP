@@ -170,6 +170,8 @@ class Artwork(BaseModel):
     height: int | None = Field(default=None, ge=1)
     mime_type: str | None = None
     file_size_bytes: int | None = Field(default=None, ge=0)
+    revision_prompt: str | None = None
+    revision_number: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=utc_now)
 
 

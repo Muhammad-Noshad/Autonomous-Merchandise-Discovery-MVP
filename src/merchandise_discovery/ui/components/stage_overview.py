@@ -466,14 +466,38 @@ def _artwork_source(record: dict[str, Any]) -> str:
     return str(record.get("source_url") or "")
 
 
-def _render_artwork_gallery(payload: dict[str, Any]) -> None:
-    """Display every final artwork result without exposing approval controls."""
+def _artwork_result_groups(
+    payload: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Group final images as accepted, regenerated, or hard-rejected.
+
+    Stage 17 deliberately keeps rejected artwork in its output. A missing evaluation is treated as
+    non-rejected for historical gallery snapshots, because silently hiding a legacy image would make
+    before/after comparisons impossible.
+    """
 
     artworks = _records(payload, "artworks")
-    _metric_row([("Artwork results", str(len(artworks)))])
-    if not artworks:
-        st.info("No artwork candidates are available yet.")
-        return
+    evaluations = {
+        str(item.get("artwork_id")): item for item in _records(payload, "evaluations")
+    }
+    accepted: list[dict[str, Any]] = []
+    regenerated: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    for artwork in artworks:
+        artwork_id = str(artwork.get("artwork_id", ""))
+        evaluation = evaluations.get(artwork_id, {})
+        decision = str(evaluation.get("decision") or artwork.get("decision") or "").lower()
+        if decision == "reject":
+            rejected.append(artwork)
+        elif decision == "regenerate":
+            regenerated.append(artwork)
+        else:
+            accepted.append(artwork)
+    return accepted, regenerated, rejected
+
+
+def _render_artwork_cards(artworks: list[dict[str, Any]], category: str) -> None:
+    """Render one image category using the shared comparison card layout."""
 
     for index in range(0, len(artworks), 2):
         columns = st.columns(2)
@@ -488,14 +512,10 @@ def _render_artwork_gallery(payload: dict[str, Any]) -> None:
                 )
                 with st.expander("Artwork generation prompt"):
                     st.code(_text(artwork, "prompt"), language="text")
-                source = _artwork_source(artwork)
-                if source:
-                    try:
-                        st.image(source, caption="Generated artwork", width=420)
-                    except (OSError, RuntimeError, ValueError):
-                        st.warning("The artwork preview is unavailable.")
-                else:
-                    st.info("No preview reference was recorded for this artwork.")
+                _render_artwork_image(
+                    artwork,
+                    str(artwork.get("_image_caption") or "Generated artwork"),
+                )
                 st.caption(
                     f"{_text(artwork, 'mime_type', default='Unknown format')} · "
                     f"{_text(artwork, 'width')} × {_text(artwork, 'height')}"
@@ -503,6 +523,143 @@ def _render_artwork_gallery(payload: dict[str, Any]) -> None:
                 url = _text(artwork, "source_url", default="")
                 if url:
                     st.markdown(f"[Open provider reference]({url})")
+                st.caption(category)
+
+
+def _render_artwork_image(artwork: dict[str, Any], caption: str) -> None:
+    """Render one artwork reference with a consistent unavailable-image state."""
+
+    source = _artwork_source(artwork)
+    if source:
+        try:
+            st.image(source, caption=caption, width=420)
+        except (OSError, RuntimeError, ValueError):
+            st.warning("The artwork preview is unavailable.")
+    else:
+        st.info("No preview reference was recorded for this artwork.")
+
+
+def _render_regenerated_comparisons(
+    regenerated: list[dict[str, Any]],
+    originals: list[dict[str, Any]],
+) -> None:
+    """Show each regenerated candidate as an explicit original-versus-revised pair."""
+
+    originals_by_id = {
+        str(item.get("artwork_id")): item for item in originals
+    }
+    for artwork in regenerated:
+        artwork_id = str(artwork.get("artwork_id", ""))
+        original = originals_by_id.get(artwork_id)
+        with st.container(border=True):
+            st.markdown(
+                f"**{_text(artwork, 'combination_name', 'phrase', default='Artwork candidate')}**"
+            )
+            st.caption(f"Candidate ID: {_text(artwork, 'artwork_id')}")
+            with st.expander("Artwork generation prompt"):
+                st.code(_text(artwork, "prompt"), language="text")
+            if original is None:
+                st.warning("The original image reference is unavailable for this candidate.")
+                _render_artwork_image(artwork, "Revised by Grok")
+                continue
+            original_column, revised_column = st.columns(2)
+            with original_column:
+                _render_artwork_image(original, "Original")
+            with revised_column:
+                _render_artwork_image(artwork, "Revised by Grok")
+            st.caption(
+                f"Original: {_text(original, 'mime_type', default='Unknown format')} · "
+                f"{_text(original, 'width')} × {_text(original, 'height')}  |  "
+                f"Revised: {_text(artwork, 'mime_type', default='Unknown format')} · "
+                f"{_text(artwork, 'width')} × {_text(artwork, 'height')}"
+            )
+
+
+def _original_artwork_records(
+    artworks: list[dict[str, Any]],
+    revisions: list[dict[str, Any]],
+    explicit_originals: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Rebuild original image references from revision audit records for the comparison section.
+
+    Older final-stage payloads predate original-reference persistence. For those records, the
+    current artwork is the only available representation and is returned unchanged rather than
+    displaying a misleading blank image.
+    """
+
+    explicit_by_id = {
+        str(item.get("artwork_id")): item for item in (explicit_originals or [])
+    }
+    revisions_by_id = {
+        str(item.get("artwork_id")): item for item in revisions
+    }
+    originals: list[dict[str, Any]] = []
+    for artwork in artworks:
+        explicit_original = explicit_by_id.get(str(artwork.get("artwork_id", "")))
+        if explicit_original is not None:
+            original = dict(explicit_original)
+            original["_image_caption"] = "Original artwork"
+            originals.append(original)
+            continue
+        revision = revisions_by_id.get(str(artwork.get("artwork_id", "")))
+        if not revision or not any(key in revision for key in (
+            "original_source_url",
+            "original_storage_key",
+        )):
+            original = dict(artwork)
+            original["_image_caption"] = "Original reference unavailable"
+        else:
+            original = {
+                **artwork,
+                "source_url": revision.get("original_source_url"),
+                "storage_key": revision.get("original_storage_key"),
+                "width": revision.get("original_width"),
+                "height": revision.get("original_height"),
+                "mime_type": revision.get("original_mime_type"),
+                "file_size_bytes": revision.get("original_file_size_bytes"),
+            }
+            original["_image_caption"] = "Original artwork"
+        originals.append(original)
+    return originals
+
+
+def _render_artwork_gallery(payload: dict[str, Any]) -> None:
+    """Display the accepted-versus-regenerated comparison from the final results stage."""
+
+    accepted, regenerated, rejected = _artwork_result_groups(payload)
+    original_artworks = _original_artwork_records(
+        _records(payload, "artworks"),
+        _records(payload, "revisions"),
+        _records(payload, "original_artworks"),
+    )
+    _metric_row(
+        [
+            ("Accepted", str(len(accepted))),
+            ("Regenerated", str(len(regenerated))),
+            ("Artwork results", str(len(accepted) + len(regenerated) + len(rejected))),
+        ]
+    )
+    if not accepted and not regenerated and not rejected:
+        st.info("No artwork candidates are available yet.")
+        return
+
+    st.subheader(f"Accepted · {len(accepted)}")
+    if accepted:
+        _render_artwork_cards(accepted, "Accepted by Luna")
+    else:
+        st.caption("No artwork was accepted without edits.")
+
+    # Hard rejection is distinct from regeneration. It is uncommon, but if Luna returns one we
+    # show it separately rather than incorrectly claiming that it was edited by Grok.
+    if rejected:
+        st.subheader(f"Rejected · {len(rejected)}")
+        _render_artwork_cards(rejected, "Rejected by Luna; not regenerated")
+
+    st.subheader(f"Regenerated · {len(regenerated)}")
+    if regenerated:
+        _render_regenerated_comparisons(regenerated, original_artworks)
+    else:
+        st.caption("No artwork was sent for regeneration.")
 
 
 def _render_artwork_critique(payload: dict[str, Any]) -> None:
@@ -527,6 +684,24 @@ def _render_artwork_critique(payload: dict[str, Any]) -> None:
             issues = evaluation.get("issues", [])
             if issues:
                 st.warning(" · ".join(str(issue) for issue in issues))
+
+
+def _render_artwork_revision(payload: dict[str, Any]) -> None:
+    """Show Grok's edit decisions and prompts without implying a second visual verification."""
+
+    revisions = _records(payload, "revisions")
+    revised = sum(bool(item.get("revised")) for item in revisions)
+    _metric_row([("Artwork candidates", str(len(revisions))), ("Grok edits", str(revised))])
+    for revision in revisions:
+        with st.container(border=True):
+            status = _text(revision, "status", default="unknown").replace("_", " ").title()
+            st.markdown(f"**Artwork {_text(revision, 'artwork_id')}** · {status}")
+            edit_prompt = revision.get("edit_prompt")
+            if edit_prompt:
+                with st.expander("Grok edit prompt"):
+                    st.code(str(edit_prompt), language="text")
+            else:
+                st.caption("No edit requested; the Luna-approved artwork passed through unchanged.")
 
 
 def _render_generic(payload: dict[str, Any]) -> None:
@@ -556,7 +731,8 @@ RENDERERS: dict[int, PayloadRenderer] = {
     14: _render_prompts,
     15: _render_artwork_generation,
     16: _render_artwork_critique,
-    17: _render_artwork_gallery,
+    17: _render_artwork_revision,
+    18: _render_artwork_gallery,
 }
 
 
@@ -589,9 +765,17 @@ def render_stage_overview(stage: StageFixture) -> None:
         renderer = _render_artwork_generation
     elif "Artwork Critique" in stage.name:
         renderer = _render_artwork_critique
+    elif "Artwork Revision" in stage.name:
+        # Historical compact Stage 9 and baseline Stage 17 records were already galleries before
+        # the revision stage existed; use their payload shape to preserve old run readability.
+        renderer = (
+            _render_artwork_revision
+            if "revisions" in stage.output_payload
+            else _render_artwork_gallery
+        )
     elif "AI Merchandise Development" in stage.name:
         renderer = _render_research
-    elif stage.number == 9 and "artworks" in stage.output_payload:
+    elif stage.number in {9, 10} and "artworks" in stage.output_payload:
         # Legacy compact runs may still contain an older stage label, but their payload is already
         # compatible with the display-only gallery.
         renderer = _render_artwork_gallery

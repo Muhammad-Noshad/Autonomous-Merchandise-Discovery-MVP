@@ -8,6 +8,7 @@ import logging
 
 from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.application.stage_executor import StageResult
+from merchandise_discovery.application.stage_quality_gate import validate_stage_result
 from merchandise_discovery.domain.models.workflow import StageExecution, StageLog, WorkflowRun
 from merchandise_discovery.shared.logging import (
     stage_ended,
@@ -37,6 +38,9 @@ def execute_stage(
             input_data,
         )
         result = runtime.stage_executor.execute(run, active_execution, input_data)
+        # Validate the handoff before writing COMPLETED. This keeps an empty stage from allowing
+        # every downstream stage to pass empty lists through and falsely close the run.
+        validate_stage_result(run, active_execution, result)
         stage_progress(execution, f"Logic complete | {result.output_summary}")
         active_execution = runtime.stage_repository.complete(
             active_execution.execution_id,

@@ -26,6 +26,10 @@ def navigate_to(page: str, run_id: str | None = None) -> None:
     """Queue a route change for the next rerun, avoiding writes to an active widget state."""
 
     st.session_state["pending_page"] = page
+    if page != PAGE_RUN_DETAIL:
+        # Run Detail is an internal route. Explicit navigation away from it must clear the route
+        # so the next full rerun can return to the sidebar-selected workspace page.
+        st.session_state.pop("internal_page", None)
     if run_id is not None:
         st.session_state["pending_run_id"] = run_id
     st.rerun()
@@ -41,13 +45,15 @@ def render_sidebar(
     # Button callbacks can happen after the radio widget has been instantiated. Apply queued route
     # changes before creating that widget on the next run so Streamlit accepts the state update.
     pending_page = st.session_state.pop("pending_page", None)
-    internal_page = None
     if pending_page == PAGE_RUN_DETAIL:
         # Run Detail is deliberately absent from the sidebar radio. Keep it as a one-rerun
         # internal route so an Open button can navigate there without exposing a direct toggle.
-        internal_page = pending_page
+        # Persisting it matters when a terminal live-run transition requests a full app rerun.
+        st.session_state["internal_page"] = PAGE_RUN_DETAIL
+        st.session_state["active_page"] = PAGE_RUNS
     elif pending_page is not None:
         st.session_state["active_page"] = pending_page
+    internal_page = st.session_state.get("internal_page")
     pending_run_id = st.session_state.pop("pending_run_id", None)
     if pending_run_id is not None:
         st.session_state["selected_run_id"] = pending_run_id
@@ -121,6 +127,10 @@ def render_sidebar(
             st.caption(f"Live providers · {active}")
         else:
             st.caption("MVP fixture providers")
+        # Selecting another sidebar page is the explicit way to leave the internal detail route.
+        if internal_page == PAGE_RUN_DETAIL and selected_page != PAGE_RUNS:
+            st.session_state.pop("internal_page", None)
+            return selected_page
         return internal_page or selected_page
 
 

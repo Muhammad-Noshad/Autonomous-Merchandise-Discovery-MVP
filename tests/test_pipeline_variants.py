@@ -49,13 +49,13 @@ def test_compact_registry_contains_only_its_executed_stages() -> None:
 
     definitions = stage_definitions_for(PipelineVariant.COMPACT_RESEARCH_FIRST)
 
-    assert len(definitions) == 8
-    assert [definition.number for definition in definitions] == [1, 2, 3, 4, 6, 7, 8, 9]
+    assert len(definitions) == 9
+    assert [definition.number for definition in definitions] == [1, 2, 3, 4, 6, 7, 8, 9, 10]
     assert definitions[4].name == "AI Merchandise Development"
-    assert definitions[7].name == "Artwork Results"
+    assert definitions[8].name == "Artwork Results"
     baseline = stage_definitions_for(PipelineVariant.BASELINE)
-    assert len(baseline) == 17
-    assert baseline[-1].number == 17
+    assert len(baseline) == 18
+    assert baseline[-1].number == 18
     assert baseline[-1].name == "Artwork Results"
 
 
@@ -257,18 +257,19 @@ def test_compact_detail_view_hides_folded_stages() -> None:
     )
     stages = [
         StageExecution(run_id=run.run_id, stage_number=number, stage_name=f"Stage {number}")
-        for number in range(1, 18)
+        for number in range(1, 19)
     ]
 
     fixture = snapshot_to_fixture(RunSnapshot(run=run, stages=stages))
 
-    assert [stage.number for stage in fixture.stages] == [1, 2, 3, 4, 6, 7, 8, 9]
-    assert fixture.total_stages == 8
+    assert [stage.number for stage in fixture.stages] == [1, 2, 3, 4, 6, 7, 8, 9, 10]
+    assert fixture.total_stages == 9
     assert fixture.completed_stages == 6
-    assert fixture.stages[7].name == "Artwork Results"
+    assert fixture.stages[8].name == "Artwork Results"
     assert fixture.stages[4].summary == (
         "Search the selected niches, synthesize evidence, and generate concepts, briefs, and artwork prompts."
     )
     assert fixture.stages[5].summary == "Generate artwork candidates from compact-stage prompts."
-    assert fixture.stages[6].summary == "Run deterministic artwork quality checks."
-    assert fixture.stages[7].summary == "Display all generated artwork candidates for visual review."
+    assert fixture.stages[6].summary == "Have Luna review each artwork against its niche and audience."
+    assert fixture.stages[7].summary == "Apply targeted Grok edits to artwork flagged by Luna."
+    assert fixture.stages[8].summary == "Display all generated artwork candidates for visual review."

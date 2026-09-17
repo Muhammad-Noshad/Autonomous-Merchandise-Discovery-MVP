@@ -22,7 +22,7 @@ class EvidenceFixture(BaseModel):
 class StageFixture(BaseModel):
     """The UI-facing representation of one pipeline stage."""
 
-    number: int = Field(ge=1, le=17)
+    number: int = Field(ge=1, le=18)
     name: str
     summary: str
     status: StageStatus
@@ -50,7 +50,7 @@ class RunFixture(BaseModel):
     selection_seed: int | None = None
     status: RunStatus
     completed_stages: int
-    total_stages: int = 17
+    total_stages: int = 18
     estimated_remaining: str
     started: str
     triggered_by: str
@@ -257,7 +257,8 @@ def get_demo_run() -> RunFixture:
         ("Structured Design Brief", "Convert each finalist into a visual design brief."),
         ("Grok Prompt Compilation", "Apply consistent merchandise prompt constraints."),
         ("Merchandise Artwork Generation", "Generate a small number of artwork candidates."),
-        ("Single-Call Artwork Critique", "Check readability, composition, and concept alignment."),
+        ("Single-Call Artwork Critique", "Have Luna review each artwork against its niche and audience."),
+        ("Artwork Revision", "Apply targeted Grok edits to artwork flagged by Luna."),
         ("Artwork Results", "Display all generated artwork candidates for visual review."),
     ]
 
