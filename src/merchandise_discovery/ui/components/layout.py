@@ -12,13 +12,9 @@ from merchandise_discovery.ui.fixtures import RunFixture
 PAGE_RUNS = "Runs"
 PAGE_CREATE_RUN = "Create Run"
 PAGE_RUN_DETAIL = "Run Detail"
-PAGE_NICHES = "Niches"
-PAGE_CONCEPTS = "Concepts"
 PAGE_OPTIONS = [
     PAGE_RUNS,
     PAGE_CREATE_RUN,
-    PAGE_NICHES,
-    PAGE_CONCEPTS,
 ]
 
 
@@ -57,6 +53,11 @@ def render_sidebar(
     pending_run_id = st.session_state.pop("pending_run_id", None)
     if pending_run_id is not None:
         st.session_state["selected_run_id"] = pending_run_id
+
+    # A browser session can retain a page value from an older app version. Normalize it before
+    # creating the radio widget so removed pages cannot leave navigation in an invalid state.
+    if st.session_state.get("active_page") not in PAGE_OPTIONS:
+        st.session_state["active_page"] = PAGE_RUNS
 
     with st.sidebar:
         st.markdown("## Discovery")
