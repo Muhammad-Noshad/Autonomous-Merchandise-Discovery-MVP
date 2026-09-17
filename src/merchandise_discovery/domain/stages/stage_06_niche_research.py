@@ -104,7 +104,15 @@ def execute(
             _to_evidence(document, run_id=run_id, niche_id=niche.niche_id)
             for document in documents
         ]
-        niches.append(niche.model_copy(update={"evidence_count": len(niche_evidence), "validated": bool(niche_evidence)}))
+        niches.append(
+            niche.model_copy(
+                update={
+                    "evidence_count": len(niche_evidence),
+                    "validated": bool(niche_evidence),
+                    "research_summary": getattr(search_result, "summary", None) or None,
+                }
+            )
+        )
         evidence.extend(niche_evidence)
         selected_ids.append(intersection.intersection_id)
 

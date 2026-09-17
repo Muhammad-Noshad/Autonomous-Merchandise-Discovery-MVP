@@ -36,10 +36,11 @@ class ResearchDocument:
 
 @dataclass(frozen=True)
 class ResearchSearchResult:
-    """Source records and measured usage returned by one bounded research request."""
+    """Source claims, the complete provider synthesis, and usage for one research request."""
 
     documents: list[ResearchDocument]
     usage: UsageMetrics
+    summary: str = ""
 
 
 class ResearchProvider(Protocol):
@@ -94,6 +95,47 @@ class FixtureResearchProvider:
         return ResearchSearchResult(documents=documents, usage=UsageMetrics())
 
 
+def _citation_excerpt(summary: str, annotation: object) -> str:
+    """Extract the claim-sized sentence surrounding one citation marker.
+
+    Responses annotations identify where a URL citation occurs in the assistant text, not the
+    body of the cited webpage. Selecting the nearby sentence gives downstream stages a bounded
+    source claim while avoiding the previous mistake of assigning the entire response to every URL.
+    """
+
+    start = getattr(annotation, "start_index", None)
+    end = getattr(annotation, "end_index", None)
+    if not isinstance(start, int) or not isinstance(end, int) or not summary:
+        return "Source-local excerpt unavailable; see the stored research summary."
+
+    start = max(0, min(start, len(summary)))
+    end = max(start, min(end, len(summary)))
+    left_candidates = [
+        summary.rfind("\n", 0, start),
+        summary.rfind(".", 0, start),
+        summary.rfind("?", 0, start),
+        summary.rfind("!", 0, start),
+    ]
+    left = max(left_candidates) + 1
+    # The API's end position is represented as the last character in some response shapes and
+    # immediately after the span in others. Starting one character earlier handles both without
+    # consuming the next claim when the citation follows a sentence-ending period.
+    right_boundary = max(start, end - 1)
+    right_candidates = [
+        position
+        for position in (
+            summary.find("\n", right_boundary),
+            summary.find(".", right_boundary),
+            summary.find("?", right_boundary),
+            summary.find("!", right_boundary),
+        )
+        if position >= 0
+    ]
+    right = min(right_candidates, default=len(summary))
+    excerpt = summary[left:right + 1].strip()
+    return excerpt[:2_000] or "Source-local excerpt unavailable; see the stored research summary."
+
+
 class OpenAIWebResearchProvider:
     """Use OpenAI Responses web search to collect source-linked public evidence."""
 
@@ -120,7 +162,10 @@ class OpenAIWebResearchProvider:
             f"Relevant identities: {', '.join(request.identities)}. "
             f"Initial hypotheses: {'; '.join(request.hypotheses) or 'none'}. "
             "Find independent public sources that support recurring experiences, frustrations, "
-            "rituals, or language. Return a concise evidence summary with citations."
+            "rituals, or language. Return a concise research summary, then list each source in its "
+            "own bullet with one source-specific claim and place that source's citation immediately "
+            "after the claim. Do not combine multiple sources in one bullet and do not reuse the "
+            "same claim for every source."
         )
         try:
             response = self._client.responses.create(
@@ -146,7 +191,7 @@ class OpenAIWebResearchProvider:
                             url=url,
                             title=getattr(annotation, "title", None) or url,
                             source="OpenAI web search",
-                            excerpt=summary[:2_000] or "No provider summary returned.",
+                            excerpt=_citation_excerpt(summary, annotation),
                         )
                     )
         if not documents:
@@ -179,4 +224,5 @@ class OpenAIWebResearchProvider:
                     f"{self._web_search_price_per_call:.2f} per OpenAI web-search call."
                 ),
             ),
+            summary=summary,
         )

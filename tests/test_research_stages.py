@@ -92,6 +92,55 @@ def test_openai_web_search_usage_includes_per_call_tool_price() -> None:
     assert "per OpenAI web-search call" in (result.usage.pricing_note or "")
 
 
+def test_openai_web_search_keeps_citation_claims_separate() -> None:
+    """Each cited URL receives its nearby claim instead of the full combined provider summary."""
+
+    summary = "Source one reports a concrete shift ritual. Source two describes a different constraint."
+    first_start = summary.index("Source one")
+    second_start = summary.index("Source two")
+    response = Mock()
+    response.output_text = summary
+    response.output = [
+        Mock(
+            content=[
+                Mock(
+                    annotations=[
+                        Mock(
+                            url="https://example.com/one",
+                            title="First source",
+                            start_index=first_start,
+                            end_index=first_start + len("Source one reports a concrete shift ritual."),
+                        ),
+                        Mock(
+                            url="https://example.com/two",
+                            title="Second source",
+                            start_index=second_start,
+                            end_index=second_start + len("Source two describes a different constraint."),
+                        ),
+                    ]
+                )
+            ]
+        )
+    ]
+    response.usage = Mock(input_tokens=1, output_tokens=1, total_tokens=2)
+
+    with patch("merchandise_discovery.infrastructure.providers.research_provider.OpenAI") as client_factory:
+        client_factory.return_value.responses.create.return_value = response
+        provider = OpenAIWebResearchProvider("test-key")
+        result = provider.search(
+            ResearchRequest(
+                query="shift workers and rituals",
+                identities=("Shift workers", "Rituals"),
+                hypotheses=("A repeatable reset ritual.",),
+            )
+        )
+
+    assert result.summary == summary
+    assert result.documents[0].excerpt == "Source one reports a concrete shift ritual."
+    assert result.documents[1].excerpt == "Source two describes a different constraint."
+    assert result.documents[0].excerpt != result.documents[1].excerpt
+
+
 def test_experience_mining_keeps_evidence_lineage() -> None:
     """Recurring signals must point back to the exact evidence records that triggered them."""
 

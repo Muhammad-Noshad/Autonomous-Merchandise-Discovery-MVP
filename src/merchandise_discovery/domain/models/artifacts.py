@@ -59,7 +59,7 @@ class IdentityIntersection(BaseModel):
 
 
 class Niche(BaseModel):
-    """A candidate niche tracked through research and opportunity scoring."""
+    """A candidate niche tracked through research, evidence, and opportunity scoring."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -68,6 +68,9 @@ class Niche(BaseModel):
     intersection_id: str
     name: str
     coherence_score: float | None = Field(default=None, ge=0, le=10)
+    # The provider's complete synthesis belongs to the niche, while individual evidence records
+    # carry only the claim associated with their own citation.
+    research_summary: str | None = None
     experience_summary: str | None = None
     opportunity_score: float | None = Field(default=None, ge=0, le=100)
     evidence_count: int = Field(default=0, ge=0)
