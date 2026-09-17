@@ -75,9 +75,12 @@ initialization automatically. MongoDB databases are created lazily, so the app c
 `_app_metadata` infrastructure collection and the workflow indexes; the configured database then
 appears in Compass or `show dbs`.
 
-At runtime startup, an empty MongoDB `seeds` collection is populated from
-`data/seed_knowledge.json`. Existing seed records are preserved and are not overwritten by later
-application starts.
+At runtime startup, the registered JSON seed libraries are imported into MongoDB. The current
+libraries are `data/seed_knowledge.json` (MVP Seed Library) and
+`data/seed_knowledge_coherent_mashups.json` (Coherent Mashups). Seed records are scoped by
+`library_id`, existing records are preserved, and the Create Run page lets you choose which active
+library Stage 1 should use. JSON remains the version-controlled source; MongoDB is the runtime
+catalog and query source.
 
 The current client demo defaults to `MVP_STOP_AFTER_STAGE=1`. Stage 1 is executed and the run is
 persisted as `paused` so later stages do not run until the client approves expanding the funnel.

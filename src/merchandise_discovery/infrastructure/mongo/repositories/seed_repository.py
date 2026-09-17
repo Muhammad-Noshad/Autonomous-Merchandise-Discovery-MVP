@@ -25,6 +25,32 @@ class SeedRepository:
 
         return self._collection.find_one({}, projection={"_id": 1}) is not None
 
+    def migrate_legacy_records(self, library_id: str) -> int:
+        """Assign legacy records to the original library before library-scoped queries begin."""
+
+        return self._collection.update_many(
+            {"library_id": {"$exists": False}},
+            {"$set": {"library_id": library_id}},
+        ).modified_count
+
+    def seed_if_missing(self, library_id: str, seeds: list[SeedItem]) -> int:
+        """Insert library seeds idempotently without overwriting operator-edited Mongo records."""
+
+        inserted = 0
+        for seed in seeds:
+            document = to_document(seed.model_copy(update={"library_id": library_id}))
+            try:
+                result = self._collection.update_one(
+                    {"seed_id": seed.seed_id},
+                    {"$setOnInsert": document},
+                    upsert=True,
+                )
+            except DuplicateKeyError:
+                # Another application process won the same startup race; its record is valid.
+                continue
+            inserted += int(result.upserted_id is not None)
+        return inserted
+
     def seed_if_empty(self, seeds: list[SeedItem]) -> bool:
         """Insert the initial seed set only when no seed exists; return whether insertion occurred."""
 
@@ -40,10 +66,19 @@ class SeedRepository:
             return False
         return True
 
-    def list_all(self, *, category: str | None = None) -> list[SeedItem]:
+    def list_all(
+        self,
+        *,
+        library_id: str | None = None,
+        category: str | None = None,
+    ) -> list[SeedItem]:
         """Return seed knowledge, optionally narrowed to one identity category."""
 
-        query = {"category": category} if category else {}
+        query = {}
+        if library_id:
+            query["library_id"] = library_id
+        if category:
+            query["category"] = category
         return [
             seed
             for document in self._collection.find(query).sort([("category", 1), ("name", 1)])

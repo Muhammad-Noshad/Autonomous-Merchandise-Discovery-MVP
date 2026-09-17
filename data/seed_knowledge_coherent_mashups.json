@@ -1,0 +1,194 @@
+[
+  {
+    "seed_id": "mashup_audience_shift_workers_guarding_daylight",
+    "category": "audience",
+    "name": "Shift workers guarding a small pocket of daylight",
+    "parent": "Time-protected routines",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": ["time-protection", "recovery", "routine", "daylight"],
+      "dimensions": [
+        {"type": "routine", "value": "protecting a small personal window before or after a shift"},
+        {"type": "tension", "value": "trying to keep personal time from being consumed by recovery"},
+        {"type": "language", "value": "this hour is mine"}
+      ],
+      "mashup_hooks": ["portable rituals", "small wins", "gentle defiance"]
+    }
+  },
+  {
+    "seed_id": "mashup_audience_long_distance_commuters_portable_life",
+    "category": "audience",
+    "name": "Long-distance commuters making a portable life",
+    "parent": "Practical everyday mobility",
+    "metadata": {
+      "priority": 10,
+      "affinity_tags": ["commute", "portable", "reliability", "transition"],
+      "dimensions": [
+        {"type": "routine", "value": "carrying a compact set of dependable items between home and work"},
+        {"type": "tension", "value": "losing personal energy to repeated travel and packing"},
+        {"type": "behavior", "value": "choosing objects that work in multiple places without fuss"}
+      ],
+      "mashup_hooks": ["route rituals", "compact systems", "earned convenience"]
+    }
+  },
+  {
+    "seed_id": "mashup_audience_recent_relocators_claiming_neighborhoods",
+    "category": "audience",
+    "name": "Recent relocators claiming a neighborhood one ritual at a time",
+    "parent": "Belonging through exploration",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["relocation", "belonging", "exploration", "local-routines"],
+      "dimensions": [
+        {"type": "routine", "value": "learning routes, shops, and landmarks through repeated small outings"},
+        {"type": "tension", "value": "wanting an unfamiliar place to feel personally inhabited"},
+        {"type": "emotion", "value": "recognizing the first ordinary place that starts to feel like yours"}
+      ],
+      "mashup_hooks": ["maps without coordinates", "firsts", "local rituals"]
+    }
+  },
+  {
+    "seed_id": "mashup_audience_caregivers_between_obligations",
+    "category": "audience",
+    "name": "Caregivers building tiny resets between obligations",
+    "parent": "Everyday care and recovery",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["caregiving", "interruptions", "recovery", "resourcefulness"],
+      "dimensions": [
+        {"type": "routine", "value": "using short unscheduled gaps to recover enough to continue"},
+        {"type": "tension", "value": "having personal needs repeatedly interrupted by someone else's needs"},
+        {"type": "behavior", "value": "keeping a reset ritual ready to use without preparation"}
+      ],
+      "mashup_hooks": ["micro-rituals", "prepared comfort", "quiet competence"]
+    }
+  },
+  {
+    "seed_id": "mashup_interest_pocket_photography",
+    "category": "interest",
+    "name": "Pocket photography of unexpected everyday scenes",
+    "parent": "Portable observation",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["portable", "observation", "unexpected-moments", "memory"],
+      "dimensions": [
+        {"type": "behavior", "value": "keeping a camera or phone ready for an unplanned scene"},
+        {"type": "ritual", "value": "noticing a frame during an ordinary route"},
+        {"type": "emotion", "value": "turning a passing detail into a personal keepsake"}
+      ],
+      "mashup_hooks": ["routes", "pockets", "small proofs of attention"]
+    }
+  },
+  {
+    "seed_id": "mashup_interest_neighborhood_walking",
+    "category": "interest",
+    "name": "Walking to learn the shape of a place",
+    "parent": "Local exploration",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["exploration", "routes", "belonging", "observation"],
+      "dimensions": [
+        {"type": "routine", "value": "repeating a route until its useful landmarks become familiar"},
+        {"type": "behavior", "value": "choosing a slightly longer path for a detail worth noticing"},
+        {"type": "language", "value": "I know a shortcut now"}
+      ],
+      "mashup_hooks": ["landmarks", "quiet discovery", "earned familiarity"]
+    }
+  },
+  {
+    "seed_id": "mashup_interest_batch_cooking_for_future_self",
+    "category": "interest",
+    "name": "Batch cooking for the version of yourself who is tired",
+    "parent": "Practical self-support",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["preparation", "care", "recovery", "reliability"],
+      "dimensions": [
+        {"type": "routine", "value": "preparing several dependable meals before a demanding stretch"},
+        {"type": "tension", "value": "making effort now so an exhausted future self has fewer decisions"},
+        {"type": "emotion", "value": "feeling quietly looked after by your past self"}
+      ],
+      "mashup_hooks": ["future self", "containers", "earned relief"]
+    }
+  },
+  {
+    "seed_id": "mashup_interest_analog_journaling_small_proofs",
+    "category": "interest",
+    "name": "Analog journaling as small proof of a lived day",
+    "parent": "Personal reflection",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["reflection", "memory", "small-rituals", "self-trust"],
+      "dimensions": [
+        {"type": "ritual", "value": "writing one honest line before the day disappears"},
+        {"type": "behavior", "value": "keeping imperfect notes instead of optimizing a record"},
+        {"type": "tension", "value": "wanting evidence that ordinary days still counted"}
+      ],
+      "mashup_hooks": ["margins", "unfinished pages", "private evidence"]
+    }
+  },
+  {
+    "seed_id": "mashup_value_practical_optimism",
+    "category": "value",
+    "name": "Practical optimism",
+    "parent": "Hopeful resourcefulness",
+    "metadata": {
+      "priority": 9,
+      "affinity_tags": ["hope", "resourcefulness", "small-wins", "self-trust"],
+      "dimensions": [
+        {"type": "preference", "value": "preferring useful hope over empty positivity"},
+        {"type": "language", "value": "make tomorrow a little easier"},
+        {"type": "behavior", "value": "turning a difficult situation into one manageable next step"}
+      ],
+      "mashup_hooks": ["small wins", "repair", "future self"]
+    }
+  },
+  {
+    "seed_id": "mashup_value_gentle_humor_under_pressure",
+    "category": "value",
+    "name": "Gentle humor under pressure",
+    "parent": "Warm resilience",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["humor", "pressure", "recognition", "relief"],
+      "dimensions": [
+        {"type": "language", "value": "making a precise joke about the oddly specific hard part"},
+        {"type": "emotion", "value": "using recognition to make pressure feel less lonely"},
+        {"type": "preference", "value": "choosing wit that feels kind rather than performative"}
+      ],
+      "mashup_hooks": ["insider jokes", "relief", "specific frustrations"]
+    }
+  },
+  {
+    "seed_id": "mashup_value_belonging_through_repetition",
+    "category": "value",
+    "name": "Belonging through repetition",
+    "parent": "Earned familiarity",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["belonging", "repetition", "local-routines", "memory"],
+      "dimensions": [
+        {"type": "preference", "value": "valuing familiar rituals more than instant novelty"},
+        {"type": "emotion", "value": "feeling rooted when an ordinary place recognizes your pattern"},
+        {"type": "behavior", "value": "returning to a route, shop, or ritual until it becomes personal"}
+      ],
+      "mashup_hooks": ["routes", "rituals", "ordinary milestones"]
+    }
+  },
+  {
+    "seed_id": "mashup_value_quiet_self_trust",
+    "category": "value",
+    "name": "Quiet self-trust",
+    "parent": "Personal agency",
+    "metadata": {
+      "priority": 8,
+      "affinity_tags": ["self-trust", "independence", "competence", "calm"],
+      "dimensions": [
+        {"type": "preference", "value": "preferring dependable capability over visible achievement"},
+        {"type": "emotion", "value": "feeling steadier because you know your own workaround"},
+        {"type": "behavior", "value": "building a small system that removes repeated friction"}
+      ],
+      "mashup_hooks": ["workarounds", "portable systems", "quiet competence"]
+    }
+  }
+]

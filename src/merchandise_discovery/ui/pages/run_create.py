@@ -44,6 +44,7 @@ def render_run_create(
 
     runtime: ApplicationRuntime | None = None
     discovery_service: DiscoveryService | None = None
+    seed_libraries = []
 
     if isinstance(runtime_or_service, ApplicationRuntime):
         runtime = runtime_or_service
@@ -58,6 +59,21 @@ def render_run_create(
         # Runtime construction belongs to the entrypoint. The page only consumes the injected
         # application boundary and never hides connection failures by rebuilding it.
 
+    if runtime is not None:
+        try:
+            seed_libraries = runtime.seed_library_repository.list_active()
+        except (PyMongoError, RepositoryError, RuntimeError) as error:
+            st.error(f"Seed libraries could not be loaded: {error}")
+            return
+    if not seed_libraries:
+        # This fallback keeps the isolated fixture/UI test path usable without inventing a
+        # database-backed library. A configured runtime should always provide the Mongo catalog.
+        seed_library_options = {"MVP Seed Library": "mvp_seed_library"}
+    else:
+        seed_library_options = {
+            library.name: library.library_id for library in seed_libraries
+        }
+
     st.markdown(
         '<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>',
         unsafe_allow_html=True,
@@ -71,7 +87,8 @@ def render_run_create(
             value="New merchandise discovery run",
             help="A human-readable name used in run history and review screens.",
         )
-        seed_source = st.selectbox("Seed source", ["MVP seed library"])
+        seed_source_label = st.selectbox("Seed library", list(seed_library_options))
+        seed_source = seed_library_options[seed_source_label]
         pipeline_variant = st.selectbox(
             "Pipeline",
             options=[PipelineVariant.BASELINE, PipelineVariant.COMPACT_RESEARCH_FIRST],

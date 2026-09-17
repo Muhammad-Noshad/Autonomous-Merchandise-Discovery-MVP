@@ -20,10 +20,26 @@ class SeedItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     seed_id: str = Field(default_factory=lambda: str(uuid4()))
+    library_id: str = "mvp_seed_library"
     category: SeedCategory
     name: str
     parent: str | None = None
     metadata: dict = Field(default_factory=dict)
+
+
+class SeedLibrary(BaseModel):
+    """A selectable, versioned seed pack that owns a group of seed records."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    library_id: str
+    name: str
+    description: str
+    version: str = "1.0.0"
+    selection_policy: str = "category_balanced"
+    seed_count: int = Field(default=0, ge=0)
+    active: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class IdentityIntersection(BaseModel):

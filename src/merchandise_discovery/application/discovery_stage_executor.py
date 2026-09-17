@@ -303,9 +303,12 @@ class DiscoveryStageExecutor:
         usage = UsageMetrics()
         if stage.stage_number == 1:
             input_model = stage_01.SeedDiscoveryInput.model_validate(input_data)
-            seeds = self._seeds.list_all()
+            seeds = self._seeds.list_all(library_id=input_model.seed_source)
             if not seeds:
-                raise ValueError("Seed knowledge is empty. Restart the application to seed MongoDB.")
+                raise ValueError(
+                    f"Seed library '{input_model.seed_source}' is empty or unavailable. "
+                    "Restart the application to import configured seed libraries."
+                )
 
             # Stage 1 is intentionally provider-free. Its responsibility is reproducible portfolio
             # sampling from MongoDB; live reasoning starts in Stage 2 where it expands the selected

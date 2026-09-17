@@ -34,6 +34,9 @@ from merchandise_discovery.infrastructure.mongo.repositories.review_repository i
     ReviewRepository,
 )
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
+from merchandise_discovery.infrastructure.mongo.repositories.seed_library_repository import (
+    SeedLibraryRepository,
+)
 from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
@@ -54,7 +57,7 @@ from merchandise_discovery.infrastructure.providers.research_provider import (
 )
 from merchandise_discovery.infrastructure.storage import LocalArtworkStorage
 from merchandise_discovery.shared.configuration import Settings
-from merchandise_discovery.shared.seed_loader import load_seed_fixture
+from merchandise_discovery.shared.seed_loader import load_seed_libraries
 
 
 @dataclass
@@ -70,6 +73,7 @@ class ApplicationRuntime:
     stop_after_stage: int
     provider_modes: dict[str, str]
     seed_repository: SeedRepository
+    seed_library_repository: SeedLibraryRepository
     intersection_repository: IntersectionRepository
     niche_repository: NicheRepository
     evidence_repository: EvidenceRepository
@@ -98,6 +102,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         stage_repository = StageExecutionRepository(database.stage_executions)
         stage_log_repository = StageLogRepository(database.stage_logs)
         seed_repository = SeedRepository(database.seeds)
+        seed_library_repository = SeedLibraryRepository(database.seed_libraries)
         intersection_repository = IntersectionRepository(database.intersections)
         niche_repository = NicheRepository(database.niches)
         evidence_repository = EvidenceRepository(database.evidence)
@@ -105,8 +110,12 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
         brief_repository = BriefRepository(database.briefs)
         artwork_repository = ArtworkRepository(database.artworks)
         review_repository = ReviewRepository(database.reviews)
-        if not seed_repository.has_records():
-            seed_repository.seed_if_empty(load_seed_fixture())
+        # Import each library independently. Existing seed documents are preserved, while newly
+        # added libraries become selectable without clearing the shared seeds collection.
+        seed_repository.migrate_legacy_records("mvp_seed_library")
+        for library, seeds in load_seed_libraries():
+            seed_library_repository.ensure(library)
+            seed_repository.seed_if_missing(library.library_id, seeds)
         discovery_service = DiscoveryService(
             run_repository,
             stage_repository,
@@ -182,6 +191,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
                 "image": "xAI image generation" if live_mode and settings.xai_api_key else "fixture",
             },
             seed_repository=seed_repository,
+            seed_library_repository=seed_library_repository,
             intersection_repository=intersection_repository,
             niche_repository=niche_repository,
             evidence_repository=evidence_repository,

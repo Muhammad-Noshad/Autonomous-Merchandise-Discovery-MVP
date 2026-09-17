@@ -75,6 +75,7 @@ def test_stage_01_does_not_call_reasoning_provider() -> None:
 
     result = executor.execute(run, stage, input_data)
 
+    seed_repository.list_all.assert_called_once_with(library_id=run.config.seed_source)
     reasoning_provider.complete_structured.assert_not_called()
     assert result.usage.total_tokens == 0
     assert result.usage.estimated_cost_usd == 0
