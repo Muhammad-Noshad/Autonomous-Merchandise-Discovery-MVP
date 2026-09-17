@@ -6,6 +6,7 @@ import streamlit as st
 from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
+from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.adapters import snapshot_to_fixture
 from merchandise_discovery.ui.components.layout import PAGE_RUNS, navigate_to, render_run_header
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def render_run_detail(
     run_id: str,
     discovery_service: DiscoveryService | None = None,
-) -> None:
+) -> RunStatus | None:
     """Render a persisted snapshot when available, or the demo detail in fixture mode."""
 
     if discovery_service is not None:
@@ -37,7 +38,7 @@ def render_run_detail(
             snapshot = discovery_service.get_run_snapshot(target_id)
         except (PyMongoError, RepositoryError):
             st.error("Run details could not be loaded from MongoDB.")
-            return
+            return None
 
         if snapshot is None:
             st.info("No active run selected or run was not found in MongoDB.")
@@ -48,7 +49,7 @@ def render_run_detail(
             with col_b:
                 if st.button("+ Create a run", width="stretch"):
                     navigate_to("create_run")
-            return
+            return None
         run = snapshot_to_fixture(snapshot)
     elif run_id == "017":
         run = get_demo_run()
@@ -61,7 +62,7 @@ def render_run_detail(
         st.info("Historical run details are not available in fixture mode.")
         if st.button("Back to runs"):
             navigate_to(PAGE_RUNS)
-        return
+        return None
 
     if st.session_state.get("created_run_id") == run.run_id:
         if run.status.value == "paused":
@@ -82,6 +83,7 @@ def render_run_detail(
     # The pipeline is the complete detail surface. Keeping it full-width gives each stage expander
     # enough room for its structured output and avoids maintaining a second selected-stage state.
     render_pipeline(run)
+    return run.status
 
 
 def render_run_detail_with_polling(
@@ -99,8 +101,22 @@ def render_run_detail_with_polling(
         render_run_detail(run_id, discovery_service)
         return
 
+    # Completed and paused runs are immutable from the detail page's perspective. Avoid creating
+    # a timer for them; this also lets an already-terminal run settle without repeated reruns.
+    try:
+        current_run = discovery_service.get_run(run_id)
+    except (PyMongoError, RepositoryError):
+        current_run = None
+    if current_run is not None and current_run.status not in {RunStatus.PENDING, RunStatus.RUNNING}:
+        render_run_detail(run_id, discovery_service)
+        return
+
     @st.fragment(run_every="3s")
     def render_live_snapshot() -> None:
-        render_run_detail(run_id, discovery_service)
+        status = render_run_detail(run_id, discovery_service)
+        if status is not None and status not in {RunStatus.PENDING, RunStatus.RUNNING}:
+            # The fragment discovered the terminal transition. Rebuild the page outside the
+            # repeating fragment so the final snapshot remains static until the user navigates.
+            st.rerun(scope="app")
 
     render_live_snapshot()
