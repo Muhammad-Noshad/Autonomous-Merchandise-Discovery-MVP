@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Streamlit caches the composed runtime, including service instances. Bumping this value forces a
 # rebuild when application-service capabilities change so a hot-reloaded UI cannot retain an older
 # cached DiscoveryService object.
-RUNTIME_CACHE_VERSION = "2026-09-15-background-inline-runner-v4"
+RUNTIME_CACHE_VERSION = "2026-09-17-reasoning-timeout-config-v1"
 
 
 @st.cache_resource(show_spinner=False)
@@ -35,6 +35,7 @@ def _initialize_configured_runtime(
     artwork_storage_dir: str = ".artifacts",
     max_stage_attempts: int = 3,
     openai_reasoning_model: str = "gpt-4o-mini",
+    openai_reasoning_timeout_seconds: float = 420.0,
     openai_input_price_per_million: float = 0.15,
     openai_output_price_per_million: float = 0.60,
     openai_web_search_price_per_call: float = 0.01,
@@ -53,6 +54,7 @@ def _initialize_configured_runtime(
         artwork_storage_dir=artwork_storage_dir,
         max_stage_attempts=max_stage_attempts,
         openai_reasoning_model=openai_reasoning_model,
+        openai_reasoning_timeout_seconds=openai_reasoning_timeout_seconds,
         openai_input_price_per_million=openai_input_price_per_million,
         openai_output_price_per_million=openai_output_price_per_million,
         openai_web_search_price_per_call=openai_web_search_price_per_call,
@@ -88,6 +90,7 @@ def render_database_status() -> ApplicationRuntime | None:
                 artwork_storage_dir=settings.artwork_storage_dir,
                 max_stage_attempts=settings.max_stage_attempts,
                 openai_reasoning_model=settings.openai_reasoning_model,
+                openai_reasoning_timeout_seconds=settings.openai_reasoning_timeout_seconds,
                 openai_input_price_per_million=settings.openai_input_price_per_million,
                 openai_output_price_per_million=settings.openai_output_price_per_million,
                 openai_web_search_price_per_call=settings.openai_web_search_price_per_call,

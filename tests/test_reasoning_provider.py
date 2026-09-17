@@ -66,6 +66,17 @@ def test_chat_models_keep_temperature() -> None:
     assert provider._client.responses.parse.call_args.kwargs["temperature"] == 0.0
 
 
+def test_direct_provider_uses_environment_timeout(monkeypatch) -> None:
+    """Direct adapter construction follows the same timeout contract as application runtimes."""
+
+    monkeypatch.setenv("OPENAI_REASONING_TIMEOUT_SECONDS", "123")
+
+    with patch("merchandise_discovery.infrastructure.providers.reasoning_provider.OpenAI") as client:
+        OpenAIReasoningProvider(api_key="test-key")
+
+    client.assert_called_once_with(api_key="test-key", timeout=123.0)
+
+
 def test_provider_error_includes_safe_provider_detail() -> None:
     """Stage logs should identify the upstream rejection instead of hiding it completely."""
 

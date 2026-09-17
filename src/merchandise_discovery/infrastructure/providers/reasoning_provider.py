@@ -5,6 +5,7 @@ by the application runtime, while fixture or deterministic paths remain availabl
 disabled or no live provider is configured. Provider failures are propagated to stage handling.
 """
 
+import os
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -50,8 +51,17 @@ class OpenAIReasoningProvider:
         *,
         input_price_per_million: float = 0.15,
         output_price_per_million: float = 0.60,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float | None = None,
     ):
+        # Composition roots normally pass the validated Settings value. The environment fallback
+        # keeps direct adapter construction consistent for scripts and isolated integrations.
+        if timeout_seconds is None:
+            try:
+                timeout_seconds = max(
+                    1.0, float(os.getenv("OPENAI_REASONING_TIMEOUT_SECONDS", "420"))
+                )
+            except ValueError:
+                timeout_seconds = 420.0
         # A bounded timeout prevents a failed live provider from holding a background stage open
         # indefinitely. The stage runner records the resulting provider error as a failure.
         self._client = OpenAI(api_key=api_key, timeout=timeout_seconds)

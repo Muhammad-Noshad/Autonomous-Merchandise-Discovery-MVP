@@ -139,6 +139,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
                 settings.openai_reasoning_model,
                 input_price_per_million=settings.openai_input_price_per_million,
                 output_price_per_million=settings.openai_output_price_per_million,
+                timeout_seconds=settings.openai_reasoning_timeout_seconds,
             )
             if live_mode and settings.openai_api_key
             else None

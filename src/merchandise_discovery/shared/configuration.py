@@ -27,6 +27,7 @@ class Settings:
     artwork_storage_dir: str = ".artifacts"
     max_stage_attempts: int = 3
     openai_reasoning_model: str = "gpt-4o-mini"
+    openai_reasoning_timeout_seconds: float = 420.0
     openai_input_price_per_million: float = 0.15
     openai_output_price_per_million: float = 0.60
     openai_web_search_price_per_call: float = 0.01
@@ -52,8 +53,9 @@ def load_settings() -> Settings:
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
         artwork_storage_dir=os.getenv("ARTWORK_STORAGE_DIR", ".artifacts"),
         max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
-        openai_reasoning_model=os.getenv(
-            "LUNA_MODEL", os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini")
+        openai_reasoning_model=os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini"),
+        openai_reasoning_timeout_seconds=max(
+            1.0, float(os.getenv("OPENAI_REASONING_TIMEOUT_SECONDS", "420"))
         ),
         openai_input_price_per_million=float(os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")),
         openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
