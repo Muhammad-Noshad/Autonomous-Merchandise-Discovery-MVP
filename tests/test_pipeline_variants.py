@@ -40,14 +40,14 @@ def _intersection() -> IdentityIntersection:
 
 
 def test_compact_registry_contains_only_its_executed_stages() -> None:
-    """Compact runs have a real nine-stage sequence rather than skipped baseline slots."""
+    """Compact runs omit the merged Stage 5 while preserving downstream stage numbers."""
 
     definitions = stage_definitions_for(PipelineVariant.COMPACT_RESEARCH_FIRST)
 
-    assert len(definitions) == 9
-    assert [definition.number for definition in definitions] == list(range(1, 10))
-    assert definitions[5].name == "AI Merchandise Development"
-    assert definitions[8].name == "Artwork Results"
+    assert len(definitions) == 8
+    assert [definition.number for definition in definitions] == [1, 2, 3, 4, 6, 7, 8, 9]
+    assert definitions[4].name == "AI Merchandise Development"
+    assert definitions[7].name == "Artwork Results"
     assert len(stage_definitions_for(PipelineVariant.BASELINE)) == 17
 
 
@@ -72,6 +72,10 @@ def test_compact_stage_produces_research_and_concepts() -> None:
     assert len(result.briefs) == 2
     assert len(result.prompts) == 2
     assert result.model == "deterministic"
+    assert all(
+        prompt.combination_name == "Night-shift nurses + Coffee rituals"
+        for prompt in result.prompts
+    )
 
 
 def test_compact_reasoning_prompt_isolates_evidence_by_niche() -> None:
@@ -197,10 +201,13 @@ def test_compact_detail_view_hides_folded_stages() -> None:
 
     fixture = snapshot_to_fixture(RunSnapshot(run=run, stages=stages))
 
-    assert [stage.number for stage in fixture.stages] == list(range(1, 10))
-    assert fixture.total_stages == 9
+    assert [stage.number for stage in fixture.stages] == [1, 2, 3, 4, 6, 7, 8, 9]
+    assert fixture.total_stages == 8
     assert fixture.completed_stages == 6
-    assert fixture.stages[8].name == "Artwork Results"
-    assert fixture.stages[6].summary == "Generate artwork candidates from compact-stage prompts."
-    assert fixture.stages[7].summary == "Run deterministic artwork quality checks."
-    assert fixture.stages[8].summary == "Display all generated artwork candidates for visual review."
+    assert fixture.stages[7].name == "Artwork Results"
+    assert fixture.stages[4].summary == (
+        "Search the selected niches, synthesize evidence, and generate concepts, briefs, and artwork prompts."
+    )
+    assert fixture.stages[5].summary == "Generate artwork candidates from compact-stage prompts."
+    assert fixture.stages[6].summary == "Run deterministic artwork quality checks."
+    assert fixture.stages[7].summary == "Display all generated artwork candidates for visual review."

@@ -12,6 +12,7 @@ class PromptCompilation(BaseModel):
     concept_id: str
     brief_id: str
     prompt: str
+    combination_name: str = ""
 
 
 class PromptCompilationInput(BaseModel):
@@ -70,6 +71,7 @@ def execute(input_data: PromptCompilationInput) -> PromptCompilationOutput:
                 concept_id=brief.concept_id,
                 brief_id=brief.brief_id,
                 prompt=_compile(brief),
+                combination_name=brief.combination_name,
             )
             for brief in input_data.briefs
         ],

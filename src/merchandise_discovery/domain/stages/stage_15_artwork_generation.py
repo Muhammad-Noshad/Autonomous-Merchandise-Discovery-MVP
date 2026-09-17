@@ -61,6 +61,7 @@ def execute(
                     concept_id=prompt.concept_id,
                     brief_id=prompt.brief_id,
                     prompt=prompt.prompt,
+                    combination_name=prompt.combination_name,
                     storage_key=stored.storage_key,
                     source_url=generated.source_url,
                     width=generated.width,

@@ -61,9 +61,6 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
     """Show the Stage 1 decision summary without turning the pipeline card into a transcript."""
 
     seeds = _records(payload, "selected_seeds")
-    reasons = payload.get("selection_reasons", {})
-    evaluations = _records(payload, "evaluations")
-    eval_by_id = {e.get("seed_id"): e for e in evaluations}
 
     category_counts = {
         category: sum(
@@ -85,18 +82,10 @@ def _render_seed_discovery(payload: dict[str, Any]) -> None:
     _section("Selected seed groups")
     rows = []
     for seed in seeds:
-        seed_id = seed.get("seed_id", "")
-        eval_item = eval_by_id.get(seed_id, {})
-        reason = eval_item.get("selection_reason") if eval_item else None
-        if not reason and isinstance(reasons, dict):
-            reason = reasons.get(seed_id)
         rows.append(
             {
                 "Category": _text(seed, "category", default="Unknown").title(),
                 "Seed group": _text(seed, "name"),
-                "Selection reason": _short(
-                    str(reason or "Selected for this run's discovery sample."), 180
-                ),
             }
         )
     if rows:
@@ -228,14 +217,46 @@ def _render_research(payload: dict[str, Any]) -> None:
     if concepts:
         metrics.append(("Concepts generated", str(len(concepts))))
     _metric_row(metrics)
-    for niche in niches:
-        with st.container(border=True):
-            st.markdown(f"**{_text(niche, 'name')}**")
-            st.caption(f"Evidence records: {_text(niche, 'evidence_count', default='0')}")
-            niche_evidence = [item for item in evidence if item.get("niche_id") == niche.get("niche_id")]
-            for item in niche_evidence[:2]:
-                st.markdown(f"[{_text(item, 'title')}]({_text(item, 'url', default='#')})")
-                st.write(_short(_text(item, "excerpt")))
+    if evidence:
+        _section("Research evidence")
+        evidence_by_niche: dict[str, list[dict[str, Any]]] = {}
+        for item in evidence:
+            evidence_by_niche.setdefault(str(item.get("niche_id", "")), []).append(item)
+
+        # Grouping sources by niche keeps the causal story visible: the client can open one niche,
+        # inspect every supporting record, and then move to the next without scanning a wide table.
+        rendered_evidence_ids: set[int] = set()
+        for niche in niches:
+            niche_id = str(niche.get("niche_id", ""))
+            niche_evidence = evidence_by_niche.get(niche_id, [])
+            with st.expander(
+                f"{_text(niche, 'name')} · {len(niche_evidence)} evidence records",
+                expanded=False,
+            ):
+                if not niche_evidence:
+                    st.caption("No evidence records were persisted for this niche.")
+                    continue
+                for item in niche_evidence:
+                    rendered_evidence_ids.add(id(item))
+                    title = _text(item, "title")
+                    url = _text(item, "url", default="")
+                    st.markdown(f"[{title}]({url})" if url else f"**{title}**")
+                    st.caption(
+                        f"{_text(item, 'source', default='Unknown source')} · "
+                        f"{_text(item, 'evidence_type', default='public_web')}"
+                    )
+                    st.write(_text(item, "excerpt"))
+                    st.divider()
+
+        unassigned = [item for item in evidence if id(item) not in rendered_evidence_ids]
+        if unassigned:
+            with st.expander(f"Unassigned evidence · {len(unassigned)} records", expanded=False):
+                for item in unassigned:
+                    title = _text(item, "title")
+                    url = _text(item, "url", default="")
+                    st.markdown(f"[{title}]({url})" if url else f"**{title}**")
+                    st.caption(_text(item, "source", default="Unknown source"))
+                    st.write(_text(item, "excerpt"))
     if concepts:
         _section("Evidence-backed concepts")
         for concept in concepts:
@@ -410,7 +431,13 @@ def _render_artwork_generation(payload: dict[str, Any]) -> None:
     _metric_row([("Artwork candidates", str(len(artworks)))])
     for artwork in artworks:
         with st.container(border=True):
-            st.markdown(f"**Candidate {_text(artwork, 'artwork_id')}**")
+            st.markdown(f"**{_text(artwork, 'combination_name', default='Artwork candidate')}**")
+            st.caption(
+                f"Candidate ID: {_text(artwork, 'artwork_id')} · "
+                f"Concept ID: {_text(artwork, 'concept_id')}"
+            )
+            with st.expander("Artwork generation prompt"):
+                st.code(_text(artwork, "prompt"), language="text")
             _metric_row(
                 [
                     ("Format", _text(artwork, "mime_type")),
@@ -452,7 +479,15 @@ def _render_artwork_gallery(payload: dict[str, Any]) -> None:
         columns = st.columns(2)
         for column, artwork in zip(columns, artworks[index : index + 2]):
             with column:
-                st.markdown(f"**{_text(artwork, 'phrase', 'concept_id', default='Artwork candidate')}**")
+                st.markdown(
+                    f"**{_text(artwork, 'combination_name', 'phrase', default='Artwork candidate')}**"
+                )
+                st.caption(
+                    f"Candidate ID: {_text(artwork, 'artwork_id')} · "
+                    f"Concept ID: {_text(artwork, 'concept_id')}"
+                )
+                with st.expander("Artwork generation prompt"):
+                    st.code(_text(artwork, "prompt"), language="text")
                 source = _artwork_source(artwork)
                 if source:
                     try:
@@ -564,6 +599,8 @@ def render_stage_overview(stage: StageFixture) -> None:
         renderer = _render_artwork_generation
     elif "Artwork Critique" in stage.name:
         renderer = _render_artwork_critique
+    elif "AI Merchandise Development" in stage.name:
+        renderer = _render_research
     elif stage.number == 9 and "artworks" in stage.output_payload:
         # Legacy compact runs used the old Human Approval label before Stage 9 became a gallery.
         renderer = _render_artwork_gallery

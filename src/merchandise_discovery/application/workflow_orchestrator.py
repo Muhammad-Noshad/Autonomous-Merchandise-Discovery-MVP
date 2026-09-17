@@ -4,7 +4,7 @@ The orchestrator owns control flow while each stage module owns one semantic tra
 prevents stage files from becoming tightly coupled to UI, persistence, or model-provider details.
 """
 
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
@@ -82,10 +82,24 @@ class WorkflowOrchestrator:
         """Advance durable progress, pausing intentionally at the configured MVP boundary."""
 
         completed_stages = min(run.completed_stages + 1, run.total_stages)
-        is_final_stage = execution.stage_number >= run.total_stages
         is_demo_boundary = (
             stop_after_stage is not None and execution.stage_number >= stop_after_stage
         )
+        # Compact intentionally preserves downstream stage numbers after removing Stage 5. The
+        # stage count is therefore not necessarily the final stage number; derive the next stage
+        # from persisted execution order instead of using arithmetic on stage numbers.
+        if is_demo_boundary:
+            future_stage_numbers = []
+        else:
+            future_stage_numbers = sorted(
+                {
+                    item.stage_number
+                    for item in self._stages.list_for_run(run.run_id)
+                    if item.stage_number > execution.stage_number
+                    and item.status != StageStatus.SKIPPED
+                }
+            )
+        is_final_stage = not future_stage_numbers and not is_demo_boundary
         status = (
             RunStatus.COMPLETED
             if is_final_stage
@@ -98,7 +112,7 @@ class WorkflowOrchestrator:
             if is_final_stage
             else execution.stage_number
             if is_demo_boundary
-            else execution.stage_number + 1
+            else future_stage_numbers[0]
         )
         return self._runs.update_status(
             run.run_id,

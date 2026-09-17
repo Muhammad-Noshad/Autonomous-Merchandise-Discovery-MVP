@@ -150,12 +150,20 @@ def build_reasoning_prompt(niches: list[Niche], evidence: list[ResearchEvidence]
 def _briefs_for_concepts(
     concepts: list[MerchandiseConcept],
     proposals: list[CompactBriefProposal] | None = None,
+    combination_names: dict[str, str] | None = None,
 ) -> list[DesignBrief]:
     """Materialize briefs through the shared brief validator after local concept IDs exist."""
 
     selected = [concept.model_copy(update={"selected": True}) for concept in concepts]
+    combination_names = combination_names or {}
     if proposals is None:
-        return brief_stage.execute(brief_stage.DesignBriefInput(concepts=selected)).briefs
+        briefs = brief_stage.execute(brief_stage.DesignBriefInput(concepts=selected)).briefs
+        return [
+            brief.model_copy(
+                update={"combination_name": combination_names.get(concept.niche_id, "")}
+            )
+            for brief, concept in zip(briefs, selected, strict=True)
+        ]
 
     proposals_by_phrase = {item.phrase: item for item in proposals}
     if len(proposals_by_phrase) != len(proposals):
@@ -187,13 +195,19 @@ def _briefs_for_concepts(
                 things_to_avoid=proposal.things_to_avoid,
             )
         )
-    return brief_stage.execute(
+    output = brief_stage.execute(
         brief_stage.DesignBriefInput(concepts=selected),
         reasoning_output=brief_stage.Stage13ReasoningOutput(
             briefs=brief_proposals,
             summary="Compact AI visual directions validated from exact concept phrases.",
         ),
-    ).briefs
+    )
+    return [
+        brief.model_copy(
+            update={"combination_name": combination_names.get(concept.niche_id, "")}
+        )
+        for brief, concept in zip(output.briefs, selected, strict=True)
+    ]
 
 
 def execute(
@@ -215,6 +229,15 @@ def execute(
     )
     if not research_output.niches:
         raise ValueError("Compact Stage 6 found no research targets.")
+
+    intersection_names = {
+        intersection.intersection_id: " + ".join(intersection.identities)
+        for intersection in input_data.intersections
+    }
+    combination_names = {
+        niche.niche_id: intersection_names.get(niche.intersection_id, niche.name)
+        for niche in research_output.niches
+    }
 
     if reasoning_provider is None:
         mined = experience_stage.execute(
@@ -243,7 +266,7 @@ def execute(
             )
         )
         concept_records = [concept.model_copy(update={"selected": True}) for concept in concepts.concepts]
-        briefs = _briefs_for_concepts(concept_records)
+        briefs = _briefs_for_concepts(concept_records, combination_names=combination_names)
         prompts = prompt_stage.execute(prompt_stage.PromptCompilationInput(briefs=briefs))
         return CompactDevelopmentOutput(
             niches=niches,
@@ -309,7 +332,11 @@ def execute(
         model=response.usage.model,
     )
     concept_records = [concept.model_copy(update={"selected": True}) for concept in concepts.concepts]
-    briefs = _briefs_for_concepts(concept_records, response.output.briefs)
+    briefs = _briefs_for_concepts(
+        concept_records,
+        response.output.briefs,
+        combination_names,
+    )
     prompts = prompt_stage.execute(prompt_stage.PromptCompilationInput(briefs=briefs))
     return CompactDevelopmentOutput(
         niches=niches,

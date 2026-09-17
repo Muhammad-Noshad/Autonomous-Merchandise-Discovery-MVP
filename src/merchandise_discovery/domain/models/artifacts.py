@@ -127,6 +127,9 @@ class DesignBrief(BaseModel):
     intended_merchandise_type: str = "T-shirt or sweatshirt print"
     things_to_avoid: list[str] = Field(default_factory=list)
     constraints: list[str] = Field(default_factory=list)
+    # Compact runs retain the original intersection wording so downstream artwork review can
+    # identify the audience/interest/value combination without another database lookup.
+    combination_name: str = ""
 
 
 class Artwork(BaseModel):
@@ -139,6 +142,7 @@ class Artwork(BaseModel):
     concept_id: str
     brief_id: str
     prompt: str
+    combination_name: str = ""
     storage_key: str | None = None
     source_url: str | None = None
     decision: ArtworkDecision | None = None

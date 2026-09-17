@@ -127,6 +127,27 @@ class DiscoveryStageExecutor:
                 selection_seed=run.config.selection_seed,
             ).model_dump(mode="python")
 
+        # Compact Stage 5 was removed, but its downstream stage number remains stable for run
+        # history. Stage 6 therefore reads the merged Stage 4 result directly.
+        if stage.stage_number == 6 and run.config.pipeline_variant.value == "compact_research_first":
+            stage_4 = self._stage_repository.get_latest(run.run_id, 4)
+            if stage_4 is None or not stage_4.output_data:
+                raise ValueError("Stage 6 is missing merged Stage 4 research-selection output.")
+            stage_4_output = stage_04.CoherenceOutput.model_validate(stage_4.output_data)
+            by_id = {item.intersection_id: item for item in stage_4_output.intersections}
+            selected = [
+                by_id[intersection_id]
+                for intersection_id in stage_4_output.selected_intersection_ids
+                if intersection_id in by_id
+            ]
+            if not selected:
+                raise ValueError("Stage 6 has no Stage 4-selected intersections to research.")
+            return stage_06_compact.CompactDevelopmentInput(
+                intersections=selected,
+                max_researched_niches=run.config.max_researched_niches,
+                concepts_per_niche=run.config.concepts_per_niche,
+            ).model_dump(mode="python")
+
         previous = self._stage_repository.get_latest(run.run_id, stage.stage_number - 1)
         # Stage 11 is optional. When disabled, Stage 12 consumes the Stage 10 critique output.
         if stage.stage_number == 12 and (
