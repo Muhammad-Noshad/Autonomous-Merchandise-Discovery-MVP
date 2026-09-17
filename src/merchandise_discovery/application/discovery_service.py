@@ -7,6 +7,8 @@ syntax. Those concerns remain behind the entrypoint and repository boundaries.
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from pydantic import BaseModel
+
 from merchandise_discovery.domain.models.artifacts import (
     Artwork,
     IdentityIntersection,
@@ -47,6 +49,22 @@ from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_rep
 from merchandise_discovery.infrastructure.mongo.repositories.stage_log_repository import (
     StageLogRepository,
 )
+
+
+def _normalize_run_config(config: RunConfig | BaseModel | dict | None) -> RunConfig:
+    """Rebuild the config with this service's model class before aggregate validation.
+
+    Streamlit can rerun UI code while retaining a cached application runtime. During that narrow
+    window, the UI and cached service may hold different in-memory copies of the same Pydantic
+    class. Pydantic correctly rejects that foreign instance as ``WorkflowRun.config`` even when
+    its fields are valid, so the stable boundary is plain data followed by canonical validation.
+    """
+
+    if config is None:
+        return RunConfig()
+    if isinstance(config, BaseModel):
+        config = config.model_dump(mode="python")
+    return RunConfig.model_validate(config)
 
 
 @dataclass(frozen=True)
@@ -104,12 +122,14 @@ class DiscoveryService:
         self,
         title: str,
         *,
-        config: RunConfig | None = None,
+        config: RunConfig | BaseModel | dict | None = None,
         triggered_by: str = "manual",
     ) -> WorkflowRun:
         """Create a run and initialize stage records for the selected pipeline variant."""
 
-        run_config = config or RunConfig()
+        # Normalize before reading pipeline settings so both normal calls and hot-reloaded UI
+        # calls use the exact model class expected by the cached service's WorkflowRun model.
+        run_config = _normalize_run_config(config)
         stage_definitions = stage_definitions_for(run_config.pipeline_variant)
         run = WorkflowRun(
             title=title,

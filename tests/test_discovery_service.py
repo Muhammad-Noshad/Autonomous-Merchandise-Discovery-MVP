@@ -2,9 +2,24 @@
 
 from unittest.mock import Mock
 
+from pydantic import BaseModel
+
 from merchandise_discovery.application.discovery_service import DiscoveryService
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
+
+
+class ReloadedRunConfig(BaseModel):
+    """Represent a config instance created by a stale Streamlit module import."""
+
+    seed_source: str = "mvp_seed_library"
+    pipeline_variant: PipelineVariant = PipelineVariant.BASELINE
+    selection_seed: int = 123
+    max_intersections: int = 10
+    max_researched_niches: int = 3
+    concepts_per_niche: int = 5
+    artwork_variants_per_concept: int = 2
+    enable_similarity_ip_check: bool = False
 
 
 def test_create_run_persists_configured_run_and_stage_records() -> None:
@@ -22,6 +37,29 @@ def test_create_run_persists_configured_run_and_stage_records() -> None:
     assert run.title == "Client demo"
     assert run.config == config
     assert len(stage_repository.create_for_run.call_args.args[1]) == 18
+
+
+def test_create_run_normalizes_config_from_a_stale_pydantic_class() -> None:
+    """A hot-reloaded UI config remains valid for a cached service instance."""
+
+    run_repository = Mock()
+    stage_repository = Mock()
+    service = DiscoveryService(run_repository, stage_repository)
+    stale_config = ReloadedRunConfig(
+        seed_source="custom_fixture",
+        pipeline_variant=PipelineVariant.COMPACT_RESEARCH_FIRST,
+        selection_seed=456,
+        max_intersections=4,
+    )
+
+    run = service.create_run("Reload-safe run", config=stale_config)
+
+    assert isinstance(run.config, RunConfig)
+    assert run.config.seed_source == "custom_fixture"
+    assert run.config.pipeline_variant is PipelineVariant.COMPACT_RESEARCH_FIRST
+    assert run.config.selection_seed == 456
+    assert run.config.max_intersections == 4
+    assert run.total_stages == 9
 
 
 def test_get_run_snapshot_combines_run_and_stage_reads() -> None:
