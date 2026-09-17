@@ -1,10 +1,10 @@
 # Autonomous Merchandise Discovery
 
-This repository contains the modular MVP for discovering merchandise niches, validating them with public evidence, generating concepts, and producing artwork candidates for human review.
+This repository contains the modular MVP for discovering merchandise niches, validating them with public evidence, generating concepts, and producing artwork candidates for visual review.
 
 ## Current chunk
 
-Chunks one through eight establish the complete funnel through human approval. Chunk 9 adds bounded
+Chunks one through eight establish the complete automated funnel through display-only artwork results. The former human-approval implementation remains only as dormant compatibility code for historical review records. Chunk 9 adds bounded
 retries, durable stage logs, stage-version provenance, continuous worker mode, and live run-detail
 polling. Chunk 10 adds opt-in live provider calls, usage accounting, and AI-assisted Stage 2 identity
 expansion plus Stage 3 intersection generation. The default runtime remains fixture-backed unless

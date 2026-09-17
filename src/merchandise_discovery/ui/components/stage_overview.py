@@ -467,7 +467,7 @@ def _artwork_source(record: dict[str, Any]) -> str:
 
 
 def _render_artwork_gallery(payload: dict[str, Any]) -> None:
-    """Display every compact-pipeline artwork without exposing approval controls."""
+    """Display every final artwork result without exposing approval controls."""
 
     artworks = _records(payload, "artworks")
     _metric_row([("Artwork results", str(len(artworks)))])
@@ -529,16 +529,6 @@ def _render_artwork_critique(payload: dict[str, Any]) -> None:
                 st.warning(" · ".join(str(issue) for issue in issues))
 
 
-def _render_approval(payload: dict[str, Any]) -> None:
-    """Render the human-in-the-loop handoff as a clear action state."""
-
-    status = _text(payload, "approval_status", default="Awaiting human approval")
-    ready = _text(payload, "artworks_ready", default="0")
-    _metric_row([("Artwork ready for review", ready)])
-    st.info(status)
-    st.caption("A reviewer decision will be persisted in the next workflow chunk.")
-
-
 def _render_generic(payload: dict[str, Any]) -> None:
     """Provide a readable fallback for future stages without exposing raw JSON."""
 
@@ -566,7 +556,7 @@ RENDERERS: dict[int, PayloadRenderer] = {
     14: _render_prompts,
     15: _render_artwork_generation,
     16: _render_artwork_critique,
-    17: _render_approval,
+    17: _render_artwork_gallery,
 }
 
 
@@ -602,10 +592,9 @@ def render_stage_overview(stage: StageFixture) -> None:
     elif "AI Merchandise Development" in stage.name:
         renderer = _render_research
     elif stage.number == 9 and "artworks" in stage.output_payload:
-        # Legacy compact runs used the old Human Approval label before Stage 9 became a gallery.
+        # Legacy compact runs may still contain an older stage label, but their payload is already
+        # compatible with the display-only gallery.
         renderer = _render_artwork_gallery
-    elif "Human Approval" in stage.name:
-        renderer = _render_approval
     else:
         renderer = RENDERERS.get(stage.number, _render_generic)
     renderer(stage.output_payload)

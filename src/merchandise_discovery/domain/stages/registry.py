@@ -33,7 +33,9 @@ STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     StageDefinition(14, "Grok Prompt Compilation", "Compile a constrained image prompt from the design brief."),
     StageDefinition(15, "Merchandise Artwork Generation", "Generate a small set of artwork candidates for each finalist."),
     StageDefinition(16, "Single-Call Artwork Critique", "Check artwork readability, composition, quality, and concept alignment."),
-    StageDefinition(17, "Human Approval", "Record the final reviewer decision and close the merchandise workflow."),
+    # Baseline keeps number 17 for run-history compatibility, but now ends with the same
+    # display-only artwork gallery contract used by compact Stage 9.
+    StageDefinition(17, "Artwork Results", "Display all generated artwork candidates for visual review."),
 )
 
 

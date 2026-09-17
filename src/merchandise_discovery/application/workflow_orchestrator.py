@@ -79,25 +79,40 @@ class WorkflowOrchestrator:
         *,
         stop_after_stage: int | None = None,
     ) -> WorkflowRun:
-        """Advance durable progress, pausing intentionally at the configured MVP boundary."""
+        """Advance durable progress, pausing only at a non-terminal configured MVP boundary."""
 
-        completed_stages = min(run.completed_stages + 1, run.total_stages)
         is_demo_boundary = (
-            stop_after_stage is not None and execution.stage_number >= stop_after_stage
+            stop_after_stage is not None
+            and stop_after_stage < run.total_stages
+            and execution.stage_number >= stop_after_stage
         )
         # Compact intentionally preserves downstream stage numbers after removing Stage 5. The
         # stage count is therefore not necessarily the final stage number; derive the next stage
         # from persisted execution order instead of using arithmetic on stage numbers.
         if is_demo_boundary:
             future_stage_numbers = []
+            completed_stages = min(run.completed_stages + 1, run.total_stages)
         else:
+            stage_records = self._stages.list_for_run(run.run_id)
             future_stage_numbers = sorted(
                 {
                     item.stage_number
-                    for item in self._stages.list_for_run(run.run_id)
+                    for item in stage_records
                     if item.stage_number > execution.stage_number
                     and item.status != StageStatus.SKIPPED
                 }
+            )
+            # Skipped optional stages are resolved slots, not unfinished work. Count unique
+            # completed/skipped stage numbers from MongoDB so a completed baseline run with one
+            # skipped optional stage still persists 17/17 rather than 16/17.
+            resolved_stage_numbers = {
+                item.stage_number
+                for item in stage_records
+                if item.status in {StageStatus.COMPLETED, StageStatus.SKIPPED}
+            }
+            completed_stages = min(
+                max(run.completed_stages + 1, len(resolved_stage_numbers)),
+                run.total_stages,
             )
         is_final_stage = not future_stage_numbers and not is_demo_boundary
         status = (

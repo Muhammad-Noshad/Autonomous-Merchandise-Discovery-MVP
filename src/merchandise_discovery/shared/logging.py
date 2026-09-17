@@ -40,9 +40,3 @@ def stage_error(stage: StageExecution, error: BaseException) -> None:
         f"[{_stage_label(stage)}] ERROR | {type(error).__name__}: {error}",
         flush=True,
     )
-
-
-def stage_waiting_for_review(stage: StageExecution) -> None:
-    """Print the boundary where automated work stops for human approval."""
-
-    print(f"[{_stage_label(stage)}] WAITING | human approval required", flush=True)

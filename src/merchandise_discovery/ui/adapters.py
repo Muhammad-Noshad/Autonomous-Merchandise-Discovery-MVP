@@ -113,7 +113,8 @@ def workflow_to_list_item(run: WorkflowRun) -> RunListItemFixture:
     """Map a persisted run aggregate to the compact history-row contract."""
 
     total_stages = _visible_stage_count(run)
-    progress = round(min(run.completed_stages, total_stages) / total_stages * 100)
+    completed_stages = total_stages if run.status == RunStatus.COMPLETED else run.completed_stages
+    progress = round(min(completed_stages, total_stages) / total_stages * 100)
     return RunListItemFixture(
         run_id=run.run_id,
         title=run.title,
@@ -143,7 +144,11 @@ def snapshot_to_fixture(snapshot: RunSnapshot) -> RunFixture:
         stage for stage in _latest_stages(snapshot.stages) if stage.stage_number in visible_numbers
     ]
     total_stages = len(visible_numbers)
-    completed_stages = min(run.completed_stages, total_stages)
+    completed_stages = (
+        total_stages
+        if run.status == RunStatus.COMPLETED
+        else min(run.completed_stages, total_stages)
+    )
     total_tokens = sum(stage.usage.total_tokens for stage in stages)
     estimated_cost = round(sum(stage.usage.estimated_cost_usd for stage in stages), 8)
     cost_is_estimate = any(stage.usage.cost_is_estimate for stage in stages)

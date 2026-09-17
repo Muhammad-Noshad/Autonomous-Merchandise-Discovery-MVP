@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from merchandise_discovery.application.discovery_service import DiscoveryService, RunSnapshot
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.domain.models.artifacts import (
+    Artwork,
     IdentityIntersection,
     Niche,
     ResearchEvidence,
@@ -19,6 +20,10 @@ from merchandise_discovery.domain.stages.stage_06_compact_research_development i
 )
 from merchandise_discovery.domain.stages.stage_06_compact_research_development import (
     execute as execute_compact_stage,
+)
+from merchandise_discovery.domain.stages.stage_16_artwork_critique import (
+    ArtworkCritiqueOutput,
+    ArtworkEvaluation,
 )
 from merchandise_discovery.infrastructure.providers.research_provider import (
     FixtureResearchProvider,
@@ -48,7 +53,10 @@ def test_compact_registry_contains_only_its_executed_stages() -> None:
     assert [definition.number for definition in definitions] == [1, 2, 3, 4, 6, 7, 8, 9]
     assert definitions[4].name == "AI Merchandise Development"
     assert definitions[7].name == "Artwork Results"
-    assert len(stage_definitions_for(PipelineVariant.BASELINE)) == 17
+    baseline = stage_definitions_for(PipelineVariant.BASELINE)
+    assert len(baseline) == 17
+    assert baseline[-1].number == 17
+    assert baseline[-1].name == "Artwork Results"
 
 
 def test_compact_stage_produces_research_and_concepts() -> None:
@@ -184,6 +192,59 @@ def test_compact_stage_7_preparation_reads_stage_6_prompts() -> None:
 
     assert len(prepared["prompts"]) == 1
     assert stage_repository.get_latest.call_args_list[0].args == (run.run_id, 6)
+
+
+def test_baseline_stage_17_reuses_the_final_artwork_gallery_contract() -> None:
+    """Baseline Stage 17 consumes Stage 16 QA output and completes as a display-only snapshot."""
+
+    artwork = Artwork(
+        run_id="run-test",
+        concept_id="concept-1",
+        brief_id="brief-1",
+        prompt='Exact text: "Reset Mode".',
+        source_url="https://fixture.local/artwork.png",
+        width=1024,
+        height=1024,
+        mime_type="image/png",
+        file_size_bytes=10_000,
+    )
+    evaluation = ArtworkEvaluation(
+        artwork_id=artwork.artwork_id,
+        readability=9,
+        composition=9,
+        quality=9,
+        alignment=9,
+        checks={"minimum_dimensions": True},
+        decision="accept",
+    )
+    stage_repository = Mock()
+    stage_repository.get_latest.return_value = StageExecution(
+        run_id="run-test",
+        stage_number=16,
+        stage_name="Single-Call Artwork Critique",
+        output_data=ArtworkCritiqueOutput(
+            artworks=[artwork],
+            evaluations=[evaluation],
+        ).model_dump(mode="python"),
+    )
+    executor = DiscoveryStageExecutor(
+        *(Mock() for _ in range(2)),
+        stage_repository,
+        *(Mock() for _ in range(7)),
+    )
+    run = WorkflowRun(title="Baseline final gallery")
+    stage = StageExecution(
+        run_id=run.run_id,
+        stage_number=17,
+        stage_name="Artwork Results",
+    )
+
+    input_data = executor.prepare(run, stage)
+    result = executor.execute(run, stage, input_data)
+
+    assert input_data["artworks"][0]["artwork_id"] == artwork.artwork_id
+    assert input_data["evaluations"][0]["artwork_id"] == artwork.artwork_id
+    assert result.output_data["summary"] == "Displayed 1 artwork candidates for visual review."
 
 
 def test_compact_detail_view_hides_folded_stages() -> None:

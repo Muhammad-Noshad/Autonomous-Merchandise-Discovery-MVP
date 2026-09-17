@@ -11,9 +11,8 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
+from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog, WorkflowRun
-from merchandise_discovery.shared.logging import stage_waiting_for_review
 
 if TYPE_CHECKING:
     from merchandise_discovery.application.runtime import ApplicationRuntime
@@ -96,7 +95,7 @@ class InlineRunManager:
             )
 
     def _run_until_boundary(self, initial_run: WorkflowRun) -> None:
-        """Advance one claimed run until the configured demo boundary or human approval."""
+        """Advance one claimed run until the configured demo boundary or pipeline completion."""
 
         # Import at execution time because stage_runner type-checks against ApplicationRuntime,
         # while runtime composes this manager. Delaying this import keeps the composition root
@@ -106,23 +105,6 @@ class InlineRunManager:
         run = initial_run
         try:
             while True:
-                next_execution = self._runtime.workflow_orchestrator.next_runnable_stage(
-                    run.run_id,
-                    max_attempts=self._runtime.max_stage_attempts,
-                )
-                if (
-                    next_execution is not None
-                    and next_execution.stage_number == run.total_stages
-                    and run.config.pipeline_variant == PipelineVariant.BASELINE
-                ):
-                    stage_waiting_for_review(next_execution)
-                    self._save_log(
-                        run.run_id,
-                        "Automated stages complete; awaiting human approval.",
-                        stage=next_execution,
-                    )
-                    return
-
                 execution = self._runtime.workflow_orchestrator.start_next_stage(
                     run.run_id,
                     max_attempts=self._runtime.max_stage_attempts,

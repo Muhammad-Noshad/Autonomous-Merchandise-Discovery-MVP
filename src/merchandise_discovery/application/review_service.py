@@ -1,8 +1,8 @@
-"""Application service for human approval and regeneration decisions.
+"""Legacy application service for historical human approval and regeneration records.
 
-This service owns the approval use case: it validates ownership, persists an immutable review, and
-closes a run only when the Stage 17 decision rule says every artwork candidate is resolved. UI code
-receives view state and never writes review or run records directly.
+New automated pipeline runs end at display-only artwork results and do not call this service. It
+remains available so older review records can still be read or resolved without corrupting history.
+UI code receives view state and never writes review or run records directly.
 """
 
 from dataclasses import dataclass

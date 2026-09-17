@@ -1,7 +1,7 @@
 """Tests for converting persisted workflow contracts into stable UI view models."""
 
 from merchandise_discovery.application.discovery_service import RunSnapshot
-from merchandise_discovery.domain.models.common import StageStatus
+from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
 from merchandise_discovery.ui.adapters import snapshot_to_fixture, workflow_to_list_item
@@ -44,6 +44,18 @@ def test_workflow_adapter_calculates_history_progress() -> None:
     item = workflow_to_list_item(run)
 
     assert item.progress == 47
+
+
+def test_completed_run_history_is_displayed_as_fully_complete() -> None:
+    """A terminal run is 100% resolved even if its legacy counter omitted a skipped stage."""
+
+    run = WorkflowRun(title="Legacy completed run", status=RunStatus.COMPLETED, completed_stages=16)
+
+    item = workflow_to_list_item(run)
+    fixture = snapshot_to_fixture(RunSnapshot(run=run, stages=[]))
+
+    assert item.progress == 100
+    assert fixture.completed_stages == fixture.total_stages == 17
 
 
 def test_snapshot_adapter_shows_provider_usage_only_when_ai_is_used() -> None:

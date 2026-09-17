@@ -293,6 +293,12 @@ class DiscoveryStageExecutor:
         if stage.stage_number == 16:
             prior = stage_15.ArtworkGenerationOutput.model_validate(previous.output_data)
             return stage_16.ArtworkCritiqueInput(artworks=prior.artworks).model_dump(mode="python")
+        if stage.stage_number == 17:
+            prior = stage_16.ArtworkCritiqueOutput.model_validate(previous.output_data)
+            return stage_09_gallery.ArtworkGalleryInput(
+                artworks=prior.artworks,
+                evaluations=prior.evaluations,
+            ).model_dump(mode="python")
         raise StageNotImplementedError(
             f"Stage {stage.stage_number} ({stage.stage_name}) has no registered handler yet."
         )
@@ -818,6 +824,13 @@ class DiscoveryStageExecutor:
             self._artworks.replace_for_run(run.run_id, output.artworks)
             accepted = sum(item.decision.value == "accept" for item in output.artworks)
             summary = f"QA checked {len(output.evaluations)} artworks; {accepted} passed."
+        elif stage.stage_number == 17:
+            # Baseline Stage 17 intentionally shares compact Stage 9's pass-through gallery. The
+            # workflow is complete once this durable snapshot exists; no approval decision is
+            # generated or required by the automated pipeline.
+            input_model = stage_09_gallery.ArtworkGalleryInput.model_validate(input_data)
+            output = stage_09_gallery.execute(input_model)
+            summary = output.summary
         else:
             raise StageNotImplementedError(
                 f"Stage {stage.stage_number} ({stage.stage_name}) has no registered handler yet."

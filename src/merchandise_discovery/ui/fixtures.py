@@ -196,7 +196,24 @@ def _demo_output_payload(number: int, evidence: list[EvidenceFixture]) -> dict[s
         14: {"prompts": [{"concept_id": concept["concept_id"], "prompt": 'Exact text: "Reset Mode". Clean editorial merchandise artwork, centered subject, readable typography, no logos.'}]},
         15: {"artworks": [artwork]},
         16: {"evaluations": [{"artwork_id": artwork["artwork_id"], "readability": 9, "composition": 9, "quality": 9, "alignment": 9, "decision": "accept", "checks": {"supported_mime_type": True, "minimum_dimensions": True, "square_merchandise_ratio": True}, "issues": []}]},
-        17: {"approval_status": "Awaiting human approval", "artworks_ready": 1},
+        17: {
+            "artworks": [artwork],
+            "evaluations": [{
+                "artwork_id": artwork["artwork_id"],
+                "readability": 9,
+                "composition": 9,
+                "quality": 9,
+                "alignment": 9,
+                "decision": "accept",
+                "checks": {
+                    "supported_mime_type": True,
+                    "minimum_dimensions": True,
+                    "square_merchandise_ratio": True,
+                },
+                "issues": [],
+            }],
+            "summary": "Displayed 1 generated artwork candidate for visual review.",
+        },
     }.get(number, {})
 
 
@@ -241,7 +258,7 @@ def get_demo_run() -> RunFixture:
         ("Grok Prompt Compilation", "Apply consistent merchandise prompt constraints."),
         ("Merchandise Artwork Generation", "Generate a small number of artwork candidates."),
         ("Single-Call Artwork Critique", "Check readability, composition, and concept alignment."),
-        ("Human Approval", "Record final approval, rejection, or adjustment decisions."),
+        ("Artwork Results", "Display all generated artwork candidates for visual review."),
     ]
 
     stages: list[StageFixture] = []

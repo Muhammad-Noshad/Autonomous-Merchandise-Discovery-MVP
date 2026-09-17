@@ -8,7 +8,6 @@ from pymongo.errors import PyMongoError
 from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import (
-    PAGE_ARTWORK_REVIEW,
     PAGE_CONCEPTS,
     PAGE_CREATE_RUN,
     PAGE_NICHES,
@@ -17,7 +16,6 @@ from merchandise_discovery.ui.components.layout import (
     render_sidebar,
 )
 from merchandise_discovery.ui.fixtures import get_demo_run
-from merchandise_discovery.ui.pages.artwork_review import render_artwork_review
 from merchandise_discovery.ui.pages.concepts import render_concepts
 from merchandise_discovery.ui.pages.niches import render_niches
 from merchandise_discovery.ui.pages.run_create import render_run_create
@@ -73,8 +71,3 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
         render_niches(runtime.discovery_service if runtime else None)
     elif selected_page == PAGE_CONCEPTS:
         render_concepts(runtime.discovery_service if runtime else None)
-    elif selected_page == PAGE_ARTWORK_REVIEW:
-        render_artwork_review(
-            runtime.discovery_service if runtime else None,
-            runtime.review_service if runtime else None,
-        )

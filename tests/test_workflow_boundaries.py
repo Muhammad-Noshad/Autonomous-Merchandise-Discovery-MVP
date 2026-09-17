@@ -44,6 +44,44 @@ def test_complete_stage_pauses_at_configured_mvp_boundary() -> None:
     )
 
 
+def test_complete_final_stage_counts_skipped_optional_slot() -> None:
+    """The final baseline transition persists 17/17 when optional Stage 11 was skipped."""
+
+    runs = Mock()
+    stages = Mock()
+    orchestrator = WorkflowOrchestrator(runs, stages)
+    run = WorkflowRun(title="Final stage", status=RunStatus.RUNNING, completed_stages=16, version=4)
+    stage_records = [
+        StageExecution(
+            run_id=run.run_id,
+            stage_number=number,
+            stage_name=f"Stage {number}",
+            status=StageStatus.SKIPPED if number == 11 else StageStatus.COMPLETED,
+        )
+        for number in range(1, 18)
+    ]
+    stages.list_for_run.return_value = stage_records
+    completed_run = run.model_copy(
+        update={"status": RunStatus.COMPLETED, "completed_stages": 17, "current_stage_number": None}
+    )
+    runs.update_status.return_value = completed_run
+
+    result = orchestrator.complete_stage_and_run(
+        run,
+        stage_records[-1],
+        stop_after_stage=17,
+    )
+
+    assert result.status == RunStatus.COMPLETED
+    runs.update_status.assert_called_once_with(
+        run.run_id,
+        expected_version=run.version,
+        status=RunStatus.COMPLETED,
+        current_stage_number=None,
+        last_error=None,
+        completed_stages=17,
+        retry_exhausted=False,
+    )
 def test_create_manual_niche_delegates_to_repository_for_existing_run() -> None:
     """Manual niche input receives the selected run ID before it reaches MongoDB."""
 

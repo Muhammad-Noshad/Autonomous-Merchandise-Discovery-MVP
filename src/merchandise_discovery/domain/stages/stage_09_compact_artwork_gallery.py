@@ -1,8 +1,7 @@
-"""Compact Stage 9: expose the generated artwork results without reviewer decisions.
+"""Shared final artwork-results stage for both pipeline variants.
 
-The compact MVP ends with a visual results gallery. It deliberately does not mutate artwork
-decisions or create human-review records; those approval rules remain owned by the baseline
-pipeline until the A/B comparison has produced enough evidence to justify adding them here.
+The MVP ends with a visual results gallery. It deliberately does not mutate artwork decisions or
+create human-review records; visual review is a post-run UI concern rather than a workflow gate.
 """
 
 from pydantic import BaseModel
@@ -12,14 +11,14 @@ from merchandise_discovery.domain.stages.stage_16_artwork_critique import Artwor
 
 
 class ArtworkGalleryInput(BaseModel):
-    """QA-passed artwork and deterministic evaluations received from compact Stage 8."""
+    """Artwork and deterministic evaluations received from the preceding critique stage."""
 
     artworks: list[Artwork]
     evaluations: list[ArtworkEvaluation]
 
 
 class ArtworkGalleryOutput(BaseModel):
-    """Persisted result snapshot consumed by the compact Stage 9 UI gallery."""
+    """Persisted result snapshot consumed by the final UI gallery."""
 
     artworks: list[Artwork]
     evaluations: list[ArtworkEvaluation]
@@ -27,7 +26,7 @@ class ArtworkGalleryOutput(BaseModel):
 
 
 def execute(input_data: ArtworkGalleryInput) -> ArtworkGalleryOutput:
-    """Pass through all QA results so the final compact stage can display every image."""
+    """Pass through all QA results so the final stage can display every image."""
 
     return ArtworkGalleryOutput(
         artworks=input_data.artworks,

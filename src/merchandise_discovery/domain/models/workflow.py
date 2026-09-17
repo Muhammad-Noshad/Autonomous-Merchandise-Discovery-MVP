@@ -61,8 +61,8 @@ class WorkflowRun(BaseModel):
     current_stage_number: int | None = Field(default=None, ge=1, le=17)
     triggered_by: str = "system"
     claimed_by: str | None = None
-    # Stage 17 records follow-up requests durably; a later worker can consume these without relying
-    # on the browser session or guessing from the latest review note.
+    # Retained for compatibility with historical human-review records; automated pipelines no
+    # longer populate these fields or wait for a reviewer.
     pending_action: ApprovalDecision | None = None
     pending_artwork_id: str | None = None
     retry_exhausted: bool = False

@@ -1,8 +1,7 @@
 """Command-line entrypoint for the background workflow worker.
 
-The baseline worker stops cleanly at its human-approval stage, while compact runs finish after the
-display-only artwork results stage. This prevents a pending reviewer decision from being confused
-with an unavailable automated stage.
+Both pipeline variants finish at a display-only artwork results stage. The worker owns execution
+only; visual review can happen after a run is completed and never blocks automated progression.
 """
 
 import argparse
@@ -11,7 +10,7 @@ from uuid import uuid4
 
 from merchandise_discovery.application.runtime import build_runtime
 from merchandise_discovery.application.stage_executor import StageNotImplementedError
-from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
+from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import StageLog
 from merchandise_discovery.shared.configuration import load_settings
 from merchandise_discovery.shared.logging import (
@@ -19,7 +18,6 @@ from merchandise_discovery.shared.logging import (
     stage_error,
     stage_progress,
     stage_started,
-    stage_waiting_for_review,
 )
 
 
@@ -50,18 +48,6 @@ def _process_one(runtime, worker_id: str) -> bool:
     print(f"\nRUN {run.run_id} | CLAIMED", flush=True)
 
     while True:
-        next_execution = runtime.workflow_orchestrator.next_runnable_stage(
-            run.run_id,
-            max_attempts=runtime.max_stage_attempts,
-        )
-        if (
-            next_execution is not None
-            and next_execution.stage_number == run.total_stages
-            and run.config.pipeline_variant == PipelineVariant.BASELINE
-        ):
-            _log_event(runtime, run.run_id, "Automated stages complete; awaiting human approval.", stage=next_execution)
-            stage_waiting_for_review(next_execution)
-            return True
         execution = runtime.workflow_orchestrator.start_next_stage(
             run.run_id,
             max_attempts=runtime.max_stage_attempts,
@@ -137,8 +123,13 @@ def _process_one(runtime, worker_id: str) -> bool:
                 stop_after_stage=runtime.stop_after_stage,
             )
             stage_ended(active_execution, result.output_summary)
-            if run.status == RunStatus.PAUSED:
-                print(f"RUN {run.run_id} | PAUSED at configured MVP boundary", flush=True)
+            if run.status in {RunStatus.PAUSED, RunStatus.COMPLETED}:
+                terminal_label = (
+                    "PAUSED at configured MVP boundary"
+                    if run.status == RunStatus.PAUSED
+                    else "COMPLETED"
+                )
+                print(f"RUN {run.run_id} | {terminal_label}", flush=True)
                 return True
         except (StageNotImplementedError, ValueError) as error:
             runtime.workflow_orchestrator.fail_stage_and_run(
