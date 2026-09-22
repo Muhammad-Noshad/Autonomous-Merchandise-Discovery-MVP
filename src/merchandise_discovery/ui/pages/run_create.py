@@ -22,7 +22,7 @@ def build_run_config(
     concepts: int,
     artwork_variants: int,
     similarity_check: bool = False,
-    pipeline_variant: PipelineVariant = PipelineVariant.BASELINE,
+    pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
     social_sources: list[SocialSource] | None = None,
     social_query: str = "",
     social_candidate_count: int = 5,
@@ -89,13 +89,20 @@ def render_run_create(
 
     # This selector is intentionally outside the form. Streamlit batches all widgets inside a
     # form until submit, but the selected pipeline controls which fields should be visible now.
+    show_legacy_pipelines = st.checkbox(
+        "Show legacy pipelines",
+        value=False,
+        help="Reveal the older Baseline and Compact pipelines for comparison runs.",
+    )
+    pipeline_options = [PipelineVariant.SOCIAL_BEHAVIOR_TEXT]
+    if show_legacy_pipelines:
+        pipeline_options.extend(
+            [PipelineVariant.BASELINE, PipelineVariant.COMPACT_RESEARCH_FIRST]
+        )
     pipeline_variant = st.selectbox(
         "Pipeline",
-        options=[
-            PipelineVariant.BASELINE,
-            PipelineVariant.COMPACT_RESEARCH_FIRST,
-            PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
-        ],
+        options=pipeline_options,
+        index=0,
         format_func=lambda value: {
             PipelineVariant.BASELINE: "Baseline — staged research pipeline",
             PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
