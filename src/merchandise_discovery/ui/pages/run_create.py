@@ -86,7 +86,7 @@ def render_run_create(
         '<div class="opus-breadcrumb">Workspace &nbsp;›&nbsp; New run</div>',
         unsafe_allow_html=True,
     )
-    st.title("Create a discovery run")
+    st.title("Create a discovery run!")
     st.caption("Define a small, observable funnel for the client demo.")
 
     # This selector is intentionally outside the form. Streamlit batches all widgets inside a
