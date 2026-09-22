@@ -117,4 +117,9 @@ def test_social_behavior_prompt_requires_standalone_personal_copy() -> None:
     assert "Preserve the personal relationship" in instructions
     assert "style of a targeted T-shirt" in instructions
     assert "there is no hard length limit" in instructions
+    assert "self-contained mini-story" in instructions
+    assert "who or what situation this is about" in instructions
+    assert "Do not compress the idea into a vague aphorism" in instructions
+    assert "one dominant scene or behavior" in instructions
+    assert "Remove source-detail lists" in instructions
     assert "Avoid generic achievement statements" in instructions
