@@ -106,3 +106,15 @@ def test_social_behavior_pipeline_passes_live_source_scope_to_provider() -> None
     assert result.output_data["candidates"][0]["artwork_text"] == (
         "My sleep schedule is a group project"
     )
+
+
+def test_social_behavior_prompt_requires_standalone_personal_copy() -> None:
+    """The product line must carry enough context without relying on hidden metadata."""
+
+    instructions = pipeline.reasoning_instructions()
+
+    assert "MUST make sense when read alone" in instructions
+    assert "Preserve the personal relationship" in instructions
+    assert "style of a targeted T-shirt" in instructions
+    assert "there is no hard length limit" in instructions
+    assert "Avoid generic achievement statements" in instructions

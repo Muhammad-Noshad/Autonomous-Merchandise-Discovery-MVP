@@ -31,7 +31,9 @@ class SocialBehaviorTextCandidate(BaseModel):
     audience_context: str = Field(min_length=1, max_length=500)
     behavior: str = Field(min_length=1, max_length=500)
     friction_or_pressure: str = Field(min_length=1, max_length=500)
-    artwork_text: str = Field(min_length=1, max_length=180)
+    # Targeted-shirt copy may need a full sentence or two to explain the private joke. The prompt
+    # controls usefulness and readability; an arbitrary slogan-length ceiling would remove context.
+    artwork_text: str = Field(min_length=8)
     specificity_reason: str = Field(min_length=1, max_length=700)
 
     @field_validator("source_url")
@@ -54,20 +56,32 @@ class SocialBehaviorTextOutput(BaseModel):
 
 
 def reasoning_instructions() -> str:
-    """Return the provider contract for concrete behavior and audience-recognizable copy."""
+    """Return the provider contract for standalone, concrete, audience-recognizable copy."""
 
     return (
         "You are a merchandise discovery researcher and text-first copywriter. Use the supplied "
         "web search tool to inspect public discussions from the requested Reddit and/or X domains. "
         "Extract concrete repeated behavior, not broad labels or demographic stereotypes. Look for "
         "the small lived action, routine, contradiction, friction, or ordinary pressure that an "
-        "insider would recognize. Then write one short original merchandise line for each behavior. "
-        "The line should make the target person think 'that is literally me'. Prefer irony or a "
-        "recognizable absurd collision where supported by the source. Keep the line understandable "
-        "to a broader audience without removing the niche detail. This is text-first merchandise: "
-        "do not describe an illustration, do not generate a visual prompt, and do not force every "
-        "line into an 'I ...' template. Preserve source URLs and provide a source-specific excerpt. "
-        "Return only the requested structured output."
+        "insider would recognize. Then write one original merchandise line for each behavior. "
+        "The merchandise line is the primary product output and MUST make sense when read alone, "
+        "without the observed behavior, friction, or specificity fields. It should make the target "
+        "person think 'that is literally me'. Write in the style of a targeted T-shirt: personal, "
+        "blunt, matter-of-fact, context-rich, slightly provocative, and understandable to an "
+        "outsider. The line should sound like a specific person or relationship making a claim, "
+        "confession, complaint, or dry observation—not like an advertising slogan, product title, "
+        "mission statement, or category label. Preserve the personal relationship, concrete scene, "
+        "ordinary detail, exact object or action, and emotional contradiction that make the behavior "
+        "recognizable. If a pronoun such as 'she', 'he', or 'they' would be unclear without metadata, "
+        "name the person or relationship in the line. Use as many words as needed to tell the premise "
+        "clearly; there is no hard length limit. A second clause, setup, or sentence is encouraged "
+        "when it makes the private joke legible. Prefer irony or a recognizable absurd collision where "
+        "supported by the source. Avoid generic achievement statements, broad labels, abstract praise, "
+        "and lines that only say someone is proud, calm, busy, or untraditional. Keep the niche detail "
+        "in the actual merchandise line, not only in the metadata. This is text-first merchandise: do "
+        "not describe an illustration, do not generate a visual prompt, and do not force every line "
+        "into an 'I ...' template. Preserve source URLs and provide a source-specific excerpt. Return "
+        "only the requested structured output."
     )
 
 
@@ -80,7 +94,12 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
         f"Behavior/topic to investigate: {input_model.query}\n"
         f"Return up to {input_model.candidate_count} distinct behavior-based merchandise text "
         "candidates. Avoid repeating the same audience pressure or behavior in different wording. "
-        "Each candidate must cite one directly relevant source URL from the searched platforms."
+        "Before returning each line, check that a reader can understand who, what, and why it is "
+        "funny or emotionally recognizable without reading any other field. Write like targeted "
+        "T-shirt copy: use the real relationship, scene, behavior, or object instead of compressing "
+        "it into a generic slogan, and use as many words as needed to make the premise clear. Each "
+        "candidate must cite one directly relevant source URL "
+        "from the searched platforms."
     )
 
 
