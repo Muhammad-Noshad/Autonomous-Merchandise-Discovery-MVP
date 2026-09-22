@@ -10,7 +10,7 @@ polling. Chunk 10 adds opt-in live provider calls, usage accounting, and AI-assi
 expansion plus Stage 3 intersection generation. The default runtime remains fixture-backed unless
 `MVP_PROVIDER_MODE=live` and the required API key are configured.
 
-The Create Run page also includes a separate `Social behavior — text-only merchandise copy`
+The Create Run page also includes a separate `Social behavior — copy + Grok artwork`
 pipeline. It is intentionally one stage: in live mode, one OpenAI structured request uses web search
 restricted to the selected Reddit and/or X domains, extracts concrete behavior, and returns
 source-backed merchandise text. It does not use the seed library, identity funnel, artwork
@@ -96,7 +96,9 @@ The current client demo defaults to `MVP_STOP_AFTER_STAGE=1`. Stage 1 is execute
 persisted as `paused` so later stages do not run until the client approves expanding the funnel.
 When a run is created from Streamlit, a process-local background runner advances it independently
 of the visible page; the Run Detail view reads and polls the durable MongoDB state. The stop
-boundary is shared by Streamlit and the worker.
+boundary is shared by Streamlit and the worker. The Social Behavior pipeline has two stages; set
+`MVP_STOP_AFTER_STAGE=2` when you want Stage 1's Grok artwork prompt to be executed by its artwork
+generation stage as part of the same run.
 
 Copy `.env.example` to `.env` when local credentials are needed. Real credentials belong in environment variables or a local Streamlit secrets file; they must not be committed.
 

@@ -12,6 +12,7 @@ from merchandise_discovery.application.stage_executor import StageNotImplemented
 from merchandise_discovery.domain.models.common import PipelineVariant, StageStatus
 from merchandise_discovery.domain.models.usage import UsageMetrics, combine_usage
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
+from merchandise_discovery.domain.pipelines.social_behavior_text import artwork as social_artwork
 from merchandise_discovery.domain.pipelines.social_behavior_text import pipeline as social_behavior
 from merchandise_discovery.domain.stages import stage_01_seed_discovery as stage_01
 from merchandise_discovery.domain.stages import stage_02_identity_expansion as stage_02
@@ -182,15 +183,27 @@ class DiscoveryStageExecutor:
         """Build a serializable input payload from run configuration and prior stage output."""
 
         if run.config.pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
-            if stage.stage_number != 1:
+            if stage.stage_number == 1:
+                return social_behavior.SocialBehaviorTextInput(
+                    sources=run.config.social_sources,
+                    query=run.config.social_query,
+                    candidate_count=run.config.social_candidate_count,
+                ).model_dump(mode="python")
+            if stage.stage_number == 2:
+                previous = self._stage_repository.get_latest(run.run_id, 1)
+                if previous is None or not previous.output_data:
+                    raise ValueError("Social Stage 2 is missing Stage 1 behavior output.")
+                prior = social_behavior.SocialBehaviorTextOutput.model_validate(
+                    previous.output_data
+                )
+                return social_artwork.SocialArtworkInput(
+                    candidates=prior.candidates,
+                    artwork_variants_per_candidate=1,
+                ).model_dump(mode="python")
+            else:
                 raise StageNotImplementedError(
                     f"Social behavior pipeline does not define Stage {stage.stage_number}."
                 )
-            return social_behavior.SocialBehaviorTextInput(
-                sources=run.config.social_sources,
-                query=run.config.social_query,
-                candidate_count=run.config.social_candidate_count,
-            ).model_dump(mode="python")
 
         if stage.stage_number == 1:
             return stage_01.SeedDiscoveryInput(
@@ -401,34 +414,55 @@ class DiscoveryStageExecutor:
 
         usage = UsageMetrics()
         if run.config.pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
-            input_model = social_behavior.SocialBehaviorTextInput.model_validate(input_data)
-            reasoning_output = None
-            if self._reasoning_provider is not None:
-                response = self._reasoning_provider.complete_structured(
-                    system_prompt=social_behavior.reasoning_instructions(),
-                    user_prompt=social_behavior.build_user_prompt(input_model),
-                    response_model=social_behavior.SocialBehaviorTextOutput,
-                    web_search_domains=tuple(
-                        "reddit.com" if source.value == "reddit" else "x.com"
-                        for source in input_model.sources
-                    ),
+            if stage.stage_number == 1:
+                input_model = social_behavior.SocialBehaviorTextInput.model_validate(input_data)
+                reasoning_output = None
+                if self._reasoning_provider is not None:
+                    response = self._reasoning_provider.complete_structured(
+                        system_prompt=social_behavior.reasoning_instructions(),
+                        user_prompt=social_behavior.build_user_prompt(input_model),
+                        response_model=social_behavior.SocialBehaviorTextOutput,
+                        web_search_domains=tuple(
+                            "reddit.com" if source.value == "reddit" else "x.com"
+                            for source in input_model.sources
+                        ),
+                    )
+                    reasoning_output = response.output
+                    usage = response.usage
+                output = social_behavior.execute(
+                    input_model,
+                    reasoning_output=reasoning_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
                 )
-                reasoning_output = response.output
-                usage = response.usage
-            output = social_behavior.execute(
-                input_model,
-                reasoning_output=reasoning_output,
-                model=usage.model if usage.provider != "fixture" else "deterministic",
-            )
-            summary = (
-                f"Generated {len(output.candidates)} behavior-based merchandise text candidates "
-                f"using {output.model}."
-            )
-            return StageResult(
-                input_data=input_data,
-                output_data=output.model_dump(mode="python"),
-                output_summary=summary,
-                usage=usage,
+                summary = (
+                    f"Generated {len(output.candidates)} behavior-based merchandise text candidates "
+                    f"and artwork prompts using {output.model}."
+                )
+                return StageResult(
+                    input_data=input_data,
+                    output_data=output.model_dump(mode="python"),
+                    output_summary=summary,
+                    usage=usage,
+                )
+            if stage.stage_number == 2:
+                social_input = social_artwork.SocialArtworkInput.model_validate(input_data)
+                output = social_artwork.execute(
+                    social_input,
+                    run_id=run.run_id,
+                    provider=self._image_provider,
+                    storage=self._artwork_storage,
+                )
+                usage = output.usage
+                self._artworks.replace_for_run(run.run_id, output.artworks)
+                summary = f"Generated {len(output.artworks)} targeted merchandise artwork candidates with Grok."
+                return StageResult(
+                    input_data=social_input.model_dump(mode="python"),
+                    output_data=output.model_dump(mode="python"),
+                    output_summary=summary,
+                    usage=usage,
+                )
+            raise StageNotImplementedError(
+                f"Social behavior pipeline does not define Stage {stage.stage_number}."
             )
         if stage.stage_number == 1:
             input_model = stage_01.SeedDiscoveryInput.model_validate(input_data)

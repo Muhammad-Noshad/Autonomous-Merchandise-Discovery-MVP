@@ -87,25 +87,37 @@ def render_run_create(
     st.title("Create a discovery run")
     st.caption("Define a small, observable funnel for the client demo.")
 
+    # This selector is intentionally outside the form. Streamlit batches all widgets inside a
+    # form until submit, but the selected pipeline controls which fields should be visible now.
+    pipeline_variant = st.selectbox(
+        "Pipeline",
+        options=[
+            PipelineVariant.BASELINE,
+            PipelineVariant.COMPACT_RESEARCH_FIRST,
+            PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+        ],
+        format_func=lambda value: {
+            PipelineVariant.BASELINE: "Baseline — staged research pipeline",
+            PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
+            PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — copy + Grok artwork",
+        }[value],
+        help="Choose a full discovery pipeline or the two-stage social behavior experiment.",
+    )
+    if (
+        pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT
+        and runtime is not None
+        and runtime.stop_after_stage < 2
+    ):
+        st.warning(
+            "This environment is configured to stop after Stage 1. Set "
+            "MVP_STOP_AFTER_STAGE=2 to also generate the Grok artwork."
+        )
+
     with st.form("create-discovery-run"):
         title = st.text_input(
             "Run name",
             value="New merchandise discovery run",
             help="A human-readable name used in run history and review screens.",
-        )
-        pipeline_variant = st.selectbox(
-            "Pipeline",
-            options=[
-                PipelineVariant.BASELINE,
-                PipelineVariant.COMPACT_RESEARCH_FIRST,
-                PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
-            ],
-            format_func=lambda value: {
-                PipelineVariant.BASELINE: "Baseline — staged research pipeline",
-                PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
-                PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — text-only merchandise copy",
-            }[value],
-            help="Choose a full discovery pipeline or the one-stage social behavior experiment.",
         )
 
         # The social experiment does not consume seed libraries, intersections, niches, or image

@@ -70,6 +70,8 @@ def _render_social_behavior_text(payload: dict[str, Any]) -> None:
 
     for index, candidate in enumerate(candidates, start=1):
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
+        with st.expander("Grok artwork prompt", expanded=False):
+            st.code(_text(candidate, "artwork_prompt"), language="text")
         st.markdown("**Observed behavior**")
         st.write(_text(candidate, "behavior"))
         st.markdown("**Friction or pressure**")

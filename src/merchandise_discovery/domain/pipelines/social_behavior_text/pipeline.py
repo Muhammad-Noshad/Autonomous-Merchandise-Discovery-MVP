@@ -34,6 +34,9 @@ class SocialBehaviorTextCandidate(BaseModel):
     # Targeted-shirt copy may need a full sentence or two to explain the private joke. The prompt
     # controls usefulness and readability; an arbitrary slogan-length ceiling would remove context.
     artwork_text: str = Field(min_length=8)
+    # Stage 2 consumes this exact prompt. Keeping it beside the copy makes the first stage the
+    # durable source of truth for the visual direction instead of re-deriving it downstream.
+    artwork_prompt: str = Field(min_length=20, max_length=4_000)
     specificity_reason: str = Field(min_length=1, max_length=700)
 
     @field_validator("source_url")
@@ -89,9 +92,15 @@ def reasoning_instructions() -> str:
         "The line should feel specific without reading like a case summary or study plan. Avoid "
         "generic achievement statements, broad labels, abstract praise, and lines that only say "
         "someone is proud, calm, busy, or untraditional. Keep the niche detail in the actual "
-        "merchandise line, not only in the metadata. This is text-first merchandise: do not describe "
-        "an illustration, do not generate a visual prompt, and do not force every line into an 'I ...' "
-        "template. Preserve source URLs and provide a source-specific excerpt. Return only the "
+        "merchandise line, not only in the metadata. This is text-first merchandise: do not let the "
+        "visual prompt rewrite the copy, and do not force every line into an 'I ...' "
+        "template. Alongside the merchandise line, write an `artwork_prompt` for Grok. The prompt "
+        "must render the exact merchandise line prominently and legibly, preserve its audience, "
+        "behavior, setting, and emotional contradiction, and use only visual details that make "
+        "the specific joke recognizable. Keep the design text-first and print-ready; do not add "
+        "extra words, logos, brands, or generic category imagery. The artwork prompt is not a "
+        "replacement for the merchandise line: it is the visual execution brief for that exact "
+        "line. Preserve source URLs and provide a source-specific excerpt. Return only the "
         "requested structured output."
     )
 
@@ -109,7 +118,9 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
         "funny or emotionally recognizable without reading any other field. Write like targeted "
         "T-shirt copy: use the real relationship, scene, behavior, or object instead of compressing "
         "it into a generic slogan. Verify that the line contains the situation, action, and consequence "
-        "in a readable way; use as many words as needed to make the premise clear. Each "
+        "in a readable way; use as many words as needed to make the premise clear. For every "
+        "candidate also provide an artwork_prompt that tells Grok how to render the exact line "
+        "for this audience without diluting the behavior into generic imagery. Each "
         "candidate must cite one directly relevant source URL "
         "from the searched platforms."
     )
@@ -167,6 +178,12 @@ def execute(
             behavior=f"People repeatedly describe the routine of {input_model.query}.",
             friction_or_pressure="The routine collides with the ordinary pressure of keeping daily life moving.",
             artwork_text=f"Still doing {input_model.query}",
+            artwork_prompt=(
+                f'Create a text-first merchandise design for the exact line "Still doing '
+                f'{input_model.query}". Use a simple, specific visual metaphor for the routine '
+                "and its everyday pressure; keep the design legible, print-ready, and free of "
+                "logos or extra text."
+            ),
             specificity_reason="Fixture output only; replace with live source-backed behavior in live mode.",
         )
         for index in range(1, input_model.candidate_count + 1)

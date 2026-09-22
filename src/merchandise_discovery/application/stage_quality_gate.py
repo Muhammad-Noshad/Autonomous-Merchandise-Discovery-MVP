@@ -52,6 +52,7 @@ _COMPACT_OUTPUTS: dict[int, tuple[str, ...]] = {
 
 _SOCIAL_BEHAVIOR_OUTPUTS: dict[int, tuple[str, ...]] = {
     1: ("candidates",),
+    2: ("artworks",),
 }
 
 

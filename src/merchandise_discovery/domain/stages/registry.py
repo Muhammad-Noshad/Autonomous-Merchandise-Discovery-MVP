@@ -48,7 +48,12 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
             StageDefinition(
                 1,
                 "Social Behavior to Merchandise Text",
-                "Search public social discussions, extract concrete behavior, and generate text-first merchandise copy.",
+                "Search public social discussions, extract concrete behavior, and generate merchandise copy plus its Grok artwork prompt.",
+            ),
+            StageDefinition(
+                2,
+                "Social Merchandise Artwork Generation",
+                "Use each Stage 1 artwork prompt to generate one targeted merchandise image with Grok.",
             ),
         )
     return (

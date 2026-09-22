@@ -1,1 +1,1 @@
-"""One-stage social behavior to text-first merchandise pipeline."""
+"""Social behavior pipeline contracts and its text-to-artwork handoff."""
