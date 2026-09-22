@@ -50,6 +50,7 @@ class RunConfig(BaseModel):
     # config preserves one durable aggregate while the selected pipeline decides which fields apply.
     social_sources: list[SocialSource] = Field(default_factory=lambda: [SocialSource.REDDIT], min_length=1)
     social_query: str = Field(default="", max_length=500)
+    social_auto_topic: bool = False
     social_candidate_count: int = Field(default=5, ge=1, le=25)
 
 

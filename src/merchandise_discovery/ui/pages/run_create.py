@@ -25,6 +25,7 @@ def build_run_config(
     pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
     social_sources: list[SocialSource] | None = None,
     social_query: str = "",
+    social_auto_topic: bool = False,
     social_candidate_count: int = 5,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
@@ -39,6 +40,7 @@ def build_run_config(
         enable_similarity_ip_check=similarity_check,
         social_sources=social_sources or [SocialSource.REDDIT],
         social_query=social_query.strip(),
+        social_auto_topic=social_auto_topic,
         social_candidate_count=social_candidate_count,
     )
 
@@ -119,6 +121,13 @@ def render_run_create(
             "This environment is configured to stop after Stage 1. Set "
             "MVP_STOP_AFTER_STAGE=2 to also generate the Grok artwork."
         )
+    auto_topic = False
+    if pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+        auto_topic = st.checkbox(
+            "Let AI choose the behavior or topic",
+            value=False,
+            help="OpenAI will choose a narrow, source-backed behavior before searching in Stage 1.",
+        )
 
     with st.form("create-discovery-run"):
         title = st.text_input(
@@ -156,6 +165,7 @@ def render_run_create(
                     "For example: people trying to optimize sleep after doom-scrolling until 2 AM"
                 ),
                 help="Describe the behavior or tension. Avoid entering a broad product category.",
+                disabled=auto_topic,
             )
             social_candidate_count = st.slider(
                 "Text candidates",
@@ -186,7 +196,7 @@ def render_run_create(
         if not social_sources:
             st.error("Select at least one public source.")
             return
-        if not social_query.strip():
+        if not auto_topic and not social_query.strip():
             st.error("Describe the behavior or topic to explore.")
             return
 
@@ -202,6 +212,7 @@ def render_run_create(
                 pipeline_variant=pipeline_variant,
                 social_sources=social_sources,
                 social_query=social_query,
+                social_auto_topic=auto_topic,
                 social_candidate_count=social_candidate_count,
             ),
             triggered_by="manual",

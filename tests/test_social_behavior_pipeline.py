@@ -61,6 +61,24 @@ def test_social_behavior_pipeline_fixture_returns_text_candidates() -> None:
     assert result.output_data["candidates"][0]["artwork_prompt"]
 
 
+def test_social_behavior_pipeline_can_delegate_topic_selection_to_ai() -> None:
+    """Auto-topic mode accepts no manual query and explicitly instructs the provider to choose."""
+
+    input_model = pipeline.SocialBehaviorTextInput(
+        sources=[SocialSource.REDDIT],
+        auto_topic=True,
+        candidate_count=1,
+    )
+
+    prompt = pipeline.build_user_prompt(input_model)
+    fixture_output = pipeline.execute(input_model)
+
+    assert "Choose the behavior or topic yourself" in prompt
+    assert "topic_explored" in prompt
+    assert fixture_output.topic_explored
+    assert fixture_output.candidates[0].artwork_text != "Still doing "
+
+
 def test_social_stage_two_uses_stage_one_prompt_and_shared_image_contract() -> None:
     """Stage 2 consumes the persisted prompt and stores provider-neutral artwork metadata."""
 

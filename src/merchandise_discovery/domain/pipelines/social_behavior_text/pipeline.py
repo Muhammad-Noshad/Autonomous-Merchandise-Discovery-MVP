@@ -8,7 +8,7 @@ layer owns provider injection and persistence.
 
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from merchandise_discovery.domain.models.common import SocialSource
 
@@ -17,8 +17,17 @@ class SocialBehaviorTextInput(BaseModel):
     """User-defined social search scope and output bound for one run."""
 
     sources: list[SocialSource] = Field(min_length=1)
-    query: str = Field(min_length=3, max_length=500)
+    query: str = Field(default="", max_length=500)
+    auto_topic: bool = False
     candidate_count: int = Field(ge=1, le=25)
+
+    @model_validator(mode="after")
+    def validate_topic_source(self) -> "SocialBehaviorTextInput":
+        """Require a manual topic only when the user has not delegated topic selection to AI."""
+
+        if not self.auto_topic and len(self.query.strip()) < 3:
+            raise ValueError("query must contain at least 3 characters unless auto_topic is enabled")
+        return self
 
 
 class SocialBehaviorTextCandidate(BaseModel):
@@ -55,6 +64,7 @@ class SocialBehaviorTextOutput(BaseModel):
 
     candidates: list[SocialBehaviorTextCandidate] = Field(min_length=1, max_length=25)
     search_summary: str = Field(min_length=1, max_length=2_000)
+    topic_explored: str = Field(default="", max_length=500)
     model: str = "deterministic"
 
 
@@ -109,9 +119,17 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
     """Build the single-call request from user scope and source-domain instructions."""
 
     platforms = ", ".join(source.value for source in input_model.sources)
+    topic_instruction = (
+        "Choose the behavior or topic yourself before searching. Select a narrow, hopeful, "
+        "distinct everyday behavior with a recognizable audience tension; do not choose a broad "
+        "demographic, product category, or generic trend. Return the chosen topic in "
+        "`topic_explored`."
+        if input_model.auto_topic
+        else f"Behavior/topic to investigate: {input_model.query}"
+    )
     return (
         f"Search these public platforms: {platforms}.\n"
-        f"Behavior/topic to investigate: {input_model.query}\n"
+        f"{topic_instruction}\n"
         f"Return up to {input_model.candidate_count} distinct behavior-based merchandise text "
         "candidates. Avoid repeating the same audience pressure or behavior in different wording. "
         "Before returning each line, check that a reader can understand who, what, and why it is "
@@ -121,8 +139,8 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
         "in a readable way; use as many words as needed to make the premise clear. For every "
         "candidate also provide an artwork_prompt that tells Grok how to render the exact line "
         "for this audience without diluting the behavior into generic imagery. Each "
-        "candidate must cite one directly relevant source URL "
-        "from the searched platforms."
+        "candidate must cite one directly relevant source URL. Also return the final behavior or "
+        "topic you actually explored in `topic_explored` from the searched platforms."
     )
 
 
@@ -163,24 +181,32 @@ def execute(
                     f"Social behavior provider cited {candidate.source_url!r} for "
                     f"{candidate.source_platform.value}; expected the selected platform domain."
                 )
-        return reasoning_output.model_copy(update={"model": model})
+        return reasoning_output.model_copy(
+            update={
+                "model": model,
+                "topic_explored": reasoning_output.topic_explored or input_model.query,
+            }
+        )
 
     source = input_model.sources[0]
+    effective_query = input_model.query.strip() or (
+        "people turning small daily frustrations into personal routines"
+    )
     candidates = [
         SocialBehaviorTextCandidate(
             source_platform=source,
             source_url=f"https://fixture.local/{source.value}/behavior/{index}",
             source_title=f"Fixture {source.value} behavior {index}",
             source_excerpt=(
-                f"Fixture discussion about the behavior described by: {input_model.query}."
+                f"Fixture discussion about the behavior described by: {effective_query}."
             ),
-            audience_context=input_model.query,
-            behavior=f"People repeatedly describe the routine of {input_model.query}.",
+            audience_context=effective_query,
+            behavior=f"People repeatedly describe the routine of {effective_query}.",
             friction_or_pressure="The routine collides with the ordinary pressure of keeping daily life moving.",
-            artwork_text=f"Still doing {input_model.query}",
+            artwork_text=f"Still doing {effective_query}",
             artwork_prompt=(
                 f'Create a text-first merchandise design for the exact line "Still doing '
-                f'{input_model.query}". Use a simple, specific visual metaphor for the routine '
+                f'{effective_query}". Use a simple, specific visual metaphor for the routine '
                 "and its everyday pressure; keep the design legible, print-ready, and free of "
                 "logos or extra text."
             ),
@@ -191,5 +217,6 @@ def execute(
     return SocialBehaviorTextOutput(
         candidates=candidates,
         search_summary="Deterministic fixture output; no social platform was queried.",
+        topic_explored=effective_query,
         model=model,
     )

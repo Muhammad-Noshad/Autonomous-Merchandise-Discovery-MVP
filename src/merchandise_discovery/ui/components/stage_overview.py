@@ -67,13 +67,16 @@ def _render_social_behavior_text(
     request = input_payload or {}
     sources = request.get("sources", [])
     source_names = ", ".join(str(source).title() for source in sources) if sources else "Not recorded"
-    query = str(request.get("query") or "Not recorded")
+    query = str(request.get("query") or payload.get("topic_explored") or "Not recorded")
     _section("Run input")
     _metric_row([
         ("Sources", source_names),
         ("Requested candidates", str(request.get("candidate_count", "Not recorded"))),
     ])
-    st.write(f"**Behavior or topic explored:** {query}")
+    if request.get("auto_topic"):
+        st.write(f"**Behavior or topic selected by AI:** {query}")
+    else:
+        st.write(f"**Behavior or topic explored:** {query}")
     _metric_row([
         ("Text candidates", str(len(candidates))),
         ("Search summary", "Available" if payload.get("search_summary") else "Not available"),

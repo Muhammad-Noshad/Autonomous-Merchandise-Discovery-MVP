@@ -187,6 +187,7 @@ class DiscoveryStageExecutor:
                 return social_behavior.SocialBehaviorTextInput(
                     sources=run.config.social_sources,
                     query=run.config.social_query,
+                    auto_topic=run.config.social_auto_topic,
                     candidate_count=run.config.social_candidate_count,
                 ).model_dump(mode="python")
             if stage.stage_number == 2:
