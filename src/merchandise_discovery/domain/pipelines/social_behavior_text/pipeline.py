@@ -46,6 +46,12 @@ class SocialBehaviorTextCandidate(BaseModel):
     # Stage 2 consumes this exact prompt. Keeping it beside the copy makes the first stage the
     # durable source of truth for the visual direction instead of re-deriving it downstream.
     artwork_prompt: str = Field(min_length=20, max_length=4_000)
+    visual_punchline: str = Field(min_length=1, max_length=500)
+    main_visual_metaphor: str = Field(min_length=1, max_length=500)
+    audience_specific_cue: str = Field(min_length=1, max_length=500)
+    tone: str = Field(min_length=1, max_length=200)
+    style_direction: str = Field(min_length=1, max_length=500)
+    things_to_avoid: list[str] = Field(min_length=1, max_length=10)
     specificity_reason: str = Field(min_length=1, max_length=700)
 
     @field_validator("source_url")
@@ -72,7 +78,8 @@ def reasoning_instructions() -> str:
     """Return the provider contract for standalone, concrete, audience-recognizable copy."""
 
     return (
-        "You are a merchandise discovery researcher and text-first copywriter. Use the supplied "
+        "You are a merchandise discovery researcher and targeted novelty-T-shirt creative director. "
+        "Use the supplied "
         "web search tool to inspect public discussions from the requested Reddit and/or X domains. "
         "Extract concrete repeated behavior, not broad labels or demographic stereotypes. Look for "
         "the small lived action, routine, contradiction, friction, or ordinary pressure that an "
@@ -107,8 +114,10 @@ def reasoning_instructions() -> str:
         "template. Alongside the merchandise line, write an `artwork_prompt` for Grok. The prompt "
         "must render the exact merchandise line prominently and legibly, preserve its audience, "
         "behavior, setting, and emotional contradiction, and use only visual details that make "
-        "the specific joke recognizable. Keep the design text-first and print-ready; do not add "
-        "extra words, logos, brands, or generic category imagery. The artwork prompt is not a "
+        "the specific joke recognizable. Keep the design text-first and print-ready; use a bold, "
+        "high-contrast, limited-palette novelty-T-shirt graphic rather than a soft lifestyle "
+        "illustration. Do not add extra words, logos, brands, or generic category imagery. The "
+        "artwork prompt is not a "
         "replacement for the merchandise line: it is the visual execution brief for that exact "
         "line. Preserve source URLs and provide a source-specific excerpt. Return only the "
         "requested structured output."
@@ -120,9 +129,10 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
 
     platforms = ", ".join(source.value for source in input_model.sources)
     topic_instruction = (
-        "Choose the behavior or topic yourself before searching. Select a narrow, hopeful, "
-        "distinct everyday behavior with a recognizable audience tension; do not choose a broad "
-        "demographic, product category, or generic trend. Return the chosen topic in "
+        "Choose the behavior or topic yourself before searching. Select a narrow, distinct everyday "
+        "behavior with a recognizable tension, contradiction, absurdity, or private joke. Avoid "
+        "broad demographics, product categories, generic trends, and soft self-care routines with "
+        "no sharp angle. Return the chosen topic in "
         "`topic_explored`."
         if input_model.auto_topic
         else f"Behavior/topic to investigate: {input_model.query}"
@@ -138,7 +148,12 @@ def build_user_prompt(input_model: SocialBehaviorTextInput) -> str:
         "it into a generic slogan. Verify that the line contains the situation, action, and consequence "
         "in a readable way; use as many words as needed to make the premise clear. For every "
         "candidate also provide an artwork_prompt that tells Grok how to render the exact line "
-        "for this audience without diluting the behavior into generic imagery. Each "
+        "for this audience without diluting the behavior into generic imagery. Also provide "
+        "visual_punchline, main_visual_metaphor, audience_specific_cue, tone, style_direction, "
+        "and a things_to_avoid list. The visual punchline must exaggerate the insider behavior "
+        "rather than literally illustrate a bedroom, clock, meal, couch, or other generic prop. "
+        "The style direction must describe a bold targeted novelty-T-shirt graphic: high contrast, "
+        "limited palette, strong typography, expressive illustration, and a clear visual joke. Each "
         "candidate must cite one directly relevant source URL. Also return the final behavior or "
         "topic you actually explored in `topic_explored` from the searched platforms."
     )
@@ -210,6 +225,24 @@ def execute(
                 "and its everyday pressure; keep the design legible, print-ready, and free of "
                 "logos or extra text."
             ),
+            visual_punchline=(
+                "The ordinary routine is treated as an overdramatic personal rule that protects "
+                "the wearer from daily chaos."
+            ),
+            main_visual_metaphor=(
+                "A small everyday object becomes an exaggerated guardian of the routine."
+            ),
+            audience_specific_cue=effective_query,
+            tone="dry, self-aware, and mildly absurd",
+            style_direction=(
+                "Bold two-color screen-print graphic with thick expressive outlines and strong "
+                "headline typography."
+            ),
+            things_to_avoid=[
+                "soft lifestyle photography",
+                "generic decorative props",
+                "extra text",
+            ],
             specificity_reason="Fixture output only; replace with live source-backed behavior in live mode.",
         )
         for index in range(1, input_model.candidate_count + 1)

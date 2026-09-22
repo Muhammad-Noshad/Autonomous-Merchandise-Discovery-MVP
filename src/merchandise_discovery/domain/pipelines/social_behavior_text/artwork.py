@@ -46,11 +46,7 @@ def to_artwork_generation_input(
 
     prompts: list[PromptCompilation] = []
     for index, candidate in enumerate(input_model.candidates, start=1):
-        prompt = candidate.artwork_prompt.strip()
-        # Provider output is expected to include the exact copy, but this guard prevents a malformed
-        # prompt from producing an image that silently omits the merchandise text.
-        if candidate.artwork_text not in prompt:
-            prompt = f'{prompt}\nExact merchandise text to render: "{candidate.artwork_text}".'
+        prompt = build_targeted_artwork_prompt(candidate)
         prompts.append(
             PromptCompilation(
                 run_id=run_id,
@@ -63,6 +59,36 @@ def to_artwork_generation_input(
     return ArtworkGenerationInput(
         prompts=prompts,
         artwork_variants_per_concept=input_model.artwork_variants_per_candidate,
+    )
+
+
+def build_targeted_artwork_prompt(candidate: SocialBehaviorTextCandidate) -> str:
+    """Compile AI creative direction into a strict, audience-specific Grok image prompt.
+
+    The model supplies the joke and audience insight, while this deterministic wrapper prevents
+    Grok from defaulting to soft lifestyle scenes or literal prop collages.
+    """
+
+    avoid = "; ".join(candidate.things_to_avoid)
+    return (
+        "Create a targeted novelty T-shirt graphic, not a product mockup, advertisement, or "
+        "lifestyle illustration. Use the exact merchandise text below as the primary headline and "
+        "render it prominently, legibly, and exactly once. Use one dominant visual joke tied to "
+        "the audience's specific behavior. Use bold expressive illustration, high contrast, a "
+        "limited color palette, strong typographic hierarchy, and a print-ready composition. Do "
+        "not use soft gradients, cozy stock-photo lighting, generic bedroom/clock/meal/couch "
+        "imagery, an infographic timeline, decorative filler, logos, brands, or extra text unless "
+        "the creative direction explicitly transforms that object into the joke.\n\n"
+        f'Exact merchandise text: "{candidate.artwork_text}"\n'
+        f"Audience: {candidate.audience_context}\n"
+        f"Audience-specific visual cue: {candidate.audience_specific_cue}\n"
+        f"Visual punchline: {candidate.visual_punchline}\n"
+        f"Main visual metaphor: {candidate.main_visual_metaphor}\n"
+        f"Tone: {candidate.tone}\n"
+        f"Style direction: {candidate.style_direction}\n"
+        f"AI visual direction: {candidate.artwork_prompt}\n"
+        f"Do not include: {avoid}\n"
+        "The final image should make the target audience think: 'That is literally me.'"
     )
 
 

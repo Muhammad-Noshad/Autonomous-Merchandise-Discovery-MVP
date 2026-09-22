@@ -88,6 +88,15 @@ def _render_social_behavior_text(
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
         with st.expander("Grok artwork prompt", expanded=False):
             st.code(_text(candidate, "artwork_prompt"), language="text")
+        with st.expander("Visual direction", expanded=False):
+            st.write(f"**Visual punchline:** {_text(candidate, 'visual_punchline')}")
+            st.write(f"**Main visual metaphor:** {_text(candidate, 'main_visual_metaphor')}")
+            st.write(f"**Audience-specific cue:** {_text(candidate, 'audience_specific_cue')}")
+            st.write(f"**Tone:** {_text(candidate, 'tone')}")
+            st.write(f"**Style:** {_text(candidate, 'style_direction')}")
+            avoid = candidate.get("things_to_avoid", [])
+            if avoid:
+                st.caption("Avoid: " + " · ".join(str(item) for item in avoid))
         st.markdown("**Observed behavior**")
         st.write(_text(candidate, "behavior"))
         st.markdown("**Friction or pressure**")

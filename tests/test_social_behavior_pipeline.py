@@ -117,7 +117,10 @@ def test_social_stage_two_uses_stage_one_prompt_and_shared_image_contract() -> N
     result = executor.execute(run, stage_two, input_data)
 
     assert len(result.output_data["artworks"]) == 1
-    assert result.output_data["artworks"][0]["prompt"] == input_data["candidates"][0]["artwork_prompt"]
+    generated_prompt = result.output_data["artworks"][0]["prompt"]
+    assert input_data["candidates"][0]["artwork_prompt"] in generated_prompt
+    assert "targeted novelty T-shirt graphic" in generated_prompt
+    assert "soft lifestyle photography" in generated_prompt
     assert result.output_data["artworks"][0]["source_url"].startswith("https://fixture.local/")
 
 
@@ -151,6 +154,12 @@ def test_social_behavior_pipeline_passes_live_source_scope_to_provider() -> None
             'Text-first shirt design. Render the exact line "My sleep schedule is a group project" '
             "with a specific night-shift visual metaphor."
         ),
+        visual_punchline="Sleep becomes a group project that refuses to end on time.",
+        main_visual_metaphor="A night-shift clock is trapped in a chaotic project meeting.",
+        audience_specific_cue="Night workers trying to sleep before the next shift.",
+        tone="dry and self-aware",
+        style_direction="Bold limited-palette screen-print illustration.",
+        things_to_avoid=["generic clock art", "soft bedroom scene", "extra text"],
         specificity_reason="The line reflects a recognizable shift-work tension.",
     )
     provider = Mock()
@@ -193,3 +202,10 @@ def test_social_behavior_prompt_requires_standalone_personal_copy() -> None:
     assert "Avoid generic achievement statements" in instructions
     assert "artwork_prompt" in instructions
     assert "exact merchandise line" in instructions
+    assert "visual_punchline" in pipeline.build_user_prompt(
+        pipeline.SocialBehaviorTextInput(
+            sources=[SocialSource.REDDIT],
+            query="night workers trying to stay sane",
+            candidate_count=1,
+        )
+    )
