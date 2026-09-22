@@ -39,6 +39,7 @@ class ReasoningProvider(Protocol):
         temperature: float = 0.0,
         image_url: str | None = None,
         image_detail: str = "high",
+        web_search_domains: tuple[str, ...] | None = None,
     ) -> StructuredResponse:
         """Return a validated Pydantic response and measured usage for one request.
 
@@ -96,6 +97,7 @@ class OpenAIReasoningProvider:
         temperature: float = 0.0,
         image_url: str | None = None,
         image_detail: str = "high",
+        web_search_domains: tuple[str, ...] | None = None,
     ) -> StructuredResponse:
         """Submit one typed request and convert provider usage into the application contract."""
 
@@ -123,6 +125,16 @@ class OpenAIReasoningProvider:
             ],
             "text_format": response_model,
         }
+        if web_search_domains:
+            request_kwargs["tools"] = [
+                {
+                    "type": "web_search",
+                    "filters": {"allowed_domains": list(web_search_domains)},
+                }
+            ]
+            # This pipeline must inspect social sources; a text-only answer should not look like
+            # successful source extraction when the provider did not search the requested domains.
+            request_kwargs["tool_choice"] = "required"
         if self._supports_temperature():
             request_kwargs["temperature"] = temperature
 

@@ -50,10 +50,16 @@ _COMPACT_OUTPUTS: dict[int, tuple[str, ...]] = {
     10: ("artworks",),
 }
 
+_SOCIAL_BEHAVIOR_OUTPUTS: dict[int, tuple[str, ...]] = {
+    1: ("candidates",),
+}
+
 
 def _required_outputs(variant: PipelineVariant, stage_number: int) -> tuple[str, ...]:
     """Return the collections that must contain records for this pipeline stage."""
 
+    if variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+        return _SOCIAL_BEHAVIOR_OUTPUTS.get(stage_number, ())
     outputs = _COMPACT_OUTPUTS if variant == PipelineVariant.COMPACT_RESEARCH_FIRST else _BASELINE_OUTPUTS
     return outputs.get(stage_number, ())
 

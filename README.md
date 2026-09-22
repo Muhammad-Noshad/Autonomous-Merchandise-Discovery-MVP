@@ -10,6 +10,12 @@ polling. Chunk 10 adds opt-in live provider calls, usage accounting, and AI-assi
 expansion plus Stage 3 intersection generation. The default runtime remains fixture-backed unless
 `MVP_PROVIDER_MODE=live` and the required API key are configured.
 
+The Create Run page also includes a separate `Social behavior — text-only merchandise copy`
+pipeline. It is intentionally one stage: in live mode, one OpenAI structured request uses web search
+restricted to the selected Reddit and/or X domains, extracts concrete behavior, and returns
+source-backed merchandise text. It does not use the seed library, identity funnel, artwork
+generation, or image variants. Fixture mode returns clearly marked deterministic sample output.
+
 ## Local setup
 
 ```powershell

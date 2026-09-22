@@ -19,6 +19,14 @@ class PipelineVariant(str, Enum):
 
     BASELINE = "baseline"
     COMPACT_RESEARCH_FIRST = "compact_research_first"
+    SOCIAL_BEHAVIOR_TEXT = "social_behavior_text"
+
+
+class SocialSource(str, Enum):
+    """Public social platforms that the one-stage behavior pipeline may search."""
+
+    REDDIT = "reddit"
+    X = "x"
 
 
 class SeedCategory(str, Enum):

@@ -43,6 +43,14 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
 
     if variant == PipelineVariant.BASELINE:
         return STAGE_DEFINITIONS
+    if variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+        return (
+            StageDefinition(
+                1,
+                "Social Behavior to Merchandise Text",
+                "Search public social discussions, extract concrete behavior, and generate text-first merchandise copy.",
+            ),
+        )
     return (
         # Keep the downstream compact stage numbers stable for existing run history. Stage 5 is
         # intentionally absent because its compatibility pass is now owned by Stage 4.

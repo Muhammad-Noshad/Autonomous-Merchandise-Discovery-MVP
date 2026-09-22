@@ -57,6 +57,33 @@ def _section(title: str) -> None:
     st.markdown(f"**{title}**")
 
 
+def _render_social_behavior_text(payload: dict[str, Any]) -> None:
+    """Show source-backed behavior and text-only merchandise candidates as readable cards."""
+
+    candidates = _records(payload, "candidates")
+    _metric_row([
+        ("Text candidates", str(len(candidates))),
+        ("Search summary", "Available" if payload.get("search_summary") else "Not available"),
+    ])
+    if payload.get("search_summary"):
+        st.caption(_short(str(payload["search_summary"]), 300))
+
+    for index, candidate in enumerate(candidates, start=1):
+        st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
+        st.markdown("**Observed behavior**")
+        st.write(_text(candidate, "behavior"))
+        st.markdown("**Friction or pressure**")
+        st.write(_text(candidate, "friction_or_pressure"))
+        st.markdown("**Why this is specific**")
+        st.write(_text(candidate, "specificity_reason"))
+        source_url = _text(candidate, "source_url", default="")
+        source_title = _text(candidate, "source_title", default="Source")
+        if source_url:
+            st.markdown(f"Source: [{source_title}]({source_url})")
+        with st.expander("Source evidence", expanded=False):
+            st.caption(_text(candidate, "source_excerpt"))
+
+
 def _render_seed_discovery(payload: dict[str, Any]) -> None:
     """Show the Stage 1 decision summary without turning the pipeline card into a transcript."""
 
@@ -759,7 +786,9 @@ def render_stage_overview(stage: StageFixture) -> None:
         return
     # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
     # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
-    if "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:
+    if "Social Behavior" in stage.name:
+        renderer = _render_social_behavior_text
+    elif "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:
         renderer = _render_artwork_gallery
     elif "Artwork Generation" in stage.name:
         renderer = _render_artwork_generation

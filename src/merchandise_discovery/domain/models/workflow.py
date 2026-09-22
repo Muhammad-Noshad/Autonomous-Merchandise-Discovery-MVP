@@ -15,6 +15,7 @@ from merchandise_discovery.domain.models.common import (
     ApprovalDecision,
     PipelineVariant,
     RunStatus,
+    SocialSource,
     StageStatus,
 )
 from merchandise_discovery.domain.models.usage import UsageMetrics
@@ -45,6 +46,11 @@ class RunConfig(BaseModel):
     concepts_per_niche: int = Field(default=5, ge=1, le=50)
     artwork_variants_per_concept: int = Field(default=2, ge=1, le=10)
     enable_similarity_ip_check: bool = False
+    # These fields are used only by the social behavior pipeline. Keeping them on the shared run
+    # config preserves one durable aggregate while the selected pipeline decides which fields apply.
+    social_sources: list[SocialSource] = Field(default_factory=lambda: [SocialSource.REDDIT], min_length=1)
+    social_query: str = Field(default="", max_length=500)
+    social_candidate_count: int = Field(default=5, ge=1, le=25)
 
 
 class WorkflowRun(BaseModel):

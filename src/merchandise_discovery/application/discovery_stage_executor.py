@@ -9,9 +9,10 @@ import json
 import logging
 
 from merchandise_discovery.application.stage_executor import StageNotImplementedError, StageResult
-from merchandise_discovery.domain.models.common import StageStatus
+from merchandise_discovery.domain.models.common import PipelineVariant, StageStatus
 from merchandise_discovery.domain.models.usage import UsageMetrics, combine_usage
 from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
+from merchandise_discovery.domain.pipelines.social_behavior_text import pipeline as social_behavior
 from merchandise_discovery.domain.stages import stage_01_seed_discovery as stage_01
 from merchandise_discovery.domain.stages import stage_02_identity_expansion as stage_02
 from merchandise_discovery.domain.stages import stage_03_intersection_generation as stage_03
@@ -179,6 +180,17 @@ class DiscoveryStageExecutor:
 
     def prepare(self, run: WorkflowRun, stage: StageExecution) -> dict:
         """Build a serializable input payload from run configuration and prior stage output."""
+
+        if run.config.pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+            if stage.stage_number != 1:
+                raise StageNotImplementedError(
+                    f"Social behavior pipeline does not define Stage {stage.stage_number}."
+                )
+            return social_behavior.SocialBehaviorTextInput(
+                sources=run.config.social_sources,
+                query=run.config.social_query,
+                candidate_count=run.config.social_candidate_count,
+            ).model_dump(mode="python")
 
         if stage.stage_number == 1:
             return stage_01.SeedDiscoveryInput(
@@ -388,6 +400,36 @@ class DiscoveryStageExecutor:
         """Run one supported stage and retain exact input/output payloads for auditability."""
 
         usage = UsageMetrics()
+        if run.config.pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+            input_model = social_behavior.SocialBehaviorTextInput.model_validate(input_data)
+            reasoning_output = None
+            if self._reasoning_provider is not None:
+                response = self._reasoning_provider.complete_structured(
+                    system_prompt=social_behavior.reasoning_instructions(),
+                    user_prompt=social_behavior.build_user_prompt(input_model),
+                    response_model=social_behavior.SocialBehaviorTextOutput,
+                    web_search_domains=tuple(
+                        "reddit.com" if source.value == "reddit" else "x.com"
+                        for source in input_model.sources
+                    ),
+                )
+                reasoning_output = response.output
+                usage = response.usage
+            output = social_behavior.execute(
+                input_model,
+                reasoning_output=reasoning_output,
+                model=usage.model if usage.provider != "fixture" else "deterministic",
+            )
+            summary = (
+                f"Generated {len(output.candidates)} behavior-based merchandise text candidates "
+                f"using {output.model}."
+            )
+            return StageResult(
+                input_data=input_data,
+                output_data=output.model_dump(mode="python"),
+                output_summary=summary,
+                usage=usage,
+            )
         if stage.stage_number == 1:
             input_model = stage_01.SeedDiscoveryInput.model_validate(input_data)
             seeds = self._seeds.list_all(library_id=input_model.seed_source)

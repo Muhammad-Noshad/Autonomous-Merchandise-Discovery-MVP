@@ -87,6 +87,27 @@ def test_provider_builds_multimodal_structured_request() -> None:
     }
 
 
+def test_provider_requires_domain_restricted_web_search_when_requested() -> None:
+    """The social pipeline cannot silently answer without searching its requested platforms."""
+
+    provider = _provider("gpt-4o-mini")
+    provider.complete_structured(
+        system_prompt="system",
+        user_prompt="find behavior",
+        response_model=ExampleOutput,
+        web_search_domains=("reddit.com", "x.com"),
+    )
+
+    kwargs = provider._client.responses.parse.call_args.kwargs
+    assert kwargs["tool_choice"] == "required"
+    assert kwargs["tools"] == [
+        {
+            "type": "web_search",
+            "filters": {"allowed_domains": ["reddit.com", "x.com"]},
+        }
+    ]
+
+
 def test_direct_provider_uses_environment_timeout(monkeypatch) -> None:
     """Direct adapter construction follows the same timeout contract as application runtimes."""
 
