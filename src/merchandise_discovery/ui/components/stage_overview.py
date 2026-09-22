@@ -57,10 +57,23 @@ def _section(title: str) -> None:
     st.markdown(f"**{title}**")
 
 
-def _render_social_behavior_text(payload: dict[str, Any]) -> None:
-    """Show source-backed behavior and text-only merchandise candidates as readable cards."""
+def _render_social_behavior_text(
+    payload: dict[str, Any],
+    input_payload: dict[str, Any] | None = None,
+) -> None:
+    """Show the original social search request alongside its source-backed candidates."""
 
     candidates = _records(payload, "candidates")
+    request = input_payload or {}
+    sources = request.get("sources", [])
+    source_names = ", ".join(str(source).title() for source in sources) if sources else "Not recorded"
+    query = str(request.get("query") or "Not recorded")
+    _section("Run input")
+    _metric_row([
+        ("Sources", source_names),
+        ("Requested candidates", str(request.get("candidate_count", "Not recorded"))),
+    ])
+    st.write(f"**Behavior or topic explored:** {query}")
     _metric_row([
         ("Text candidates", str(len(candidates))),
         ("Search summary", "Available" if payload.get("search_summary") else "Not available"),
@@ -456,29 +469,14 @@ def _render_prompts(payload: dict[str, Any]) -> None:
 
 
 def _render_artwork_generation(payload: dict[str, Any]) -> None:
+    """Render generated images inline while retaining provider references as fallback."""
+
     artworks = _records(payload, "artworks")
     _metric_row([("Artwork candidates", str(len(artworks)))])
-    for artwork in artworks:
-        with st.container(border=True):
-            st.markdown(f"**{_text(artwork, 'combination_name', default='Artwork candidate')}**")
-            st.caption(
-                f"Candidate ID: {_text(artwork, 'artwork_id')} · "
-                f"Concept ID: {_text(artwork, 'concept_id')}"
-            )
-            with st.expander("Artwork generation prompt"):
-                st.code(_text(artwork, "prompt"), language="text")
-            _metric_row(
-                [
-                    ("Format", _text(artwork, "mime_type")),
-                    ("Dimensions", f"{_text(artwork, 'width')} × {_text(artwork, 'height')}"),
-                    ("Size", f"{_text(artwork, 'file_size_bytes')} bytes"),
-                ]
-            )
-            url = _text(artwork, "source_url", default="")
-            if url:
-                st.markdown(f"Provider reference: [{url}]({url})")
-
-
+    if artworks:
+        _render_artwork_cards(artworks, "Generated artwork")
+    else:
+        st.caption("No artwork images were generated.")
 def _artwork_source(record: dict[str, Any]) -> str:
     """Prefer the durable local artifact and fall back to the provider reference URL."""
 
@@ -789,7 +787,8 @@ def render_stage_overview(stage: StageFixture) -> None:
     # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
     # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
     if "Social Behavior" in stage.name:
-        renderer = _render_social_behavior_text
+        _render_social_behavior_text(stage.output_payload, stage.input_payload)
+        return
     elif "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:
         renderer = _render_artwork_gallery
     elif "Artwork Generation" in stage.name:
