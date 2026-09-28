@@ -128,7 +128,10 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
     platforms = ", ".join(source.value for source in input_model.sources)
     identity_instruction = (
         "Choose one concrete, non-sensitive identity represented in the discussions before choosing "
-        "the behavior. Return it in `identity_selected` and classify it in `identity_type_selected`. "
+        "the behavior. Compare several source-backed identities across different identity types and "
+        "name the chosen audience naturally, as a person would describe themselves rather than as a "
+        "bureaucratic research segment. Return it in `identity_selected` and classify it in "
+        "`identity_type_selected`. "
         "Use only the allowed identity types; do not infer sensitive personal traits."
         if input_model.auto_identity
         else (
@@ -138,8 +141,12 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
     )
     topic_instruction = (
         "Choose a narrow behavior or topic within this identity before searching. Prefer a distinct "
-        "tension, contradiction, absurdity, or private joke; avoid generic routines and broad "
-        "identity slogans. Return the chosen topic in `topic_explored`."
+        "lived situation: a concrete incident, object, ritual, insider phrase, contradiction, or "
+        "private joke that the audience would recognize from their own life. Translate any "
+        "institutional or system-level problem into what the person actually does, sees, handles, "
+        "says, or complains about. Avoid generic routines, broad identity slogans, hidden operational "
+        "consequences, systemic challenges, industry trends, and research-report phrasing. Return the "
+        "chosen topic in `topic_explored` as a human situation, not a report heading."
         if input_model.auto_topic
         else f"Behavior/topic to investigate within this identity: {input_model.query}"
     )

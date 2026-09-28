@@ -162,6 +162,26 @@ def test_identity_v2_auto_selection_receives_recent_identity_context() -> None:
     assert input_data["recent_identity_selections"] == ["Home espresso hobbyist"]
 
 
+def test_identity_v2_auto_selection_targets_lived_merchandise_situations() -> None:
+    """Auto mode should frame topics as audience experiences, not research categories."""
+
+    input_model = pipeline.SocialIdentityV2Input(
+        sources=[SocialSource.REDDIT],
+        auto_identity=True,
+        auto_topic=True,
+        candidate_count=3,
+        recent_identity_selections=["Home espresso hobbyist"],
+    )
+
+    prompt = pipeline.build_user_prompt(input_model)
+
+    assert "natural human identity label" in prompt
+    assert "concrete incident, object, ritual" in prompt
+    assert "hidden operational consequences" in prompt
+    assert "research-report phrasing" in prompt
+    assert "human situation, not a report heading" in prompt
+
+
 def test_identity_v2_accepts_provider_typography_variant_for_ai_identity() -> None:
     """AI-selected identities tolerate dash/whitespace formatting without allowing semantic drift."""
 

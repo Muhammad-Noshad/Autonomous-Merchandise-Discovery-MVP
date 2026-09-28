@@ -78,7 +78,9 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
         "Choose one concrete, non-sensitive identity represented in the discussions before choosing "
         "the behavior. Internally compare several concrete identities across different occupations, "
         "roles, communities, and lifestyles, then choose the most distinctive one with repeated "
-        "source evidence rather than the most familiar profession. Return it in `identity_selected` "
+        "source evidence rather than the most familiar profession. Name it as a natural human "
+        "identity label that a person would actually use for themselves, not as a bureaucratic "
+        "industry description or research segment. Return it in `identity_selected` "
         "and classify it in `identity_type_selected`. Use only the allowed identity types; do not "
         "infer sensitive personal traits."
         if input_model.auto_identity
@@ -89,8 +91,12 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
     )
     topic_instruction = (
         "Choose a narrow behavior or topic within this identity before searching. Prefer a distinct "
-        "lived tension, contradiction, absurdity, or private joke rather than a generic routine. "
-        "Return the chosen topic in `topic_explored`."
+        "lived situation: a concrete incident, object, ritual, insider phrase, contradiction, or "
+        "private joke that this audience would recognize from their own life. Translate any "
+        "institutional or system-level problem into what the person actually does, sees, handles, "
+        "says, or complains about. Avoid generic routines, broad identity slogans, hidden operational "
+        "consequences, systemic challenges, industry trends, and research-report phrasing. Return the "
+        "chosen topic in `topic_explored` as a human situation, not a report heading."
         if input_model.auto_topic
         else f"Behavior/topic to investigate within this identity: {input_model.query}"
     )
