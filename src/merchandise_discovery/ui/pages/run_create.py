@@ -9,7 +9,7 @@ from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.runtime import ApplicationRuntime
-from merchandise_discovery.domain.models.common import PipelineVariant, SocialSource
+from merchandise_discovery.domain.models.common import IdentityType, PipelineVariant, SocialSource
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
@@ -22,11 +22,13 @@ def build_run_config(
     concepts: int,
     artwork_variants: int,
     similarity_check: bool = False,
-    pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+    pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
     social_sources: list[SocialSource] | None = None,
     social_query: str = "",
     social_auto_topic: bool = False,
     social_candidate_count: int = 5,
+    social_identity: str = "",
+    social_identity_type: IdentityType | None = None,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
 
@@ -42,6 +44,8 @@ def build_run_config(
         social_query=social_query.strip(),
         social_auto_topic=social_auto_topic,
         social_candidate_count=social_candidate_count,
+        social_identity=social_identity.strip(),
+        social_identity_type=social_identity_type,
     )
 
 
@@ -96,7 +100,10 @@ def render_run_create(
         value=False,
         help="Reveal the older Baseline and Compact pipelines for comparison runs.",
     )
-    pipeline_options = [PipelineVariant.SOCIAL_BEHAVIOR_TEXT]
+    pipeline_options = [
+        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+        PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+    ]
     if show_legacy_pipelines:
         pipeline_options.extend(
             [PipelineVariant.BASELINE, PipelineVariant.COMPACT_RESEARCH_FIRST]
@@ -109,11 +116,16 @@ def render_run_create(
             PipelineVariant.BASELINE: "Baseline — staged research pipeline",
             PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
             PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — copy + Grok artwork",
+            PipelineVariant.SOCIAL_IDENTITY_FOCUSED: "Identity-focused social behavior - copy + Grok artwork",
         }[value],
         help="Choose a full discovery pipeline or the two-stage social behavior experiment.",
     )
+    is_social_pipeline = pipeline_variant in {
+        PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+    }
     if (
-        pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT
+        is_social_pipeline
         and runtime is not None
         and runtime.stop_after_stage < 2
     ):
@@ -122,7 +134,7 @@ def render_run_create(
             "MVP_STOP_AFTER_STAGE=2 to also generate the Grok artwork."
         )
     auto_topic = False
-    if pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+    if is_social_pipeline:
         auto_topic = st.checkbox(
             "Let AI choose the behavior or topic",
             value=False,
@@ -147,8 +159,27 @@ def render_run_create(
         social_sources: list[SocialSource] = [SocialSource.REDDIT]
         social_query = ""
         social_candidate_count = 5
-        if pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+        social_identity = ""
+        social_identity_type: IdentityType | None = None
+        if is_social_pipeline:
             st.markdown("### Social behavior search")
+            if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+                st.markdown("#### Identity anchor")
+                social_identity_type = st.selectbox(
+                    "Identity type",
+                    options=list(IdentityType),
+                    index=0,
+                    format_func=lambda value: value.value.replace("_", " ").title(),
+                    help=(
+                        "Describe the audience explicitly. The pipeline uses this as a hard anchor "
+                        "and does not infer sensitive traits."
+                    ),
+                )
+                social_identity = st.text_input(
+                    "Target identity",
+                    placeholder="For example: night-shift nurses",
+                    help="The audience the merchandise should make feel immediately recognized.",
+                )
             social_sources = st.multiselect(
                 "Public sources",
                 options=[SocialSource.REDDIT, SocialSource.X],
@@ -192,12 +223,15 @@ def render_run_create(
     if not title.strip():
         st.error("Run name is required.")
         return
-    if pipeline_variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
+    if is_social_pipeline:
         if not social_sources:
             st.error("Select at least one public source.")
             return
         if not auto_topic and not social_query.strip():
             st.error("Describe the behavior or topic to explore.")
+            return
+        if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED and not social_identity.strip():
+            st.error("Enter the target identity for the identity-focused pipeline.")
             return
 
     try:
@@ -214,6 +248,8 @@ def render_run_create(
                 social_query=social_query,
                 social_auto_topic=auto_topic,
                 social_candidate_count=social_candidate_count,
+                social_identity=social_identity,
+                social_identity_type=social_identity_type,
             ),
             triggered_by="manual",
         )

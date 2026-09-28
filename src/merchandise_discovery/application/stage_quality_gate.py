@@ -55,12 +55,19 @@ _SOCIAL_BEHAVIOR_OUTPUTS: dict[int, tuple[str, ...]] = {
     2: ("artworks",),
 }
 
+_SOCIAL_IDENTITY_OUTPUTS: dict[int, tuple[str, ...]] = {
+    1: ("candidates",),
+    2: ("artworks",),
+}
+
 
 def _required_outputs(variant: PipelineVariant, stage_number: int) -> tuple[str, ...]:
     """Return the collections that must contain records for this pipeline stage."""
 
     if variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
         return _SOCIAL_BEHAVIOR_OUTPUTS.get(stage_number, ())
+    if variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+        return _SOCIAL_IDENTITY_OUTPUTS.get(stage_number, ())
     outputs = _COMPACT_OUTPUTS if variant == PipelineVariant.COMPACT_RESEARCH_FIRST else _BASELINE_OUTPUTS
     return outputs.get(stage_number, ())
 

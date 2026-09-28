@@ -56,6 +56,19 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
                 "Use each Stage 1 artwork prompt to generate one targeted merchandise image with Grok.",
             ),
         )
+    if variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+        return (
+            StageDefinition(
+                1,
+                "Identity-Focused Social Behavior to Merchandise Text",
+                "Search public social discussions within the supplied identity, extract concrete behavior, and generate identity-specific merchandise copy plus its Grok artwork prompt.",
+            ),
+            StageDefinition(
+                2,
+                "Identity-Focused Social Merchandise Artwork Generation",
+                "Use each identity-specific Stage 1 artwork prompt to generate one targeted merchandise image with Grok.",
+            ),
+        )
     return (
         # Keep the downstream compact stage numbers stable for existing run history. Stage 5 is
         # intentionally absent because its compatibility pass is now owned by Stage 4.

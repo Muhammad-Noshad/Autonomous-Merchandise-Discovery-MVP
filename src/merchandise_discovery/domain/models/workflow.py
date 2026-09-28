@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from merchandise_discovery.domain.models.common import (
     ApprovalDecision,
+    IdentityType,
     PipelineVariant,
     RunStatus,
     SocialSource,
@@ -52,6 +53,10 @@ class RunConfig(BaseModel):
     social_query: str = Field(default="", max_length=500)
     social_auto_topic: bool = False
     social_candidate_count: int = Field(default=5, ge=1, le=25)
+    # Identity-focused social runs keep the user's explicit identity alongside the run so every
+    # downstream prompt can preserve the same audience anchor without inferring sensitive traits.
+    social_identity: str = Field(default="", max_length=300)
+    social_identity_type: IdentityType | None = None
 
 
 class WorkflowRun(BaseModel):

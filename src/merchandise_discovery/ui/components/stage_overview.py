@@ -61,7 +61,7 @@ def _render_social_behavior_text(
     payload: dict[str, Any],
     input_payload: dict[str, Any] | None = None,
 ) -> None:
-    """Show the original social search request alongside its source-backed candidates."""
+    """Show either social A/B variant with its source request and audience context."""
 
     candidates = _records(payload, "candidates")
     request = input_payload or {}
@@ -73,6 +73,13 @@ def _render_social_behavior_text(
         ("Sources", source_names),
         ("Requested candidates", str(request.get("candidate_count", "Not recorded"))),
     ])
+    identity_type = request.get("identity_type", "other")
+    identity_type_value = getattr(identity_type, "value", identity_type)
+    if request.get("identity"):
+        st.write(
+            f"**Target identity:** {request['identity']} "
+            f"({str(identity_type_value).replace('_', ' ').title()})"
+        )
     if request.get("auto_topic"):
         st.write(f"**Behavior or topic selected by AI:** {query}")
     else:
@@ -86,6 +93,8 @@ def _render_social_behavior_text(
 
     for index, candidate in enumerate(candidates, start=1):
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
+        if candidate.get("identity"):
+            st.caption(f"Identity anchor: {_text(candidate, 'identity')} · {_text(candidate, 'identity_evidence')}")
         with st.expander("Grok artwork prompt", expanded=False):
             st.code(_text(candidate, "artwork_prompt"), language="text")
         with st.expander("Visual direction", expanded=False):
@@ -798,7 +807,7 @@ def render_stage_overview(stage: StageFixture) -> None:
         return
     # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
     # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
-    if "Social Behavior" in stage.name:
+    if "to Merchandise Text" in stage.name:
         _render_social_behavior_text(stage.output_payload, stage.input_payload)
         return
     elif "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:

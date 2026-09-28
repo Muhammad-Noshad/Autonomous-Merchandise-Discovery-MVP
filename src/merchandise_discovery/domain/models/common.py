@@ -20,6 +20,7 @@ class PipelineVariant(str, Enum):
     BASELINE = "baseline"
     COMPACT_RESEARCH_FIRST = "compact_research_first"
     SOCIAL_BEHAVIOR_TEXT = "social_behavior_text"
+    SOCIAL_IDENTITY_FOCUSED = "social_identity_focused"
 
 
 class SocialSource(str, Enum):
@@ -27,6 +28,16 @@ class SocialSource(str, Enum):
 
     REDDIT = "reddit"
     X = "x"
+
+
+class IdentityType(str, Enum):
+    """The user-supplied kind of identity that anchors the new A/B pipeline."""
+
+    OCCUPATION = "occupation"
+    ROLE = "role"
+    COMMUNITY = "community"
+    LIFESTYLE = "lifestyle"
+    OTHER = "other"
 
 
 class SeedCategory(str, Enum):
