@@ -4,7 +4,12 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
-from merchandise_discovery.domain.models.common import IdentityType, PipelineVariant, SocialSource
+from merchandise_discovery.domain.models.common import (
+    IdentityType,
+    PipelineVariant,
+    SocialSource,
+    StageStatus,
+)
 from merchandise_discovery.domain.models.usage import UsageMetrics
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 from merchandise_discovery.domain.pipelines.social_identity_v2 import pipeline
@@ -121,6 +126,40 @@ def test_identity_v2_uses_one_prompt_focused_provider_call() -> None:
     assert "Target identity: bedside nurses" in call["user_prompt"]
     assert result.usage.request_count == 1
     assert result.output_data["candidates"][0]["artwork_text"].startswith("I'm Not Being Rude")
+
+
+def test_identity_v2_auto_selection_receives_recent_identity_context() -> None:
+    """Auto-selection prompts can avoid identities already used by recent completed runs."""
+
+    run = _run()
+    run.config.social_identity = ""
+    run.config.social_identity_type = None
+    run.config.social_auto_identity = True
+    run.config.social_auto_topic = True
+    previous_run = _run()
+    previous_run.config.social_auto_identity = True
+    previous_stage = StageExecution(
+        run_id=previous_run.run_id,
+        stage_number=1,
+        stage_name="Identity V2 Prompt-Focused Social Behavior to Merchandise Text",
+        status=StageStatus.COMPLETED,
+        output_data={"identity_selected": "Home espresso hobbyist"},
+    )
+    run_repository = Mock()
+    run_repository.list_recent.return_value = [previous_run]
+    stage_repository = Mock()
+    stage_repository.get_latest.return_value = previous_stage
+    executor = _executor(stage_repository)
+    executor._runs = run_repository
+
+    stage = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Identity V2 Prompt-Focused Social Behavior to Merchandise Text",
+    )
+    input_data = executor.prepare(run, stage)
+
+    assert input_data["recent_identity_selections"] == ["Home espresso hobbyist"]
 
 
 def test_identity_v2_accepts_provider_typography_variant_for_ai_identity() -> None:

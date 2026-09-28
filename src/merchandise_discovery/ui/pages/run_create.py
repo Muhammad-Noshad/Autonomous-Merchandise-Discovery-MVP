@@ -104,7 +104,6 @@ def render_run_create(
     )
     pipeline_options = [
         PipelineVariant.SOCIAL_IDENTITY_V2,
-        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
     ]
     if show_legacy_pipelines:
@@ -119,18 +118,15 @@ def render_run_create(
             PipelineVariant.BASELINE: "Baseline — staged research pipeline",
             PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
             PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — copy + Grok artwork",
-            PipelineVariant.SOCIAL_IDENTITY_FOCUSED: "Identity-focused social behavior - copy + Grok artwork",
             PipelineVariant.SOCIAL_IDENTITY_V2: "Identity V2 - prompt-focused identity copy + Grok artwork",
         }[value],
         help="Choose a full discovery pipeline or the two-stage social behavior experiment.",
     )
     is_social_pipeline = pipeline_variant in {
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
-        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
         PipelineVariant.SOCIAL_IDENTITY_V2,
     }
     is_identity_pipeline = pipeline_variant in {
-        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
         PipelineVariant.SOCIAL_IDENTITY_V2,
     }
     if (

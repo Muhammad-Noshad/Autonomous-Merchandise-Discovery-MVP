@@ -23,6 +23,7 @@ class SocialIdentityTextInput(BaseModel):
     query: str = Field(default="", max_length=500)
     auto_topic: bool = False
     candidate_count: int = Field(ge=1, le=25)
+    recent_identity_selections: list[str] = Field(default_factory=list, max_length=12)
 
     @field_validator("identity")
     @classmethod
@@ -98,9 +99,12 @@ def reasoning_instructions() -> str:
         "the user-supplied identity as a hard audience anchor. Do not replace it with a broad "
         "demographic, invent an identity, or infer sensitive traits. Extract concrete behavior, "
         "friction, contradiction, ritual, or private joke that is recognizably experienced by that "
-        "identity. If the identity is not supplied, choose one concrete, non-sensitive identity "
-        "from the discussions and classify it as an occupation, role, community, lifestyle, or "
-        "other identity; return it in `identity_selected` and `identity_type_selected`. Every "
+        "identity. If the identity is not supplied, first consider several concrete, non-sensitive "
+        "identities across different occupations, roles, communities, and lifestyles. Choose the "
+        "most distinctive identity with repeated source evidence, not the most familiar profession "
+        "or the easiest audience to write for. Avoid repeating recent selections unless the source "
+        "evidence reveals a materially different identity. Return the selected identity in "
+        "`identity_selected` and its type in `identity_type_selected`. Every "
         "merchandise line and artwork prompt must preserve the identity naturally, "
         "so the target person thinks 'that is literally me' rather than merely seeing a generic joke. "
         "The merchandise line must make sense alone and should sound like a specific person or "
@@ -139,6 +143,16 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
         if input_model.auto_topic
         else f"Behavior/topic to investigate within this identity: {input_model.query}"
     )
+    diversity_instruction = (
+        "Before selecting the identity, internally compare several source-backed candidates across "
+        "different identity types and prefer the most distinctive, underrepresented audience. Do "
+        "not default to a familiar healthcare, education, or office profession merely because it has "
+        "many search results. Recent identities to avoid repeating unless materially different: "
+        + ", ".join(input_model.recent_identity_selections)
+        + ".\n"
+        if input_model.auto_identity
+        else ""
+    )
     identity_context = (
         ""
         if input_model.auto_identity
@@ -151,6 +165,7 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
         f"{identity_instruction}\n"
         f"{identity_context}"
         f"Search these public platforms: {platforms}.\n"
+        f"{diversity_instruction}"
         f"{topic_instruction}\n"
         f"Return up to {input_model.candidate_count} distinct candidates. Each candidate must include "
         "identity evidence explaining why the source actually supports this identity, then one "

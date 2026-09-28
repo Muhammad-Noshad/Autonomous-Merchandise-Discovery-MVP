@@ -61,6 +61,7 @@ from merchandise_discovery.infrastructure.mongo.repositories.intersection_reposi
     IntersectionRepository,
 )
 from merchandise_discovery.infrastructure.mongo.repositories.niche_repository import NicheRepository
+from merchandise_discovery.infrastructure.mongo.repositories.run_repository import RunRepository
 from merchandise_discovery.infrastructure.mongo.repositories.seed_repository import SeedRepository
 from merchandise_discovery.infrastructure.mongo.repositories.stage_execution_repository import (
     StageExecutionRepository,
@@ -91,6 +92,7 @@ class DiscoveryStageExecutor:
         reasoning_provider: ReasoningProvider | None = None,
         artwork_storage: ArtworkStorage | None = None,
         openai_image_detail: str = "high",
+        run_repository: RunRepository | None = None,
     ):
         self._seeds = seed_repository
         self._intersections = intersection_repository
@@ -105,6 +107,43 @@ class DiscoveryStageExecutor:
         self._artwork_storage = artwork_storage
         self._reasoning_provider = reasoning_provider
         self._openai_image_detail = openai_image_detail
+        self._runs = run_repository
+
+    def _recent_identity_selections(self, run: WorkflowRun, limit: int = 12) -> list[str]:
+        """Return bounded identity history for diversity-aware auto-selection prompts.
+
+        Recent identity context is assembled in the application layer from repositories and passed
+        into the pipeline input. This keeps prompt builders pure and avoids making domain code
+        reach directly into MongoDB. Missing repository context is valid for isolated tests and
+        fixture callers, so those paths simply receive an empty history.
+        """
+
+        if self._runs is None:
+            return []
+        identities: list[str] = []
+        seen: set[str] = set()
+        for previous_run in self._runs.list_recent(limit=40):
+            if previous_run.run_id == run.run_id:
+                continue
+            if previous_run.config.pipeline_variant not in {
+                PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+                PipelineVariant.SOCIAL_IDENTITY_V2,
+            }:
+                continue
+            if not previous_run.config.social_auto_identity:
+                continue
+            previous_stage = self._stage_repository.get_latest(previous_run.run_id, 1)
+            if previous_stage is None or previous_stage.status != StageStatus.COMPLETED:
+                continue
+            output = previous_stage.output_data or {}
+            identity = str(output.get("identity_selected") or "").strip()
+            identity_key = identity.casefold()
+            if identity and identity_key not in seen:
+                identities.append(identity)
+                seen.add(identity_key)
+            if len(identities) >= limit:
+                break
+        return identities
 
     def _reason(
         self,
@@ -206,6 +245,7 @@ class DiscoveryStageExecutor:
                     query=run.config.social_query,
                     auto_topic=run.config.social_auto_topic,
                     candidate_count=run.config.social_candidate_count,
+                    recent_identity_selections=self._recent_identity_selections(run),
                 ).model_dump(mode="python")
             if stage.stage_number == 2:
                 previous = self._stage_repository.get_latest(run.run_id, 1)
@@ -234,6 +274,7 @@ class DiscoveryStageExecutor:
                     query=run.config.social_query,
                     auto_topic=run.config.social_auto_topic,
                     candidate_count=run.config.social_candidate_count,
+                    recent_identity_selections=self._recent_identity_selections(run),
                 ).model_dump(mode="python")
             if stage.stage_number == 2:
                 previous = self._stage_repository.get_latest(run.run_id, 1)

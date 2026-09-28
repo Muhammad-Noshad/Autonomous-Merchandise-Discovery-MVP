@@ -178,6 +178,7 @@ def build_runtime(settings: Settings) -> ApplicationRuntime:
             artwork_storage=artwork_storage,
             reasoning_provider=reasoning_provider,
             openai_image_detail=settings.openai_image_detail,
+            run_repository=run_repository,
         )
         runtime = ApplicationRuntime(
             client=client,

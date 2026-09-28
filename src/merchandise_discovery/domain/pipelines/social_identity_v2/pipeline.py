@@ -47,14 +47,13 @@ def reasoning_instructions() -> str:
         "in front of the joke. Never format merchandise text as 'IDENTITY: slogan', a category title, "
         "or an all-caps audience heading. The actual merchandise text must contain at least one "
         "natural identity cue, or two unmistakable contextual cues that identify the audience "
-        "together. For an occupation, a possessive relationship such as 'my students', 'my "
-        "classroom', or 'my patients' is useful when supported by the source, but do not force the "
-        "same role phrase into every candidate. For a compound identity, preserve every defining "
+        "together. For an occupation, a natural possessive relationship to the people they serve, "
+        "teach, supervise, treat, or work alongside can be useful when supported by the source, but "
+        "do not force the same role phrase into every candidate. For a compound identity, preserve every defining "
         "dimension in natural language: for example, 'night-shift remote workers' needs both a "
         "night-work cue and a remote, home, laptop, or online-work cue. Do not substitute a "
         "warehouse, hospital, delivery, or office worker unless that setting belongs to the selected "
-        "identity. A standalone object is not enough: a "
-        "copier, pencil sharpener, bathroom pass, laptop, or coffee mug must be connected naturally "
+        "identity. A standalone shared object must be connected naturally "
         "to the target person's responsibility, duty, or conflict. State the identity naturally in the line when that improves recognition, or "
         "use an unmistakable role-specific marker, duty, tool, setting, relationship, or insider "
         "phrase. The line must communicate the situation, concrete action, and consequence or joke "
@@ -77,8 +76,11 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
     platforms = ", ".join(source.value for source in input_model.sources)
     identity_instruction = (
         "Choose one concrete, non-sensitive identity represented in the discussions before choosing "
-        "the behavior. Return it in `identity_selected` and classify it in `identity_type_selected`. "
-        "Use only the allowed identity types; do not infer sensitive personal traits."
+        "the behavior. Internally compare several concrete identities across different occupations, "
+        "roles, communities, and lifestyles, then choose the most distinctive one with repeated "
+        "source evidence rather than the most familiar profession. Return it in `identity_selected` "
+        "and classify it in `identity_type_selected`. Use only the allowed identity types; do not "
+        "infer sensitive personal traits."
         if input_model.auto_identity
         else (
             f"Use this supplied identity exactly: {input_model.identity}. "
@@ -92,6 +94,15 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
         if input_model.auto_topic
         else f"Behavior/topic to investigate within this identity: {input_model.query}"
     )
+    diversity_instruction = (
+        "Prefer a specific, underrepresented audience supported by repeated evidence. Do not default "
+        "to a familiar healthcare, education, or office profession merely because it has many search "
+        "results. Recent identities to avoid repeating unless materially different: "
+        + ", ".join(input_model.recent_identity_selections)
+        + ".\n"
+        if input_model.auto_identity
+        else ""
+    )
     identity_context = (
         ""
         if input_model.auto_identity
@@ -104,6 +115,7 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
         f"{identity_instruction}\n"
         f"{identity_context}"
         f"Search these public platforms: {platforms}.\n"
+        f"{diversity_instruction}"
         f"{topic_instruction}\n"
         f"Return up to {input_model.candidate_count} distinct candidates. Each candidate must be "
         "source-backed and identity-recognizable without the reader seeing any metadata. The actual "
