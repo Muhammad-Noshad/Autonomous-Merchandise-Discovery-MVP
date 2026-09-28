@@ -69,6 +69,45 @@ def test_identity_fixture_preserves_identity_in_copy_and_art_direction() -> None
     assert "night-shift nurses" in result.output_data["candidates"][0]["artwork_text"]
 
 
+def test_identity_can_be_selected_by_ai_when_delegated() -> None:
+    """AI-selected identity mode accepts blank identity fields and returns a structured anchor."""
+
+    input_model = pipeline.SocialIdentityTextInput(
+        sources=[SocialSource.REDDIT],
+        auto_identity=True,
+        auto_topic=True,
+        candidate_count=1,
+    )
+    fixture_output = pipeline.execute(input_model)
+
+    prompt = pipeline.build_user_prompt(input_model)
+    assert "identity_selected" in prompt
+    assert "identity_type_selected" in prompt
+    assert fixture_output.identity_selected == "night-shift workers"
+    assert fixture_output.identity_type_selected is IdentityType.OCCUPATION
+
+
+def test_executor_allows_ai_identity_without_manual_identity_type() -> None:
+    """The executor must pass delegated identity selection through to the pipeline contract."""
+
+    run = _run()
+    run.config.social_identity = ""
+    run.config.social_identity_type = None
+    run.config.social_auto_identity = True
+    run.config.social_auto_topic = True
+    stage = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Identity-Focused Social Behavior to Merchandise Text",
+    )
+
+    input_data = _executor(Mock()).prepare(run, stage)
+
+    assert input_data["auto_identity"] is True
+    assert input_data["identity"] == ""
+    assert input_data["identity_type"] is None
+
+
 def test_identity_stage_two_carries_identity_into_grok_prompt() -> None:
     """Stage 2 must preserve the Stage 1 identity anchor in the generated image prompt."""
 

@@ -190,12 +190,13 @@ class DiscoveryStageExecutor:
 
         if run.config.pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
             if stage.stage_number == 1:
-                if run.config.social_identity_type is None:
+                if not run.config.social_auto_identity and run.config.social_identity_type is None:
                     raise ValueError("Identity-focused pipeline requires an identity type.")
                 return social_identity.SocialIdentityTextInput(
                     sources=run.config.social_sources,
                     identity=run.config.social_identity,
                     identity_type=run.config.social_identity_type,
+                    auto_identity=run.config.social_auto_identity,
                     query=run.config.social_query,
                     auto_topic=run.config.social_auto_topic,
                     candidate_count=run.config.social_candidate_count,

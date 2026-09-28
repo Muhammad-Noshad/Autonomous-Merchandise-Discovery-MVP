@@ -29,6 +29,7 @@ def build_run_config(
     social_candidate_count: int = 5,
     social_identity: str = "",
     social_identity_type: IdentityType | None = None,
+    social_auto_identity: bool = False,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
 
@@ -46,6 +47,7 @@ def build_run_config(
         social_candidate_count=social_candidate_count,
         social_identity=social_identity.strip(),
         social_identity_type=social_identity_type,
+        social_auto_identity=social_auto_identity,
     )
 
 
@@ -134,12 +136,22 @@ def render_run_create(
             "MVP_STOP_AFTER_STAGE=2 to also generate the Grok artwork."
         )
     auto_topic = False
+    auto_identity = False
     if is_social_pipeline:
         auto_topic = st.checkbox(
             "Let AI choose the behavior or topic",
             value=False,
             help="OpenAI will choose a narrow, source-backed behavior before searching in Stage 1.",
         )
+        if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+            auto_identity = st.checkbox(
+                "Let AI choose the identity and identity type",
+                value=False,
+                help=(
+                    "OpenAI will select one concrete, non-sensitive audience identity and classify "
+                    "it as an occupation, role, community, lifestyle, or other identity."
+                ),
+            )
 
     with st.form("create-discovery-run"):
         title = st.text_input(
@@ -165,21 +177,24 @@ def render_run_create(
             st.markdown("### Social behavior search")
             if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
                 st.markdown("#### Identity anchor")
-                social_identity_type = st.selectbox(
-                    "Identity type",
-                    options=list(IdentityType),
-                    index=0,
-                    format_func=lambda value: value.value.replace("_", " ").title(),
-                    help=(
-                        "Describe the audience explicitly. The pipeline uses this as a hard anchor "
-                        "and does not infer sensitive traits."
-                    ),
-                )
-                social_identity = st.text_input(
-                    "Target identity",
-                    placeholder="For example: night-shift nurses",
-                    help="The audience the merchandise should make feel immediately recognized.",
-                )
+                if auto_identity:
+                    st.info("AI will select the identity and identity type from the public discussions.")
+                else:
+                    social_identity_type = st.selectbox(
+                        "Identity type",
+                        options=list(IdentityType),
+                        index=0,
+                        format_func=lambda value: value.value.replace("_", " ").title(),
+                        help=(
+                            "Describe the audience explicitly. The pipeline uses this as a hard anchor "
+                            "and does not infer sensitive traits."
+                        ),
+                    )
+                    social_identity = st.text_input(
+                        "Target identity",
+                        placeholder="For example: night-shift nurses",
+                        help="The audience the merchandise should make feel immediately recognized.",
+                    )
             social_sources = st.multiselect(
                 "Public sources",
                 options=[SocialSource.REDDIT, SocialSource.X],
@@ -230,7 +245,11 @@ def render_run_create(
         if not auto_topic and not social_query.strip():
             st.error("Describe the behavior or topic to explore.")
             return
-        if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED and not social_identity.strip():
+        if (
+            pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED
+            and not auto_identity
+            and not social_identity.strip()
+        ):
             st.error("Enter the target identity for the identity-focused pipeline.")
             return
 
@@ -250,6 +269,7 @@ def render_run_create(
                 social_candidate_count=social_candidate_count,
                 social_identity=social_identity,
                 social_identity_type=social_identity_type,
+                social_auto_identity=auto_identity,
             ),
             triggered_by="manual",
         )

@@ -17,8 +17,9 @@ class SocialIdentityTextInput(BaseModel):
     """User-defined source scope, identity anchor, and output bound for one run."""
 
     sources: list[SocialSource] = Field(min_length=1)
-    identity: str = Field(min_length=2, max_length=300)
-    identity_type: IdentityType
+    identity: str = Field(default="", max_length=300)
+    identity_type: IdentityType | None = None
+    auto_identity: bool = False
     query: str = Field(default="", max_length=500)
     auto_topic: bool = False
     candidate_count: int = Field(ge=1, le=25)
@@ -28,14 +29,16 @@ class SocialIdentityTextInput(BaseModel):
     def validate_identity(cls, value: str) -> str:
         """Reject whitespace-only identity anchors before they reach a provider prompt."""
 
-        if not value.strip():
-            raise ValueError("identity must contain a recognizable audience identity")
         return value.strip()
 
     @model_validator(mode="after")
     def validate_topic_source(self) -> "SocialIdentityTextInput":
         """Require a manual topic only when the user has not delegated discovery to AI."""
 
+        if not self.auto_identity and len(self.identity) < 2:
+            raise ValueError("identity must contain at least 2 characters unless auto_identity is enabled")
+        if not self.auto_identity and self.identity_type is None:
+            raise ValueError("identity_type is required unless auto_identity is enabled")
         if not self.auto_topic and len(self.query.strip()) < 3:
             raise ValueError("query must contain at least 3 characters unless auto_topic is enabled")
         return self
@@ -78,6 +81,8 @@ class SocialIdentityTextCandidate(BaseModel):
 class SocialIdentityTextOutput(BaseModel):
     """Complete structured response returned by the identity-focused social call."""
 
+    identity_selected: str = Field(default="", max_length=300)
+    identity_type_selected: IdentityType | None = None
     candidates: list[SocialIdentityTextCandidate] = Field(min_length=1, max_length=25)
     search_summary: str = Field(min_length=1, max_length=2_000)
     topic_explored: str = Field(default="", max_length=500)
@@ -93,7 +98,10 @@ def reasoning_instructions() -> str:
         "the user-supplied identity as a hard audience anchor. Do not replace it with a broad "
         "demographic, invent an identity, or infer sensitive traits. Extract concrete behavior, "
         "friction, contradiction, ritual, or private joke that is recognizably experienced by that "
-        "identity. Every merchandise line and artwork prompt must preserve the identity naturally, "
+        "identity. If the identity is not supplied, choose one concrete, non-sensitive identity "
+        "from the discussions and classify it as an occupation, role, community, lifestyle, or "
+        "other identity; return it in `identity_selected` and `identity_type_selected`. Every "
+        "merchandise line and artwork prompt must preserve the identity naturally, "
         "so the target person thinks 'that is literally me' rather than merely seeing a generic joke. "
         "The merchandise line must make sense alone and should sound like a specific person or "
         "relationship making a claim, confession, complaint, or dry observation—not an advertising "
@@ -114,6 +122,16 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
     """Build a provider request that repeats the identity anchor at every important decision."""
 
     platforms = ", ".join(source.value for source in input_model.sources)
+    identity_instruction = (
+        "Choose one concrete, non-sensitive identity represented in the discussions before choosing "
+        "the behavior. Return it in `identity_selected` and classify it in `identity_type_selected`. "
+        "Use only the allowed identity types; do not infer sensitive personal traits."
+        if input_model.auto_identity
+        else (
+            f"Use this supplied identity exactly: {input_model.identity}. "
+            f"Its identity type is {input_model.identity_type.value}."
+        )
+    )
     topic_instruction = (
         "Choose a narrow behavior or topic within this identity before searching. Prefer a distinct "
         "tension, contradiction, absurdity, or private joke; avoid generic routines and broad "
@@ -121,9 +139,17 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
         if input_model.auto_topic
         else f"Behavior/topic to investigate within this identity: {input_model.query}"
     )
+    identity_context = (
+        ""
+        if input_model.auto_identity
+        else (
+            f"Target identity: {input_model.identity}\n"
+            f"Identity type: {input_model.identity_type.value}\n"
+        )
+    )
     return (
-        f"Target identity: {input_model.identity}\n"
-        f"Identity type: {input_model.identity_type.value}\n"
+        f"{identity_instruction}\n"
+        f"{identity_context}"
         f"Search these public platforms: {platforms}.\n"
         f"{topic_instruction}\n"
         f"Return up to {input_model.candidate_count} distinct candidates. Each candidate must include "
@@ -159,18 +185,25 @@ def execute(
     if reasoning_output is not None:
         if len(reasoning_output.candidates) > input_model.candidate_count:
             raise ValueError("Identity-focused provider returned more candidates than configured.")
+        selected_identity = reasoning_output.identity_selected or input_model.identity
+        selected_identity_type = reasoning_output.identity_type_selected or input_model.identity_type
+        if len(selected_identity.strip()) < 2 or selected_identity_type is None:
+            raise ValueError(
+                "Identity-focused provider must return identity_selected and "
+                "identity_type_selected when identity is AI-selected."
+            )
         allowed_sources = set(input_model.sources)
         for candidate in reasoning_output.candidates:
             if candidate.source_platform not in allowed_sources:
                 raise ValueError(
                     "Identity-focused provider returned a candidate from an unrequested source."
                 )
-            if candidate.identity.casefold() != input_model.identity.casefold():
+            if candidate.identity.casefold() != selected_identity.casefold():
                 raise ValueError(
-                    f"Identity-focused provider changed the target identity from {input_model.identity!r}."
+                    f"Identity-focused provider changed the target identity from {selected_identity!r}."
                 )
-            if candidate.identity_type != input_model.identity_type:
-                raise ValueError("Identity-focused provider changed the requested identity type.")
+            if candidate.identity_type != selected_identity_type:
+                raise ValueError("Identity-focused provider changed the selected identity type.")
             if not _source_domain_is_valid(candidate):
                 raise ValueError(
                     f"Identity-focused provider cited {candidate.source_url!r} for "
@@ -179,30 +212,34 @@ def execute(
         return reasoning_output.model_copy(
             update={
                 "model": model,
+                "identity_selected": selected_identity.strip(),
+                "identity_type_selected": selected_identity_type,
                 "topic_explored": reasoning_output.topic_explored or input_model.query,
             }
         )
 
     source = input_model.sources[0]
+    effective_identity = input_model.identity.strip() or "night-shift workers"
+    effective_identity_type = input_model.identity_type or IdentityType.OCCUPATION
     effective_query = input_model.query.strip() or (
         "a small daily behavior that reveals how this identity gets through ordinary life"
     )
     candidates = [
         SocialIdentityTextCandidate(
-            identity=input_model.identity,
-            identity_type=input_model.identity_type,
+            identity=effective_identity,
+            identity_type=effective_identity_type,
             identity_evidence=(
-                f"Fixture identity anchor: {input_model.identity} ({input_model.identity_type.value})."
+                f"Fixture identity anchor: {effective_identity} ({effective_identity_type.value})."
             ),
             source_platform=source,
             source_url=f"https://fixture.local/{source.value}/identity/{index}",
             source_title=f"Fixture {source.value} identity behavior {index}",
             source_excerpt=f"Fixture discussion about {input_model.identity}: {effective_query}.",
-            audience_context=input_model.identity,
-            behavior=f"{input_model.identity} repeatedly describes {effective_query}.",
+            audience_context=effective_identity,
+            behavior=f"{effective_identity} repeatedly describes {effective_query}.",
             friction_or_pressure="The identity-specific routine collides with ordinary daily pressure.",
             artwork_text=(
-                f"{input_model.identity} has a very specific way of dealing with {effective_query}"
+                f"{effective_identity} has a very specific way of dealing with {effective_query}"
             ),
             artwork_prompt=(
                 f"Create a bold targeted T-shirt graphic for {input_model.identity}. Render the exact "
@@ -210,7 +247,7 @@ def execute(
             ),
             visual_punchline="An ordinary identity-specific workaround is treated like a heroic operating rule.",
             main_visual_metaphor="A small object becomes an exaggerated tool of identity-specific survival.",
-            audience_specific_cue=input_model.identity,
+            audience_specific_cue=effective_identity,
             tone="dry, personal, and mildly absurd",
             style_direction="Bold limited-palette screen-print with thick outlines and strong type.",
             things_to_avoid=["generic lifestyle imagery", "invented logos", "extra text"],
@@ -219,6 +256,8 @@ def execute(
         for index in range(1, input_model.candidate_count + 1)
     ]
     return SocialIdentityTextOutput(
+        identity_selected=effective_identity,
+        identity_type_selected=effective_identity_type,
         candidates=candidates,
         search_summary="Deterministic fixture output; no social platform was queried.",
         topic_explored=effective_query,

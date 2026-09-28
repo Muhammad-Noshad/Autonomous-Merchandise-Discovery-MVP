@@ -57,6 +57,7 @@ class RunConfig(BaseModel):
     # downstream prompt can preserve the same audience anchor without inferring sensitive traits.
     social_identity: str = Field(default="", max_length=300)
     social_identity_type: IdentityType | None = None
+    social_auto_identity: bool = False
 
 
 class WorkflowRun(BaseModel):

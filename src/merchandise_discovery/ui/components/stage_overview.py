@@ -73,13 +73,16 @@ def _render_social_behavior_text(
         ("Sources", source_names),
         ("Requested candidates", str(request.get("candidate_count", "Not recorded"))),
     ])
-    identity_type = request.get("identity_type", "other")
+    selected_identity = request.get("identity") or payload.get("identity_selected")
+    identity_type = request.get("identity_type") or payload.get("identity_type_selected", "other")
     identity_type_value = getattr(identity_type, "value", identity_type)
-    if request.get("identity"):
+    if selected_identity:
         st.write(
-            f"**Target identity:** {request['identity']} "
+            f"**Target identity:** {selected_identity} "
             f"({str(identity_type_value).replace('_', ' ').title()})"
         )
+    if request.get("auto_identity"):
+        st.caption("Identity and identity type selected by AI from the searched discussions.")
     if request.get("auto_topic"):
         st.write(f"**Behavior or topic selected by AI:** {query}")
     else:
