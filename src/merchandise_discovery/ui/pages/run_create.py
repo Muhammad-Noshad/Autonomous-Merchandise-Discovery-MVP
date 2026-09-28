@@ -22,7 +22,7 @@ def build_run_config(
     concepts: int,
     artwork_variants: int,
     similarity_check: bool = False,
-    pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+    pipeline_variant: PipelineVariant = PipelineVariant.SOCIAL_IDENTITY_V2,
     social_sources: list[SocialSource] | None = None,
     social_query: str = "",
     social_auto_topic: bool = False,
@@ -103,6 +103,7 @@ def render_run_create(
         help="Reveal the older Baseline and Compact pipelines for comparison runs.",
     )
     pipeline_options = [
+        PipelineVariant.SOCIAL_IDENTITY_V2,
         PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
     ]
@@ -119,12 +120,18 @@ def render_run_create(
             PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
             PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — copy + Grok artwork",
             PipelineVariant.SOCIAL_IDENTITY_FOCUSED: "Identity-focused social behavior - copy + Grok artwork",
+            PipelineVariant.SOCIAL_IDENTITY_V2: "Identity V2 - prompt-focused identity copy + Grok artwork",
         }[value],
         help="Choose a full discovery pipeline or the two-stage social behavior experiment.",
     )
     is_social_pipeline = pipeline_variant in {
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
         PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+        PipelineVariant.SOCIAL_IDENTITY_V2,
+    }
+    is_identity_pipeline = pipeline_variant in {
+        PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+        PipelineVariant.SOCIAL_IDENTITY_V2,
     }
     if (
         is_social_pipeline
@@ -143,7 +150,7 @@ def render_run_create(
             value=False,
             help="OpenAI will choose a narrow, source-backed behavior before searching in Stage 1.",
         )
-        if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+        if is_identity_pipeline:
             auto_identity = st.checkbox(
                 "Let AI choose the identity and identity type",
                 value=False,
@@ -175,7 +182,7 @@ def render_run_create(
         social_identity_type: IdentityType | None = None
         if is_social_pipeline:
             st.markdown("### Social behavior search")
-            if pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
+            if is_identity_pipeline:
                 st.markdown("#### Identity anchor")
                 if auto_identity:
                     st.info("AI will select the identity and identity type from the public discussions.")
@@ -246,7 +253,7 @@ def render_run_create(
             st.error("Describe the behavior or topic to explore.")
             return
         if (
-            pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED
+            is_identity_pipeline
             and not auto_identity
             and not social_identity.strip()
         ):

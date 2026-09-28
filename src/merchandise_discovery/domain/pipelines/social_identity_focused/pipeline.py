@@ -185,36 +185,46 @@ def execute(
     if reasoning_output is not None:
         if len(reasoning_output.candidates) > input_model.candidate_count:
             raise ValueError("Identity-focused provider returned more candidates than configured.")
-        selected_identity = reasoning_output.identity_selected or input_model.identity
+        selected_identity = (reasoning_output.identity_selected or input_model.identity).strip()
         selected_identity_type = reasoning_output.identity_type_selected or input_model.identity_type
-        if len(selected_identity.strip()) < 2 or selected_identity_type is None:
+        if not input_model.auto_identity:
+            # Manual input is the user's source of truth; provider wording cannot replace it.
+            selected_identity = input_model.identity.strip()
+            selected_identity_type = input_model.identity_type
+        if len(selected_identity) < 2 or selected_identity_type is None:
             raise ValueError(
                 "Identity-focused provider must return identity_selected and "
                 "identity_type_selected when identity is AI-selected."
             )
         allowed_sources = set(input_model.sources)
+        normalized_candidates = []
         for candidate in reasoning_output.candidates:
             if candidate.source_platform not in allowed_sources:
                 raise ValueError(
                     "Identity-focused provider returned a candidate from an unrequested source."
                 )
-            if candidate.identity.casefold() != selected_identity.casefold():
-                raise ValueError(
-                    f"Identity-focused provider changed the target identity from {selected_identity!r}."
-                )
-            if candidate.identity_type != selected_identity_type:
-                raise ValueError("Identity-focused provider changed the selected identity type.")
             if not _source_domain_is_valid(candidate):
                 raise ValueError(
                     f"Identity-focused provider cited {candidate.source_url!r} for "
                     f"{candidate.source_platform.value}; expected that platform domain."
                 )
+            # Persist one canonical identity label so downstream artwork and UI records do not
+            # alternate between harmless provider typography variants.
+            normalized_candidates.append(
+                candidate.model_copy(
+                    update={
+                        "identity": selected_identity,
+                        "identity_type": selected_identity_type,
+                    }
+                )
+            )
         return reasoning_output.model_copy(
             update={
                 "model": model,
-                "identity_selected": selected_identity.strip(),
+                "identity_selected": selected_identity,
                 "identity_type_selected": selected_identity_type,
                 "topic_explored": reasoning_output.topic_explored or input_model.query,
+                "candidates": normalized_candidates,
             }
         )
 

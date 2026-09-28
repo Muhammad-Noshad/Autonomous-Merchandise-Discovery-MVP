@@ -15,7 +15,7 @@ def test_build_run_config_normalizes_form_values() -> None:
     assert config.concepts_per_niche == 3
     assert config.artwork_variants_per_concept == 1
     assert config.enable_similarity_ip_check is True
-    assert config.pipeline_variant is PipelineVariant.SOCIAL_IDENTITY_FOCUSED
+    assert config.pipeline_variant is PipelineVariant.SOCIAL_IDENTITY_V2
 
 
 def test_render_run_create_unsubmitted(monkeypatch) -> None:

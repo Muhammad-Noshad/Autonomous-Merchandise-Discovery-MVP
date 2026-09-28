@@ -20,6 +20,12 @@ from merchandise_discovery.domain.pipelines.social_identity_focused import (
 from merchandise_discovery.domain.pipelines.social_identity_focused import (
     pipeline as social_identity,
 )
+from merchandise_discovery.domain.pipelines.social_identity_v2 import (
+    artwork as social_identity_v2_artwork,
+)
+from merchandise_discovery.domain.pipelines.social_identity_v2 import (
+    pipeline as social_identity_v2,
+)
 from merchandise_discovery.domain.stages import stage_01_seed_discovery as stage_01
 from merchandise_discovery.domain.stages import stage_02_identity_expansion as stage_02
 from merchandise_discovery.domain.stages import stage_03_intersection_generation as stage_03
@@ -187,6 +193,34 @@ class DiscoveryStageExecutor:
 
     def prepare(self, run: WorkflowRun, stage: StageExecution) -> dict:
         """Build a serializable input payload from run configuration and prior stage output."""
+
+        if run.config.pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_V2:
+            if stage.stage_number == 1:
+                if not run.config.social_auto_identity and run.config.social_identity_type is None:
+                    raise ValueError("Identity V2 pipeline requires an identity type.")
+                return social_identity_v2.SocialIdentityV2Input(
+                    sources=run.config.social_sources,
+                    identity=run.config.social_identity,
+                    identity_type=run.config.social_identity_type,
+                    auto_identity=run.config.social_auto_identity,
+                    query=run.config.social_query,
+                    auto_topic=run.config.social_auto_topic,
+                    candidate_count=run.config.social_candidate_count,
+                ).model_dump(mode="python")
+            if stage.stage_number == 2:
+                previous = self._stage_repository.get_latest(run.run_id, 1)
+                if previous is None or not previous.output_data:
+                    raise ValueError("Identity V2 Stage 2 is missing Stage 1 behavior output.")
+                prior = social_identity_v2.SocialIdentityV2Output.model_validate(
+                    previous.output_data
+                )
+                return social_identity_v2_artwork.IdentityV2ArtworkInput(
+                    candidates=prior.candidates,
+                    artwork_variants_per_candidate=1,
+                ).model_dump(mode="python")
+            raise StageNotImplementedError(
+                f"Identity V2 pipeline does not define Stage {stage.stage_number}."
+            )
 
         if run.config.pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
             if stage.stage_number == 1:
@@ -448,6 +482,60 @@ class DiscoveryStageExecutor:
         """Run one supported stage and retain exact input/output payloads for auditability."""
 
         usage = UsageMetrics()
+        if run.config.pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_V2:
+            if stage.stage_number == 1:
+                input_model = social_identity_v2.SocialIdentityV2Input.model_validate(input_data)
+                reasoning_output = None
+                if self._reasoning_provider is not None:
+                    response = self._reasoning_provider.complete_structured(
+                        system_prompt=social_identity_v2.reasoning_instructions(),
+                        user_prompt=social_identity_v2.build_user_prompt(input_model),
+                        response_model=social_identity_v2.SocialIdentityV2Output,
+                        web_search_domains=tuple(
+                            "reddit.com" if source.value == "reddit" else "x.com"
+                            for source in input_model.sources
+                        ),
+                    )
+                    reasoning_output = response.output
+                    usage = response.usage
+                output = social_identity_v2.execute(
+                    input_model,
+                    reasoning_output=reasoning_output,
+                    model=usage.model if usage.provider != "fixture" else "deterministic",
+                )
+                summary = (
+                    f"Generated {len(output.candidates)} prompt-focused identity merchandise "
+                    f"candidates using {output.model}."
+                )
+                return StageResult(
+                    input_data=input_data,
+                    output_data=output.model_dump(mode="python"),
+                    output_summary=summary,
+                    usage=usage,
+                )
+            if stage.stage_number == 2:
+                identity_input = social_identity_v2_artwork.IdentityV2ArtworkInput.model_validate(
+                    input_data
+                )
+                output = social_identity_v2_artwork.execute(
+                    identity_input,
+                    run_id=run.run_id,
+                    provider=self._image_provider,
+                    storage=self._artwork_storage,
+                )
+                usage = output.usage
+                self._artworks.replace_for_run(run.run_id, output.artworks)
+                summary = f"Generated {len(output.artworks)} Identity V2 artwork candidates with Grok."
+                return StageResult(
+                    input_data=identity_input.model_dump(mode="python"),
+                    output_data=output.model_dump(mode="python"),
+                    output_summary=summary,
+                    usage=usage,
+                )
+            raise StageNotImplementedError(
+                f"Identity V2 pipeline does not define Stage {stage.stage_number}."
+            )
+
         if run.config.pipeline_variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
             if stage.stage_number == 1:
                 input_model = social_identity.SocialIdentityTextInput.model_validate(input_data)

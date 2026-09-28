@@ -94,6 +94,36 @@ def _render_social_behavior_text(
     if payload.get("search_summary"):
         st.caption(_short(str(payload["search_summary"]), 300))
 
+    dossier = payload.get("dossier")
+    if isinstance(dossier, dict):
+        _section("Identity dossier")
+        _metric_row(
+            [
+                ("Insider language", str(len(dossier.get("insider_language", [])))),
+                ("Artifacts or rituals", str(len(dossier.get("work_artifacts_or_rituals", [])))),
+                ("Source records", str(len(dossier.get("evidence", [])))),
+            ]
+        )
+        with st.expander("Identity signals used by the writer", expanded=False):
+            st.write(
+                "**Insider language:** "
+                + " · ".join(str(item) for item in dossier.get("insider_language", []))
+            )
+            st.write(
+                "**Work artifacts or rituals:** "
+                + " · ".join(str(item) for item in dossier.get("work_artifacts_or_rituals", []))
+            )
+            st.write(
+                "**Identity-specific tensions:** "
+                + " · ".join(str(item) for item in dossier.get("identity_specific_tensions", []))
+            )
+        with st.expander("Dossier evidence", expanded=False):
+            for evidence in _records(dossier, "evidence"):
+                title = _text(evidence, "source_title", default="Source")
+                url = _text(evidence, "source_url", default="")
+                st.markdown(f"[{title}]({url})" if url else f"**{title}**")
+                st.caption(_text(evidence, "source_excerpt"))
+
     for index, candidate in enumerate(candidates, start=1):
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
         if candidate.get("identity"):
@@ -112,9 +142,9 @@ def _render_social_behavior_text(
         st.markdown("**Observed behavior**")
         st.write(_text(candidate, "behavior"))
         st.markdown("**Friction or pressure**")
-        st.write(_text(candidate, "friction_or_pressure"))
+        st.write(_text(candidate, "friction_or_pressure", "identity_specific_tension"))
         st.markdown("**Why this is specific**")
-        st.write(_text(candidate, "specificity_reason"))
+        st.write(_text(candidate, "specificity_reason", "identity_recognition_reason"))
         source_url = _text(candidate, "source_url", default="")
         source_title = _text(candidate, "source_title", default="Source")
         if source_url:

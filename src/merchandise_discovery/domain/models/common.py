@@ -21,6 +21,7 @@ class PipelineVariant(str, Enum):
     COMPACT_RESEARCH_FIRST = "compact_research_first"
     SOCIAL_BEHAVIOR_TEXT = "social_behavior_text"
     SOCIAL_IDENTITY_FOCUSED = "social_identity_focused"
+    SOCIAL_IDENTITY_V2 = "social_identity_v2"
 
 
 class SocialSource(str, Enum):

@@ -145,8 +145,8 @@ def test_identity_stage_two_carries_identity_into_grok_prompt() -> None:
     assert result.output_data["artworks"][0]["source_url"].startswith("https://fixture.local/")
 
 
-def test_identity_live_stage_requires_provider_to_preserve_identity() -> None:
-    """A live provider that changes the requested identity must fail instead of masking the drift."""
+def test_identity_live_stage_canonicalizes_provider_identity_labels() -> None:
+    """Provider identity wording is normalized to the manual run identity without semantic rejection."""
 
     run = _run()
     stage = StageExecution(
@@ -188,9 +188,8 @@ def test_identity_live_stage_requires_provider_to_preserve_identity() -> None:
 
     input_data = executor.prepare(run, stage)
 
-    try:
-        executor.execute(run, stage, input_data)
-    except ValueError as error:
-        assert "changed the target identity" in str(error)
-    else:
-        raise AssertionError("Provider identity drift should fail the identity-focused stage")
+    result = executor.execute(run, stage, input_data)
+
+    assert result.output_data["identity_selected"] == "night-shift nurses"
+    assert result.output_data["candidates"][0]["identity"] == "night-shift nurses"
+    assert result.output_data["candidates"][0]["identity_type"] == IdentityType.OCCUPATION.value
