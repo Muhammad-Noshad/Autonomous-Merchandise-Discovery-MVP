@@ -12,6 +12,9 @@ from typing import Protocol
 from openai import OpenAI, OpenAIError
 
 from merchandise_discovery.domain.models.usage import UsageMetrics
+from merchandise_discovery.infrastructure.providers.openai_model_compatibility import (
+    is_reasoning_model,
+)
 
 
 @dataclass(frozen=True)
@@ -147,12 +150,14 @@ class OpenAIWebResearchProvider:
         input_price_per_million: float = 0.15,
         output_price_per_million: float = 0.60,
         web_search_price_per_call: float = 0.01,
+        reasoning_effort: str = "medium",
     ):
         self._client = OpenAI(api_key=api_key)
         self._model = model
         self._input_price = input_price_per_million
         self._output_price = output_price_per_million
         self._web_search_price_per_call = web_search_price_per_call
+        self._reasoning_effort = reasoning_effort
 
     def search(self, request: ResearchRequest) -> ResearchSearchResult:
         """Search the public web and retain citation URLs as evidence provenance."""
@@ -168,11 +173,14 @@ class OpenAIWebResearchProvider:
             "same claim for every source."
         )
         try:
-            response = self._client.responses.create(
-                model=self._model,
-                tools=[{"type": "web_search"}],
-                input=prompt,
-            )
+            request_kwargs: dict[str, object] = {
+                "model": self._model,
+                "tools": [{"type": "web_search"}],
+                "input": prompt,
+            }
+            if is_reasoning_model(self._model):
+                request_kwargs["reasoning"] = {"effort": self._reasoning_effort}
+            response = self._client.responses.create(**request_kwargs)
         except (OpenAIError, TypeError, ValueError) as error:
             raise RuntimeError("OpenAI web research request failed.") from error
 

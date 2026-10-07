@@ -21,11 +21,15 @@ class ExampleOutput(BaseModel):
     value: str
 
 
-def _provider(model: str) -> OpenAIReasoningProvider:
+def _provider(model: str, *, reasoning_effort: str = "medium") -> OpenAIReasoningProvider:
     """Construct an adapter with a mocked SDK client and no network access."""
 
     with patch("merchandise_discovery.infrastructure.providers.reasoning_provider.OpenAI") as client:
-        provider = OpenAIReasoningProvider(api_key="test-key", model=model)
+        provider = OpenAIReasoningProvider(
+            api_key="test-key",
+            model=model,
+            reasoning_effort=reasoning_effort,
+        )
     provider._client = client.return_value
     provider._client.responses.parse.return_value = SimpleNamespace(
         output_parsed=ExampleOutput(value="ok"),
@@ -35,9 +39,9 @@ def _provider(model: str) -> OpenAIReasoningProvider:
 
 
 def test_reasoning_models_omit_temperature() -> None:
-    """GPT-5.6 Luna must not receive a sampling parameter rejected by reasoning models."""
+    """GPT-5.6 and GPT-6 Luna receive reasoning effort, not temperature."""
 
-    provider = _provider("gpt-5.6-luna")
+    provider = _provider("gpt-6-luna")
 
     provider.complete_structured(
         system_prompt="system",
@@ -48,7 +52,25 @@ def test_reasoning_models_omit_temperature() -> None:
 
     kwargs = provider._client.responses.parse.call_args.kwargs
     assert "temperature" not in kwargs
-    assert kwargs["model"] == "gpt-5.6-luna"
+    assert kwargs["reasoning"] == {"effort": "medium"}
+    assert kwargs["model"] == "gpt-6-luna"
+
+
+def test_reasoning_effort_is_configurable_for_gpt5_models() -> None:
+    """Existing GPT-5 reasoning requests can explicitly use the configured effort level."""
+
+    provider = _provider("gpt-5.6-luna", reasoning_effort="low")
+
+    provider.complete_structured(
+        system_prompt="system",
+        user_prompt="user",
+        response_model=ExampleOutput,
+        temperature=0.0,
+    )
+
+    kwargs = provider._client.responses.parse.call_args.kwargs
+    assert kwargs["reasoning"] == {"effort": "low"}
+    assert "temperature" not in kwargs
 
 
 def test_chat_models_keep_temperature() -> None:
@@ -64,6 +86,24 @@ def test_chat_models_keep_temperature() -> None:
     )
 
     assert provider._client.responses.parse.call_args.kwargs["temperature"] == 0.0
+    assert "reasoning" not in provider._client.responses.parse.call_args.kwargs
+
+
+def test_structured_web_search_cost_includes_tool_call_fee() -> None:
+    """Social search calls include the configured web-search fee in their cost estimate."""
+
+    provider = _provider("gpt-6-luna")
+    result = provider.complete_structured(
+        system_prompt="system",
+        user_prompt="find behavior",
+        response_model=ExampleOutput,
+        web_search_domains=("reddit.com",),
+    )
+
+    kwargs = provider._client.responses.parse.call_args.kwargs
+    assert kwargs["tool_choice"] == "required"
+    assert result.usage.estimated_cost_usd == 0.0100021
+    assert "web-search call" in (result.usage.pricing_note or "")
 
 
 def test_provider_builds_multimodal_structured_request() -> None:

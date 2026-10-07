@@ -13,6 +13,9 @@ from openai import OpenAI, OpenAIError
 from pydantic import BaseModel
 
 from merchandise_discovery.domain.models.usage import UsageMetrics
+from merchandise_discovery.infrastructure.providers.openai_model_compatibility import (
+    is_reasoning_model,
+)
 
 
 class ReasoningProviderError(RuntimeError):
@@ -58,6 +61,8 @@ class OpenAIReasoningProvider:
         *,
         input_price_per_million: float = 0.15,
         output_price_per_million: float = 0.60,
+        reasoning_effort: str = "medium",
+        web_search_price_per_call: float = 0.01,
         timeout_seconds: float | None = None,
     ):
         # Composition roots normally pass the validated Settings value. The environment fallback
@@ -75,18 +80,19 @@ class OpenAIReasoningProvider:
         self._model = model
         self._input_price = input_price_per_million
         self._output_price = output_price_per_million
+        self._reasoning_effort = reasoning_effort
+        self._web_search_price_per_call = web_search_price_per_call
 
     def _supports_temperature(self) -> bool:
         """Return whether this model family accepts the legacy sampling parameter.
 
         The stage contract keeps ``temperature`` so callers do not need to know provider
         quirks. Newer reasoning families (including GPT-5.x and the o-series) control
-        generation through reasoning settings and reject ``temperature`` in many modes,
+        generation through reasoning settings and reject ``temperature`` in reasoning modes,
         so the adapter must omit it at the provider boundary.
         """
 
-        model = self._model.casefold()
-        return not model.startswith(("gpt-5", "o1", "o3", "o4"))
+        return not is_reasoning_model(self._model)
 
     def complete_structured(
         self,
@@ -135,6 +141,8 @@ class OpenAIReasoningProvider:
             # This pipeline must inspect social sources; a text-only answer should not look like
             # successful source extraction when the provider did not search the requested domains.
             request_kwargs["tool_choice"] = "required"
+        if is_reasoning_model(self._model):
+            request_kwargs["reasoning"] = {"effort": self._reasoning_effort}
         if self._supports_temperature():
             request_kwargs["temperature"] = temperature
 
@@ -152,6 +160,7 @@ class OpenAIReasoningProvider:
         provider_usage = response.usage
         input_tokens = int(getattr(provider_usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(provider_usage, "output_tokens", 0) or 0)
+        search_cost = self._web_search_price_per_call if web_search_domains else 0.0
         return StructuredResponse(
             output=response.output_parsed,
             usage=UsageMetrics(
@@ -166,10 +175,18 @@ class OpenAIReasoningProvider:
                 ),
                 estimated_cost_usd=round(
                     input_tokens * self._input_price / 1_000_000
-                    + output_tokens * self._output_price / 1_000_000,
+                    + output_tokens * self._output_price / 1_000_000
+                    + search_cost,
                     8,
                 ),
                 cost_is_estimate=True,
-                pricing_note="Estimated from configured OpenAI per-million-token rates.",
+                pricing_note=(
+                    "Estimated from configured OpenAI per-million-token rates"
+                    + (
+                        f" plus ${search_cost:.2f} for the web-search call."
+                        if search_cost
+                        else "."
+                    )
+                ),
             ),
         )

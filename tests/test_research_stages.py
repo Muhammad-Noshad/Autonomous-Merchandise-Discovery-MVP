@@ -92,6 +92,35 @@ def test_openai_web_search_usage_includes_per_call_tool_price() -> None:
     assert "per OpenAI web-search call" in (result.usage.pricing_note or "")
 
 
+def test_gpt6_research_call_uses_configured_reasoning_effort() -> None:
+    """The standalone research provider sends the same model effort as structured stages."""
+
+    response = Mock()
+    response.output_text = "Evidence summary."
+    response.output = [
+        Mock(content=[Mock(annotations=[Mock(url="https://example.com/source", title="Example")])])
+    ]
+    response.usage = Mock(input_tokens=1, output_tokens=1, total_tokens=2)
+
+    with patch("merchandise_discovery.infrastructure.providers.research_provider.OpenAI") as factory:
+        factory.return_value.responses.create.return_value = response
+        provider = OpenAIWebResearchProvider(
+            "test-key",
+            model="gpt-6-luna",
+            reasoning_effort="low",
+        )
+        provider.search(
+            ResearchRequest(
+                query="night shift routines",
+                identities=("Night-shift workers",),
+                hypotheses=(),
+            )
+        )
+
+    request = factory.return_value.responses.create.call_args.kwargs
+    assert request["reasoning"] == {"effort": "low"}
+
+
 def test_openai_web_search_keeps_citation_claims_separate() -> None:
     """Each cited URL receives its nearby claim instead of the full combined provider summary."""
 

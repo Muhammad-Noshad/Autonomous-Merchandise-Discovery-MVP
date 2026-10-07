@@ -27,6 +27,7 @@ class Settings:
     artwork_storage_dir: str = ".artifacts"
     max_stage_attempts: int = 3
     openai_reasoning_model: str = "gpt-4o-mini"
+    openai_reasoning_effort: str = "medium"
     openai_reasoning_timeout_seconds: float = 420.0
     openai_image_detail: str = "high"
     openai_input_price_per_million: float = 0.15
@@ -47,6 +48,8 @@ def load_settings() -> Settings:
         load_dotenv(dotenv_path=ENV_FILE, override=False)
     else:
         load_dotenv(override=False)
+    reasoning_model = os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    default_input_price, default_output_price = _default_openai_token_prices(reasoning_model)
     return Settings(
         mongodb_uri=os.getenv("MONGODB_URI"),
         mongodb_database=os.getenv("MONGODB_DATABASE", "merchandise_discovery"),
@@ -55,13 +58,20 @@ def load_settings() -> Settings:
         xai_image_model=os.getenv("XAI_IMAGE_MODEL", "grok-imagine-image"),
         artwork_storage_dir=os.getenv("ARTWORK_STORAGE_DIR", ".artifacts"),
         max_stage_attempts=max(1, int(os.getenv("MVP_MAX_STAGE_ATTEMPTS", "3"))),
-        openai_reasoning_model=os.getenv("OPENAI_REASONING_MODEL", "gpt-4o-mini"),
+        openai_reasoning_model=reasoning_model,
+        openai_reasoning_effort=(
+            os.getenv("OPENAI_REASONING_EFFORT", "medium").strip().lower() or "medium"
+        ),
         openai_reasoning_timeout_seconds=max(
             1.0, float(os.getenv("OPENAI_REASONING_TIMEOUT_SECONDS", "420"))
         ),
         openai_image_detail=os.getenv("OPENAI_IMAGE_DETAIL", "high").strip().lower(),
-        openai_input_price_per_million=float(os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", "0.15")),
-        openai_output_price_per_million=float(os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", "0.60")),
+        openai_input_price_per_million=float(
+            os.getenv("OPENAI_INPUT_PRICE_PER_MILLION", str(default_input_price))
+        ),
+        openai_output_price_per_million=float(
+            os.getenv("OPENAI_OUTPUT_PRICE_PER_MILLION", str(default_output_price))
+        ),
         openai_web_search_price_per_call=float(
             os.getenv("OPENAI_WEB_SEARCH_PRICE_PER_CALL", "0.01")
         ),
@@ -70,6 +80,17 @@ def load_settings() -> Settings:
         provider_mode=os.getenv("MVP_PROVIDER_MODE", "fixture").strip().lower(),
         stop_after_stage=max(1, min(18, int(os.getenv("MVP_STOP_AFTER_STAGE", "1")))),
     )
+
+
+def _default_openai_token_prices(model: str) -> tuple[float, float]:
+    """Return standard per-million-token rates for supported model aliases."""
+
+    normalized_model = model.casefold()
+    if normalized_model.startswith("gpt-6-luna"):
+        return 0.10, 0.50
+    if normalized_model.startswith("gpt-5.6-luna"):
+        return 0.20, 1.20
+    return 0.15, 0.60
 
 
 def require_mongodb_uri(settings: Settings) -> str:
