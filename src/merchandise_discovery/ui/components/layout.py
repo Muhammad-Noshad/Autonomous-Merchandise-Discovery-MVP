@@ -7,6 +7,7 @@ MongoDB repositories.
 
 import streamlit as st
 
+from merchandise_discovery.ui.adapters import pipeline_display_name
 from merchandise_discovery.ui.fixtures import RunFixture
 
 PAGE_RUNS = "Runs"
@@ -156,7 +157,7 @@ def render_run_header(run: RunFixture) -> None:
         st.caption(
             f"{run.title}  ·  Started {run.started}  ·  Triggered by {run.triggered_by}  ·  "
             f"Selection seed: {run.selection_seed if run.selection_seed is not None else 'not recorded'}  ·  "
-            f"Pipeline: {run.pipeline_variant.replace('_', ' ').title()}  ·  {run.version}"
+            f"Pipeline: {pipeline_display_name(run.pipeline_variant)}  ·  {run.version}"
         )
     with header_right:
         st.markdown(

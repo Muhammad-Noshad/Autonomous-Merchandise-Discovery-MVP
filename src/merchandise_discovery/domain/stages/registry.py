@@ -56,6 +56,19 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
                 "Use each Stage 1 artwork prompt to generate one targeted merchandise image with Grok.",
             ),
         )
+    if variant == PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY:
+        return (
+            StageDefinition(
+                1,
+                "Behavior-First Identity Mapping and Merchandise Text",
+                "Find source-backed behavior first, identify the audience that most clearly owns it, then write identity-recognizable copy and its Grok artwork prompt.",
+            ),
+            StageDefinition(
+                2,
+                "Identity-Grounded Social Merchandise Artwork Generation",
+                "Use each Stage 1 artwork prompt to generate one identity-grounded merchandise image with Grok.",
+            ),
+        )
     if variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
         return (
             StageDefinition(

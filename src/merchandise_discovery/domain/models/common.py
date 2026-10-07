@@ -20,12 +20,13 @@ class PipelineVariant(str, Enum):
     BASELINE = "baseline"
     COMPACT_RESEARCH_FIRST = "compact_research_first"
     SOCIAL_BEHAVIOR_TEXT = "social_behavior_text"
+    SOCIAL_BEHAVIOR_IDENTITY = "social_behavior_identity"
     SOCIAL_IDENTITY_FOCUSED = "social_identity_focused"
     SOCIAL_IDENTITY_V2 = "social_identity_v2"
 
 
 class SocialSource(str, Enum):
-    """Public social platforms that the one-stage behavior pipeline may search."""
+    """Public social platforms that the social discovery pipelines may search."""
 
     REDDIT = "reddit"
     X = "x"

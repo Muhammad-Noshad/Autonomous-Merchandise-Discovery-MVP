@@ -21,6 +21,22 @@ from merchandise_discovery.ui.fixtures import (
     StageFixture,
 )
 
+PIPELINE_DISPLAY_NAMES = {
+    PipelineVariant.BASELINE.value: "Baseline — full research pipeline",
+    PipelineVariant.COMPACT_RESEARCH_FIRST.value: "Compact — research-first pipeline",
+    PipelineVariant.SOCIAL_BEHAVIOR_TEXT.value: "Behavior-led — find behavior, then create merchandise",
+    PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY.value: "Behavior → audience — find the behavior, then identify who relates",
+    PipelineVariant.SOCIAL_IDENTITY_V2.value: "Audience → behavior — start with an identity, then find its behavior",
+    PipelineVariant.SOCIAL_IDENTITY_FOCUSED.value: "Identity-focused — legacy pipeline",
+}
+
+
+def pipeline_display_name(pipeline_variant: str | PipelineVariant) -> str:
+    """Return the readable product label for a persisted pipeline variant."""
+
+    value = pipeline_variant.value if isinstance(pipeline_variant, PipelineVariant) else pipeline_variant
+    return PIPELINE_DISPLAY_NAMES.get(value, value.replace("_", " ").title())
+
 
 def _format_duration(stage: StageExecution) -> str:
     """Format persisted stage timestamps for compact pipeline labels."""

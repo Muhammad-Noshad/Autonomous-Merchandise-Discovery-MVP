@@ -12,6 +12,7 @@ from merchandise_discovery.application.runtime import ApplicationRuntime
 from merchandise_discovery.domain.models.common import IdentityType, PipelineVariant, SocialSource
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
+from merchandise_discovery.ui.adapters import pipeline_display_name
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 
 
@@ -104,6 +105,7 @@ def render_run_create(
     )
     pipeline_options = [
         PipelineVariant.SOCIAL_IDENTITY_V2,
+        PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
     ]
     if show_legacy_pipelines:
@@ -114,20 +116,17 @@ def render_run_create(
         "Pipeline",
         options=pipeline_options,
         index=0,
-        format_func=lambda value: {
-            PipelineVariant.BASELINE: "Baseline — staged research pipeline",
-            PipelineVariant.COMPACT_RESEARCH_FIRST: "Compact — research-first concept pipeline",
-            PipelineVariant.SOCIAL_BEHAVIOR_TEXT: "Social behavior — copy + Grok artwork",
-            PipelineVariant.SOCIAL_IDENTITY_V2: "Identity V2 - prompt-focused identity copy + Grok artwork",
-        }[value],
-        help="Choose a full discovery pipeline or the two-stage social behavior experiment.",
+        format_func=pipeline_display_name,
+        help="Choose a research pipeline or one of three social-merchandise approaches.",
     )
     is_social_pipeline = pipeline_variant in {
         PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+        PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
         PipelineVariant.SOCIAL_IDENTITY_V2,
     }
     is_identity_pipeline = pipeline_variant in {
         PipelineVariant.SOCIAL_IDENTITY_V2,
+        PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
     }
     if (
         is_social_pipeline

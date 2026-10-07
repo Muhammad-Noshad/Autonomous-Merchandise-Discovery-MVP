@@ -55,6 +55,11 @@ _SOCIAL_BEHAVIOR_OUTPUTS: dict[int, tuple[str, ...]] = {
     2: ("artworks",),
 }
 
+_SOCIAL_BEHAVIOR_IDENTITY_OUTPUTS: dict[int, tuple[str, ...]] = {
+    1: ("candidates",),
+    2: ("artworks",),
+}
+
 _SOCIAL_IDENTITY_OUTPUTS: dict[int, tuple[str, ...]] = {
     1: ("candidates",),
     2: ("artworks",),
@@ -71,6 +76,8 @@ def _required_outputs(variant: PipelineVariant, stage_number: int) -> tuple[str,
 
     if variant == PipelineVariant.SOCIAL_BEHAVIOR_TEXT:
         return _SOCIAL_BEHAVIOR_OUTPUTS.get(stage_number, ())
+    if variant == PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY:
+        return _SOCIAL_BEHAVIOR_IDENTITY_OUTPUTS.get(stage_number, ())
     if variant == PipelineVariant.SOCIAL_IDENTITY_FOCUSED:
         return _SOCIAL_IDENTITY_OUTPUTS.get(stage_number, ())
     if variant == PipelineVariant.SOCIAL_IDENTITY_V2:

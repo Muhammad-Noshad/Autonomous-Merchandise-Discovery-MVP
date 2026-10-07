@@ -11,7 +11,7 @@ from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.domain.models.common import RunStatus
 from merchandise_discovery.domain.models.workflow import WorkflowRun
 from merchandise_discovery.shared.errors import RepositoryError
-from merchandise_discovery.ui.adapters import workflow_to_list_item
+from merchandise_discovery.ui.adapters import pipeline_display_name, workflow_to_list_item
 from merchandise_discovery.ui.components.layout import PAGE_RUN_DETAIL, navigate_to
 from merchandise_discovery.ui.fixtures import RunListItemFixture, get_demo_runs
 
@@ -40,7 +40,7 @@ def _render_run_row(
             [0.34, 0.16, 0.23, 0.14, 0.13]
         )
         with identity:
-            st.caption(f"Pipeline: {run.pipeline_variant.replace('_', ' ').title()}")
+            st.caption(f"Pipeline: {pipeline_display_name(run.pipeline_variant)}")
             st.markdown(f"**#{run.run_id} · {run.title}**")
             st.caption(
                 f"Triggered by {run.triggered_by} · Updated {run.updated} · "

@@ -94,6 +94,10 @@ def _render_social_behavior_text(
     if payload.get("search_summary"):
         st.caption(_short(str(payload["search_summary"]), 300))
 
+    if payload.get("identity_evidence"):
+        _section("Why this identity")
+        st.write(str(payload["identity_evidence"]))
+
     dossier = payload.get("dossier")
     if isinstance(dossier, dict):
         _section("Identity dossier")
@@ -840,7 +844,7 @@ def render_stage_overview(stage: StageFixture) -> None:
         return
     # Compact pipelines reuse the artwork implementations under different stage numbers. Resolve
     # those names first so a compact artwork record is not rendered as an unrelated baseline stage.
-    if "to Merchandise Text" in stage.name:
+    if "to Merchandise Text" in stage.name or "Identity Mapping" in stage.name:
         _render_social_behavior_text(stage.output_payload, stage.input_payload)
         return
     elif "Artwork Results" in stage.name or "Artwork Gallery" in stage.name:
