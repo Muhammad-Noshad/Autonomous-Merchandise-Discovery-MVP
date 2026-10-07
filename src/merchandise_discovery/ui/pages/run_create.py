@@ -126,7 +126,6 @@ def render_run_create(
     }
     is_identity_pipeline = pipeline_variant in {
         PipelineVariant.SOCIAL_IDENTITY_V2,
-        PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
     }
     if (
         is_social_pipeline

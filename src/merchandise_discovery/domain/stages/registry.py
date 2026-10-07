@@ -61,7 +61,7 @@ def stage_definitions_for(variant: PipelineVariant) -> tuple[StageDefinition, ..
             StageDefinition(
                 1,
                 "Behavior-First Identity Mapping and Merchandise Text",
-                "Find source-backed behavior first, identify the audience that most clearly owns it, then write identity-recognizable copy and its Grok artwork prompt.",
+                "Find distinct source-backed behaviors, map each to its best-supported audience, then write identity-recognizable copy and its Grok artwork prompt.",
             ),
             StageDefinition(
                 2,

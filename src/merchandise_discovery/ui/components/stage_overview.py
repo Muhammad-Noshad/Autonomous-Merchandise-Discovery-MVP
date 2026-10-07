@@ -94,10 +94,6 @@ def _render_social_behavior_text(
     if payload.get("search_summary"):
         st.caption(_short(str(payload["search_summary"]), 300))
 
-    if payload.get("identity_evidence"):
-        _section("Why this identity")
-        st.write(str(payload["identity_evidence"]))
-
     dossier = payload.get("dossier")
     if isinstance(dossier, dict):
         _section("Identity dossier")
@@ -131,7 +127,12 @@ def _render_social_behavior_text(
     for index, candidate in enumerate(candidates, start=1):
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
         if candidate.get("identity"):
-            st.caption(f"Identity anchor: {_text(candidate, 'identity')} · {_text(candidate, 'identity_evidence')}")
+            identity_type = _text(candidate, "identity_type", default="other")
+            st.markdown(
+                f"**Audience identified for this behavior:** {_text(candidate, 'identity')} "
+                f"({identity_type.replace('_', ' ').title()})"
+            )
+            st.caption(f"Why this audience fits: {_text(candidate, 'identity_evidence')}")
         with st.expander("Grok artwork prompt", expanded=False):
             st.code(_text(candidate, "artwork_prompt"), language="text")
         with st.expander("Visual direction", expanded=False):

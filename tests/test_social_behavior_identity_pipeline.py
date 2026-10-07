@@ -1,4 +1,4 @@
-"""Tests for the behavior-first, identity-grounded social pipeline."""
+"""Tests for the behavior-first, candidate-level identity pipeline."""
 
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -27,15 +27,12 @@ def _executor(stage_repository: Mock) -> DiscoveryStageExecutor:
     )
 
 
-def _run(*, auto_identity: bool = False, auto_topic: bool = False) -> WorkflowRun:
+def _run(*, auto_topic: bool = False) -> WorkflowRun:
     return WorkflowRun(
         title="Behavior-first identity run",
         config=RunConfig(
             pipeline_variant=PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
             social_sources=[SocialSource.REDDIT],
-            social_identity="bedside nurses" if not auto_identity else "",
-            social_identity_type=IdentityType.OCCUPATION if not auto_identity else None,
-            social_auto_identity=auto_identity,
             social_query="documenting chaotic patient encounters" if not auto_topic else "",
             social_auto_topic=auto_topic,
             social_candidate_count=2,
@@ -43,10 +40,13 @@ def _run(*, auto_identity: bool = False, auto_topic: bool = False) -> WorkflowRu
     )
 
 
-def _live_output(input_model: pipeline.BehaviorIdentityInput) -> pipeline.BehaviorIdentityOutput:
-    fixture = pipeline.execute(input_model)
-    candidate = fixture.candidates[0].model_copy(
+def _candidate(input_model: pipeline.BehaviorIdentityInput) -> pipeline.BehaviorIdentityCandidate:
+    fixture = pipeline.execute(input_model).candidates[0]
+    return fixture.model_copy(
         update={
+            "identity": "Bedside nurses",
+            "identity_type": IdentityType.OCCUPATION,
+            "identity_evidence": "The discussion describes bedside nurses documenting difficult patient encounters.",
             "source_url": "https://reddit.com/r/nursing/comments/example/charting-encounter",
             "source_title": "Nurses describe charting difficult encounters",
             "source_excerpt": "A nurse describes translating an upsetting patient interaction into an objective chart note.",
@@ -54,11 +54,11 @@ def _live_output(input_model: pipeline.BehaviorIdentityInput) -> pipeline.Behavi
             "artwork_text": "I'm Not Being Rude. I'm Quoting the Patient Verbatim.",
         }
     )
+
+
+def _live_output(input_model: pipeline.BehaviorIdentityInput) -> pipeline.BehaviorIdentityOutput:
     return pipeline.BehaviorIdentityOutput(
-        identity_selected="Bedside nurses",
-        identity_type_selected=IdentityType.OCCUPATION,
-        identity_evidence="The cited nursing discussion describes bedside staff documenting patient encounters.",
-        candidates=[candidate],
+        candidates=[_candidate(input_model)],
         search_summary="Nursing discussion about objective documentation.",
         topic_explored="documenting difficult patient encounters",
     )
@@ -70,26 +70,26 @@ def test_pipeline_registers_as_a_distinct_two_stage_variant() -> None:
     assert len(definitions) == 2
     assert "Behavior-First" in definitions[0].name
     assert "Identity-Grounded" in definitions[1].name
+    assert "each" in definitions[0].purpose
 
 
-def test_prompt_discovers_behavior_before_selecting_identity() -> None:
+def test_prompt_maps_each_behavior_to_its_own_evidence_backed_identity() -> None:
     input_model = pipeline.BehaviorIdentityInput(
         sources=[SocialSource.REDDIT],
-        auto_identity=True,
         auto_topic=True,
         candidate_count=3,
     )
 
     prompt = pipeline.build_user_prompt(input_model)
+    instructions = pipeline.reasoning_instructions()
 
-    assert prompt.index("Choose a concrete behavior") < prompt.index(
-        "After you have established the behavior"
-    )
-    assert "one run-level identity" in prompt
-    assert "identity_evidence" in prompt
+    assert "Choose a concrete behavior or topic yourself" in prompt
+    assert "there is no single run-level target identity" in prompt
+    assert "for each behavior" in instructions
+    assert "do not force identity variety" in instructions
 
 
-def test_fixture_stage_one_exposes_selected_identity_and_behavior() -> None:
+def test_fixture_stage_one_returns_identity_on_each_candidate() -> None:
     run = _run()
     stage = StageExecution(run_id=run.run_id, stage_number=1, stage_name="Behavior first")
     executor = _executor(Mock())
@@ -97,14 +97,16 @@ def test_fixture_stage_one_exposes_selected_identity_and_behavior() -> None:
     input_data = executor.prepare(run, stage)
     result = executor.execute(run, stage, input_data)
 
-    assert result.output_data["identity_selected"] == "bedside nurses"
-    assert result.output_data["identity_type_selected"] == IdentityType.OCCUPATION.value
+    assert "identity" not in input_data
+    assert "identity_selected" not in result.output_data
     assert len(result.output_data["candidates"]) == 2
+    assert result.output_data["candidates"][0]["identity"]
+    assert result.output_data["candidates"][0]["identity_evidence"]
     assert result.usage.request_count == 0
 
 
 def test_live_stage_one_makes_one_structured_search_request() -> None:
-    run = _run(auto_identity=True, auto_topic=True)
+    run = _run(auto_topic=True)
     stage = StageExecution(run_id=run.run_id, stage_number=1, stage_name="Behavior first")
     provider = Mock()
     executor = _executor(Mock())
@@ -121,30 +123,63 @@ def test_live_stage_one_makes_one_structured_search_request() -> None:
     call = provider.complete_structured.call_args.kwargs
     assert call["response_model"] is pipeline.BehaviorIdentityOutput
     assert call["web_search_domains"] == ("reddit.com",)
-    assert "first find a concrete" in call["system_prompt"]
-    assert result.output_data["identity_selected"] == "Bedside nurses"
+    assert "independently for each behavior" in call["system_prompt"]
+    assert result.output_data["candidates"][0]["identity"] == "Bedside nurses"
     assert result.usage.request_count == 1
 
 
-def test_manual_identity_is_preserved_without_rejecting_provider_output() -> None:
+def test_provider_can_map_different_behaviors_to_different_identities() -> None:
     input_model = pipeline.BehaviorIdentityInput(
         sources=[SocialSource.REDDIT],
-        identity="bedside nurses",
-        identity_type=IdentityType.OCCUPATION,
-        query="documenting difficult patient encounters",
-        candidate_count=1,
+        query="people handling workday routines",
+        candidate_count=2,
     )
-    provider_output = _live_output(input_model).model_copy(
+    first = _candidate(input_model)
+    second = first.model_copy(
         update={
-            "identity_selected": "a different audience label",
-            "identity_type_selected": IdentityType.ROLE,
+            "identity": "Parents coordinating school mornings",
+            "identity_type": IdentityType.ROLE,
+            "identity_evidence": "The source describes a parent managing school drop-off before work.",
+            "behavior": "A parent packs school bags before the household wakes up.",
+            "source_url": "https://reddit.com/r/Parenting/comments/example/morning-routine",
         }
+    )
+    provider_output = pipeline.BehaviorIdentityOutput(
+        candidates=[first, second],
+        search_summary="Two distinct source-backed behaviors.",
     )
 
     output = pipeline.execute(input_model, reasoning_output=provider_output, model="gpt-test")
 
-    assert output.identity_selected == "bedside nurses"
-    assert output.identity_type_selected is IdentityType.OCCUPATION
+    assert [candidate.identity for candidate in output.candidates] == [
+        "Bedside nurses",
+        "Parents coordinating school mornings",
+    ]
+
+
+def test_previous_run_level_identity_output_can_still_resume_at_stage_two() -> None:
+    input_model = pipeline.BehaviorIdentityInput(
+        sources=[SocialSource.REDDIT],
+        query="documenting difficult patient encounters",
+        candidate_count=1,
+    )
+    old_candidate = _candidate(input_model).model_dump(mode="python")
+    old_candidate.pop("identity")
+    old_candidate.pop("identity_type")
+    old_candidate.pop("identity_evidence")
+    old_output = {
+        "identity_selected": "Bedside nurses",
+        "identity_type_selected": IdentityType.OCCUPATION,
+        "identity_evidence": "Legacy evidence for the run-level identity.",
+        "candidates": [old_candidate],
+        "search_summary": "Historical Stage 1 output.",
+    }
+
+    migrated = pipeline.BehaviorIdentityOutput.model_validate(old_output)
+
+    assert migrated.candidates[0].identity == "Bedside nurses"
+    assert migrated.candidates[0].identity_type is IdentityType.OCCUPATION
+    assert migrated.candidates[0].identity_evidence == "Legacy evidence for the run-level identity."
 
 
 def test_stage_two_reuses_the_social_artwork_contract() -> None:
@@ -152,8 +187,6 @@ def test_stage_two_reuses_the_social_artwork_contract() -> None:
     stage_one_output = pipeline.execute(
         pipeline.BehaviorIdentityInput(
             sources=[SocialSource.REDDIT],
-            identity="bedside nurses",
-            identity_type=IdentityType.OCCUPATION,
             query="documenting patient encounters",
             candidate_count=1,
         )
@@ -186,7 +219,7 @@ def test_quality_gate_requires_candidates_and_stage_two_artworks() -> None:
         stage_one,
         StageResult(
             input_data={},
-            output_data={"candidates": [{"id": "one"}]},
+            output_data={"candidates": [{"identity": "Audience"}]},
             output_summary="stage one",
         ),
     )

@@ -131,7 +131,6 @@ class DiscoveryStageExecutor:
             if previous_run.config.pipeline_variant not in {
                 PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
                 PipelineVariant.SOCIAL_IDENTITY_V2,
-                PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
             }:
                 continue
             if not previous_run.config.social_auto_identity:
@@ -270,13 +269,9 @@ class DiscoveryStageExecutor:
             if stage.stage_number == 1:
                 return social_behavior_identity.BehaviorIdentityInput(
                     sources=run.config.social_sources,
-                    identity=run.config.social_identity,
-                    identity_type=run.config.social_identity_type,
-                    auto_identity=run.config.social_auto_identity,
                     query=run.config.social_query,
                     auto_topic=run.config.social_auto_topic,
                     candidate_count=run.config.social_candidate_count,
-                    recent_identity_selections=self._recent_identity_selections(run),
                 ).model_dump(mode="python")
             if stage.stage_number == 2:
                 previous = self._stage_repository.get_latest(run.run_id, 1)
@@ -629,10 +624,12 @@ class DiscoveryStageExecutor:
                     reasoning_output=reasoning_output,
                     model=usage.model if usage.provider != "fixture" else "deterministic",
                 )
+                identity_count = len(
+                    {candidate.identity.casefold() for candidate in output.candidates}
+                )
                 summary = (
-                    f"Found behavior for {output.identity_selected} and generated "
-                    f"{len(output.candidates)} identity-grounded merchandise candidates using "
-                    f"{output.model}."
+                    f"Generated {len(output.candidates)} behavior-led merchandise candidates "
+                    f"across {identity_count} evidence-backed audience identities using {output.model}."
                 )
                 return StageResult(
                     input_data=input_data,
