@@ -9,7 +9,12 @@ from pymongo.errors import PyMongoError
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.runtime import ApplicationRuntime
-from merchandise_discovery.domain.models.common import IdentityType, PipelineVariant, SocialSource
+from merchandise_discovery.domain.models.common import (
+    IdentityType,
+    PipelineVariant,
+    SocialSource,
+    identity_type_guidance,
+)
 from merchandise_discovery.domain.models.workflow import RunConfig
 from merchandise_discovery.shared.errors import RepositoryError
 from merchandise_discovery.ui.adapters import pipeline_display_name
@@ -150,7 +155,8 @@ def render_run_create(
                 value=False,
                 help=(
                     "OpenAI will select one concrete, non-sensitive audience identity and classify "
-                    "it as an occupation, role, community, lifestyle, or other identity."
+                    "it using the supported identity taxonomy: "
+                    + identity_type_guidance()
                 ),
             )
 
@@ -185,10 +191,11 @@ def render_run_create(
                         "Identity type",
                         options=list(IdentityType),
                         index=0,
-                        format_func=lambda value: value.value.replace("_", " ").title(),
+                        format_func=lambda value: value.display_name,
                         help=(
                             "Describe the audience explicitly. The pipeline uses this as a hard anchor "
-                            "and does not infer sensitive traits."
+                            "and does not infer sensitive traits. Categories: "
+                            + identity_type_guidance()
                         ),
                     )
                     social_identity = st.text_input(

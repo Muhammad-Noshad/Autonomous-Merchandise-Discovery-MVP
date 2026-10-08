@@ -7,6 +7,7 @@ Keeping the contract shared makes output quality attributable to prompting rathe
 research pass, new persistence model, or extra provider call.
 """
 
+from merchandise_discovery.domain.models.common import identity_type_guidance
 from merchandise_discovery.domain.pipelines.social_identity_focused.pipeline import (
     SocialIdentityTextCandidate as SocialIdentityV2Candidate,
 )
@@ -76,12 +77,13 @@ def build_user_prompt(input_model: SocialIdentityV2Input) -> str:
     platforms = ", ".join(source.value for source in input_model.sources)
     identity_instruction = (
         "Choose one concrete, non-sensitive identity represented in the discussions before choosing "
-        "the behavior. Internally compare several concrete identities across different occupations, "
-        "roles, communities, and lifestyles, then choose the most distinctive one with repeated "
+        "the behavior. Internally compare several concrete identities across the available identity "
+        "types, then choose the most distinctive one with repeated "
         "source evidence rather than the most familiar profession. Name it as a natural human "
         "identity label that a person would actually use for themselves, not as a bureaucratic "
         "industry description or research segment. Return it in `identity_selected` "
-        "and classify it in `identity_type_selected`. Use only the allowed identity types; do not "
+        f"and classify it in `identity_type_selected` using this taxonomy: {identity_type_guidance()}. "
+        "Do not "
         "infer sensitive personal traits."
         if input_model.auto_identity
         else (

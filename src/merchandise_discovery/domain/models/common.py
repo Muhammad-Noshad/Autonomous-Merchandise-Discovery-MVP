@@ -33,13 +33,57 @@ class SocialSource(str, Enum):
 
 
 class IdentityType(str, Enum):
-    """The user-supplied kind of identity that anchors the new A/B pipeline."""
+    """A useful lens for describing the audience represented by a merchandise candidate."""
 
     OCCUPATION = "occupation"
     ROLE = "role"
     COMMUNITY = "community"
     LIFESTYLE = "lifestyle"
+    LIFE_STAGE = "life_stage"
+    RELATIONSHIP = "relationship"
+    INTEREST = "interest"
+    PLACE_BASED = "place_based"
     OTHER = "other"
+
+    @property
+    def display_name(self) -> str:
+        """Return a human-readable label for the identity-type selector."""
+
+        return {
+            IdentityType.OCCUPATION: "Occupation",
+            IdentityType.ROLE: "Role",
+            IdentityType.COMMUNITY: "Community",
+            IdentityType.LIFESTYLE: "Lifestyle",
+            IdentityType.LIFE_STAGE: "Life stage",
+            IdentityType.RELATIONSHIP: "Relationship / family role",
+            IdentityType.INTEREST: "Interest / hobby",
+            IdentityType.PLACE_BASED: "Place-based identity",
+            IdentityType.OTHER: "Other",
+        }[self]
+
+    @property
+    def description(self) -> str:
+        """Explain which audience identities belong in this category."""
+
+        return {
+            IdentityType.OCCUPATION: "a job or profession, such as nurses or teachers",
+            IdentityType.ROLE: "a responsibility or position, such as caregiver or volunteer coach",
+            IdentityType.COMMUNITY: "membership in a group, such as a local club or mutual-aid group",
+            IdentityType.LIFESTYLE: "a recurring way or rhythm of life, such as vanlife or night-shift living",
+            IdentityType.LIFE_STAGE: "a period or transition, such as new parenthood, college, or retirement",
+            IdentityType.RELATIONSHIP: "an identity shaped by a relationship, such as older sibling or long-distance partner",
+            IdentityType.INTEREST: "a sustained hobby or interest, such as birding or tabletop gaming",
+            IdentityType.PLACE_BASED: "a shared connection to a place, such as newcomers to a city or longtime residents",
+            IdentityType.OTHER: "a well-supported identity that does not fit the categories above",
+        }[self]
+
+
+def identity_type_guidance() -> str:
+    """Return the shared identity taxonomy for prompts and UI guidance."""
+
+    return "; ".join(
+        f"{identity_type.value}: {identity_type.description}" for identity_type in IdentityType
+    )
 
 
 class SeedCategory(str, Enum):

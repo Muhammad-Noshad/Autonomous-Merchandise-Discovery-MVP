@@ -1,6 +1,10 @@
 """Tests for mapping Create Run form values into domain configuration."""
 
-from merchandise_discovery.domain.models.common import IdentityType, PipelineVariant
+from merchandise_discovery.domain.models.common import (
+    IdentityType,
+    PipelineVariant,
+    identity_type_guidance,
+)
 from merchandise_discovery.ui.adapters import pipeline_display_name
 from merchandise_discovery.ui.pages.run_create import build_run_config
 
@@ -45,6 +49,18 @@ def test_social_pipeline_labels_explain_their_ordering() -> None:
     assert pipeline_display_name(PipelineVariant.SOCIAL_IDENTITY_V2) == (
         "Audience → behavior — start with an identity, then find its behavior"
     )
+
+
+def test_identity_taxonomy_includes_life_stage_relationship_interest_and_place() -> None:
+    assert IdentityType.LIFE_STAGE.display_name == "Life stage"
+    assert IdentityType.RELATIONSHIP.display_name == "Relationship / family role"
+    assert IdentityType.INTEREST.display_name == "Interest / hobby"
+    assert IdentityType.PLACE_BASED.display_name == "Place-based identity"
+    guidance = identity_type_guidance()
+    assert "life_stage: a period or transition" in guidance
+    assert "relationship: an identity shaped by a relationship" in guidance
+    assert "interest: a sustained hobby or interest" in guidance
+    assert "place_based: a shared connection to a place" in guidance
 
 
 def test_render_run_create_unsubmitted(monkeypatch) -> None:

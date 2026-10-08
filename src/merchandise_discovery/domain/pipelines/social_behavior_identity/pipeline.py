@@ -4,7 +4,11 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
 
-from merchandise_discovery.domain.models.common import IdentityType, SocialSource
+from merchandise_discovery.domain.models.common import (
+    IdentityType,
+    SocialSource,
+    identity_type_guidance,
+)
 from merchandise_discovery.domain.pipelines.social_behavior_text.pipeline import (
     SocialBehaviorTextCandidate,
 )
@@ -74,8 +78,9 @@ def reasoning_instructions() -> str:
         "a person might recognize themselves as, broad enough to include multiple people, and no "
         "narrower than the evidence supports. Avoid research-report labels and overly specific job "
         "specialties. Different behaviors may map to the same identity when the evidence supports "
-        "that; do not force identity variety. For each candidate return its identity, one allowed "
-        "identity type, and concise evidence explaining why that group fits this behavior. The "
+        "that; do not force identity variety. For each candidate return its identity, one identity "
+        f"type from this taxonomy: {identity_type_guidance()}, and concise evidence explaining why "
+        "that group fits this behavior. The "
         "merchandise line must make the audience recognizable through lived details, not by merely "
         "prefixing an identity label. Use natural role, relationship, duty, setting, time, tool, or "
         "insider language where supported. Write clear, personal, context-rich targeted T-shirt copy: "

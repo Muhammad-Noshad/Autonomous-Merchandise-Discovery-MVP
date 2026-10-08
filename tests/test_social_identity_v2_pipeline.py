@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from merchandise_discovery.application.discovery_stage_executor import DiscoveryStageExecutor
 from merchandise_discovery.domain.models.common import (
     IdentityType,
@@ -180,6 +182,54 @@ def test_identity_v2_auto_selection_targets_lived_merchandise_situations() -> No
     assert "hidden operational consequences" in prompt
     assert "research-report phrasing" in prompt
     assert "human situation, not a report heading" in prompt
+    assert "life_stage:" in prompt
+    assert "interest:" in prompt
+    assert "relationship:" in prompt
+    assert "place_based:" in prompt
+
+
+@pytest.mark.parametrize(
+    "identity_type,identity",
+    [
+        (IdentityType.LIFE_STAGE, "first-time parents"),
+        (IdentityType.RELATIONSHIP, "long-distance partners"),
+        (IdentityType.INTEREST, "backyard birders"),
+        (IdentityType.PLACE_BASED, "people new to Chicago"),
+    ],
+)
+def test_identity_v2_ai_output_accepts_each_new_identity_type(
+    identity_type: IdentityType,
+    identity: str,
+) -> None:
+    """Auto-selected structured output accepts and propagates every recently added type."""
+
+    input_model = pipeline.SocialIdentityV2Input(
+        sources=[SocialSource.REDDIT],
+        auto_identity=True,
+        auto_topic=True,
+        candidate_count=1,
+    )
+    fixture_output = pipeline.execute(input_model)
+    candidate = fixture_output.candidates[0].model_copy(
+        update={
+            "identity": identity,
+            "identity_type": identity_type,
+            "source_url": "https://reddit.com/r/example/comments/identity/behavior",
+        }
+    )
+    provider_output = pipeline.SocialIdentityV2Output(
+        identity_selected=identity,
+        identity_type_selected=identity_type,
+        candidates=[candidate],
+        search_summary="Source-backed example for the selected identity type.",
+        topic_explored="a concrete lived behavior",
+    )
+
+    result = pipeline.execute(input_model, reasoning_output=provider_output, model="gpt-test")
+
+    assert result.identity_type_selected is identity_type
+    assert result.candidates[0].identity == identity
+    assert result.candidates[0].identity_type is identity_type
 
 
 def test_identity_v2_accepts_provider_typography_variant_for_ai_identity() -> None:

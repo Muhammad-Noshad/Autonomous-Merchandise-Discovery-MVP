@@ -87,6 +87,8 @@ def test_prompt_maps_each_behavior_to_its_own_evidence_backed_identity() -> None
     assert "there is no single run-level target identity" in prompt
     assert "for each behavior" in instructions
     assert "do not force identity variety" in instructions
+    assert "life_stage:" in instructions
+    assert "place_based:" in instructions
 
 
 def test_fixture_stage_one_returns_identity_on_each_candidate() -> None:

@@ -12,7 +12,7 @@ from typing import Any
 
 import streamlit as st
 
-from merchandise_discovery.domain.models.common import StageStatus
+from merchandise_discovery.domain.models.common import IdentityType, StageStatus
 from merchandise_discovery.ui.fixtures import StageFixture
 
 PayloadRenderer = Callable[[dict[str, Any]], None]
@@ -128,9 +128,13 @@ def _render_social_behavior_text(
         st.markdown(f"### {index}. {_text(candidate, 'artwork_text')}")
         if candidate.get("identity"):
             identity_type = _text(candidate, "identity_type", default="other")
+            try:
+                identity_type_label = IdentityType(identity_type).display_name
+            except ValueError:
+                identity_type_label = identity_type.replace("_", " ").title()
             st.markdown(
                 f"**Audience identified for this behavior:** {_text(candidate, 'identity')} "
-                f"({identity_type.replace('_', ' ').title()})"
+                f"({identity_type_label})"
             )
             st.caption(f"Why this audience fits: {_text(candidate, 'identity_evidence')}")
         with st.expander("Grok artwork prompt", expanded=False):

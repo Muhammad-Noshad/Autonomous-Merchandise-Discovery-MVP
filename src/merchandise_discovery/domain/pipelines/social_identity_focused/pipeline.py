@@ -10,7 +10,11 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from merchandise_discovery.domain.models.common import IdentityType, SocialSource
+from merchandise_discovery.domain.models.common import (
+    IdentityType,
+    SocialSource,
+    identity_type_guidance,
+)
 
 
 class SocialIdentityTextInput(BaseModel):
@@ -100,10 +104,11 @@ def reasoning_instructions() -> str:
         "demographic, invent an identity, or infer sensitive traits. Extract concrete behavior, "
         "friction, contradiction, ritual, or private joke that is recognizably experienced by that "
         "identity. If the identity is not supplied, first consider several concrete, non-sensitive "
-        "identities across different occupations, roles, communities, and lifestyles. Choose the "
+        "identities across the available identity types. Choose the "
         "most distinctive identity with repeated source evidence, not the most familiar profession "
         "or the easiest audience to write for. Avoid repeating recent selections unless the source "
-        "evidence reveals a materially different identity. Return the selected identity in "
+        f"evidence reveals a materially different identity. Identity type guide: {identity_type_guidance()}. "
+        "Return the selected identity in "
         "`identity_selected` and its type in `identity_type_selected`. Every "
         "merchandise line and artwork prompt must preserve the identity naturally, "
         "so the target person thinks 'that is literally me' rather than merely seeing a generic joke. "
@@ -131,7 +136,7 @@ def build_user_prompt(input_model: SocialIdentityTextInput) -> str:
         "the behavior. Compare several source-backed identities across different identity types and "
         "name the chosen audience naturally, as a person would describe themselves rather than as a "
         "bureaucratic research segment. Return it in `identity_selected` and classify it in "
-        "`identity_type_selected`. "
+        f"`identity_type_selected` using this taxonomy: {identity_type_guidance()}. "
         "Use only the allowed identity types; do not infer sensitive personal traits."
         if input_model.auto_identity
         else (

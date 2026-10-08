@@ -83,6 +83,8 @@ def test_identity_can_be_selected_by_ai_when_delegated() -> None:
     prompt = pipeline.build_user_prompt(input_model)
     assert "identity_selected" in prompt
     assert "identity_type_selected" in prompt
+    assert "life_stage:" in prompt
+    assert "place_based:" in prompt
     assert fixture_output.identity_selected == "night-shift workers"
     assert fixture_output.identity_type_selected is IdentityType.OCCUPATION
 
