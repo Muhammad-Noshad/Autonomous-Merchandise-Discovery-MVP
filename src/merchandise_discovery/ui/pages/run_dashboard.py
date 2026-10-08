@@ -62,4 +62,5 @@ def render_run_dashboard(runtime: ApplicationRuntime | None = None) -> None:
         render_run_detail_with_polling(
             active_id,
             runtime.discovery_service if runtime else None,
+            runtime.inline_run_manager if runtime else None,
         )

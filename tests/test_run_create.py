@@ -39,6 +39,21 @@ def test_build_run_config_accepts_behavior_first_identity_variant() -> None:
     assert config.pipeline_variant is PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY
 
 
+def test_build_run_config_persists_manual_social_artwork_review_choice() -> None:
+    config = build_run_config(
+        "Social behavior",
+        4,
+        2,
+        3,
+        1,
+        pipeline_variant=PipelineVariant.SOCIAL_IDENTITY_V2,
+        social_manual_artwork_selection=True,
+    )
+
+    assert config.social_manual_artwork_selection is True
+    assert config.social_selected_candidate_indices == []
+
+
 def test_social_pipeline_labels_explain_their_ordering() -> None:
     assert pipeline_display_name(PipelineVariant.SOCIAL_BEHAVIOR_TEXT) == (
         "Behavior-led — find behavior, then create merchandise"

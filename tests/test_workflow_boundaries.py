@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
 from merchandise_discovery.application.workflow_orchestrator import WorkflowOrchestrator
-from merchandise_discovery.domain.models.common import RunStatus, StageStatus
-from merchandise_discovery.domain.models.workflow import StageExecution, WorkflowRun
+from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus, StageStatus
+from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 
 
 def test_complete_stage_pauses_at_configured_mvp_boundary() -> None:
@@ -42,6 +42,53 @@ def test_complete_stage_pauses_at_configured_mvp_boundary() -> None:
         completed_stages=1,
         retry_exhausted=False,
     )
+
+
+def test_manual_artwork_selection_pauses_after_stage_one_at_stage_two() -> None:
+    """Manual review leaves Stage 2 queued until the client chooses the text candidates."""
+
+    runs = Mock()
+    stages = Mock()
+    orchestrator = WorkflowOrchestrator(runs, stages)
+    run = WorkflowRun(
+        title="Text review",
+        status=RunStatus.RUNNING,
+        version=7,
+        config=RunConfig(
+            pipeline_variant=PipelineVariant.SOCIAL_IDENTITY_V2,
+            social_manual_artwork_selection=True,
+        ),
+        total_stages=2,
+    )
+    execution = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Identity V2 text generation",
+        status=StageStatus.COMPLETED,
+    )
+    runs.update_status.return_value = run.model_copy(
+        update={
+            "status": RunStatus.PAUSED,
+            "completed_stages": 1,
+            "current_stage_number": 2,
+        }
+    )
+
+    result = orchestrator.complete_stage_and_run(run, execution)
+
+    assert result.status is RunStatus.PAUSED
+    assert result.completed_stages == 1
+    assert result.current_stage_number == 2
+    runs.update_status.assert_called_once_with(
+        run.run_id,
+        expected_version=run.version,
+        status=RunStatus.PAUSED,
+        current_stage_number=2,
+        last_error=None,
+        completed_stages=1,
+        retry_exhausted=False,
+    )
+    stages.list_for_run.assert_not_called()
 
 
 def test_complete_final_stage_counts_skipped_optional_slot() -> None:

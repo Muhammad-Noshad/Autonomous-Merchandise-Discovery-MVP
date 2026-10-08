@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from secrets import randbits
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from merchandise_discovery.domain.models.common import (
     ApprovalDecision,
@@ -58,6 +58,30 @@ class RunConfig(BaseModel):
     social_identity: str = Field(default="", max_length=300)
     social_identity_type: IdentityType | None = None
     social_auto_identity: bool = False
+    social_manual_artwork_selection: bool = False
+    social_selected_candidate_indices: list[int] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_social_artwork_selection(self) -> "RunConfig":
+        """Keep the manual Stage 2 gate limited to social pipelines and valid saved choices."""
+
+        social_pipelines = {
+            PipelineVariant.SOCIAL_BEHAVIOR_TEXT,
+            PipelineVariant.SOCIAL_BEHAVIOR_IDENTITY,
+            PipelineVariant.SOCIAL_IDENTITY_FOCUSED,
+            PipelineVariant.SOCIAL_IDENTITY_V2,
+        }
+        if self.social_manual_artwork_selection and self.pipeline_variant not in social_pipelines:
+            raise ValueError("Manual artwork selection is only available for social pipelines.")
+        if self.social_selected_candidate_indices and not self.social_manual_artwork_selection:
+            raise ValueError("Saved artwork choices require manual artwork selection to be enabled.")
+        if any(index < 0 for index in self.social_selected_candidate_indices):
+            raise ValueError("Selected candidate indices must be non-negative.")
+        if len(set(self.social_selected_candidate_indices)) != len(
+            self.social_selected_candidate_indices
+        ):
+            raise ValueError("Selected candidate indices must be unique.")
+        return self
 
 
 class WorkflowRun(BaseModel):

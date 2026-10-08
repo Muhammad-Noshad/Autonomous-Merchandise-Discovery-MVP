@@ -77,6 +77,19 @@ from merchandise_discovery.infrastructure.storage import ArtworkStorage
 logger = logging.getLogger(__name__)
 
 
+def _social_artwork_candidates(run: WorkflowRun, candidates: list) -> list:
+    """Return every Stage 1 candidate, or the subset explicitly approved for artwork."""
+
+    if not run.config.social_manual_artwork_selection:
+        return candidates
+    selected_indices = run.config.social_selected_candidate_indices
+    if not selected_indices:
+        raise ValueError("Manual artwork selection has no persisted candidate choices.")
+    if any(index < 0 or index >= len(candidates) for index in selected_indices):
+        raise ValueError("Manual artwork selection no longer matches the Stage 1 candidates.")
+    return [candidates[index] for index in selected_indices]
+
+
 class DiscoveryStageExecutor:
     """Load, run, and persist automated stages without coupling domain code to MongoDB."""
 
@@ -258,7 +271,7 @@ class DiscoveryStageExecutor:
                     previous.output_data
                 )
                 return social_identity_v2_artwork.IdentityV2ArtworkInput(
-                    candidates=prior.candidates,
+                    candidates=_social_artwork_candidates(run, prior.candidates),
                     artwork_variants_per_candidate=1,
                 ).model_dump(mode="python")
             raise StageNotImplementedError(
@@ -281,7 +294,7 @@ class DiscoveryStageExecutor:
                     previous.output_data
                 )
                 return social_artwork.SocialArtworkInput(
-                    candidates=prior.candidates,
+                    candidates=_social_artwork_candidates(run, prior.candidates),
                     artwork_variants_per_candidate=1,
                 ).model_dump(mode="python")
             raise StageNotImplementedError(
@@ -310,7 +323,7 @@ class DiscoveryStageExecutor:
                     previous.output_data
                 )
                 return social_identity_artwork.IdentityArtworkInput(
-                    candidates=prior.candidates,
+                    candidates=_social_artwork_candidates(run, prior.candidates),
                     artwork_variants_per_candidate=1,
                 ).model_dump(mode="python")
             raise StageNotImplementedError(
@@ -333,7 +346,7 @@ class DiscoveryStageExecutor:
                     previous.output_data
                 )
                 return social_artwork.SocialArtworkInput(
-                    candidates=prior.candidates,
+                    candidates=_social_artwork_candidates(run, prior.candidates),
                     artwork_variants_per_candidate=1,
                 ).model_dump(mode="python")
             else:

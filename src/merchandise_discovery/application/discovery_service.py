@@ -15,7 +15,7 @@ from merchandise_discovery.domain.models.artifacts import (
     MerchandiseConcept,
     Niche,
 )
-from merchandise_discovery.domain.models.common import RunStatus
+from merchandise_discovery.domain.models.common import RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import (
     RunConfig,
     StageExecution,
@@ -157,6 +157,43 @@ class DiscoveryService:
         """Return bounded run history without exposing repository details to the UI."""
 
         return self._runs.list_recent(limit)
+
+    def save_social_artwork_selection(
+        self,
+        run_id: str,
+        candidate_indices: list[int],
+    ) -> WorkflowRun:
+        """Validate and persist selected Stage 1 candidates for the paused Stage 2 handoff."""
+
+        run = self._runs.get_by_id(run_id)
+        if run is None:
+            raise ValueError(f"Run not found: {run_id}")
+        if not run.config.social_manual_artwork_selection:
+            raise ValueError("Manual artwork selection is not enabled for this run.")
+        if run.status != RunStatus.PAUSED or run.current_stage_number != 2:
+            raise ValueError("This run is not waiting for Stage 2 artwork selection.")
+        if not candidate_indices:
+            raise ValueError("Select at least one text candidate for artwork generation.")
+        if len(set(candidate_indices)) != len(candidate_indices):
+            raise ValueError("A text candidate can only be selected once.")
+        if any(index < 0 for index in candidate_indices):
+            raise ValueError("Text candidate selection contains an invalid index.")
+
+        stage_one = self._stages.get_latest(run_id, 1)
+        candidates = stage_one.output_data.get("candidates", []) if stage_one else []
+        if (
+            stage_one is None
+            or stage_one.status != StageStatus.COMPLETED
+            or not candidates
+            or any(index >= len(candidates) for index in candidate_indices)
+        ):
+            raise ValueError("Text candidate selection does not match the completed Stage 1 output.")
+
+        return self._runs.save_social_artwork_selection(
+            run_id,
+            expected_version=run.version,
+            candidate_indices=sorted(candidate_indices),
+        )
 
     def delete_run(self, run_id: str) -> RunDeletionSummary:
         """Delete one run and every run-owned record through repository-owned cascade queries.

@@ -33,6 +33,11 @@ class WorkflowOrchestrator:
 
         return self._runs.claim_run(run_id, worker_id)
 
+    def resume_paused_run(self, run_id: str, worker_id: str) -> WorkflowRun | None:
+        """Claim a paused run only after its application-level gate has been satisfied."""
+
+        return self._runs.resume_paused_run(run_id, worker_id)
+
     def next_runnable_stage(self, run_id: str, *, max_attempts: int = 3) -> StageExecution | None:
         """Find the earliest stage that can still be attempted under the retry policy."""
 
@@ -81,6 +86,9 @@ class WorkflowOrchestrator:
     ) -> WorkflowRun:
         """Advance durable progress, pausing only at a non-terminal configured MVP boundary."""
 
+        is_manual_artwork_boundary = (
+            run.config.social_manual_artwork_selection and execution.stage_number == 1
+        )
         is_demo_boundary = (
             stop_after_stage is not None
             and stop_after_stage < run.total_stages
@@ -89,7 +97,7 @@ class WorkflowOrchestrator:
         # Compact intentionally preserves downstream stage numbers after removing Stage 5. The
         # stage count is therefore not necessarily the final stage number; derive the next stage
         # from persisted execution order instead of using arithmetic on stage numbers.
-        if is_demo_boundary:
+        if is_demo_boundary or is_manual_artwork_boundary:
             future_stage_numbers = []
             completed_stages = min(run.completed_stages + 1, run.total_stages)
         else:
@@ -114,17 +122,23 @@ class WorkflowOrchestrator:
                 max(run.completed_stages + 1, len(resolved_stage_numbers)),
                 run.total_stages,
             )
-        is_final_stage = not future_stage_numbers and not is_demo_boundary
+        is_final_stage = (
+            not future_stage_numbers
+            and not is_demo_boundary
+            and not is_manual_artwork_boundary
+        )
         status = (
             RunStatus.COMPLETED
             if is_final_stage
             else RunStatus.PAUSED
-            if is_demo_boundary
+            if is_demo_boundary or is_manual_artwork_boundary
             else RunStatus.RUNNING
         )
         next_stage = (
             None
             if is_final_stage
+            else 2
+            if is_manual_artwork_boundary
             else execution.stage_number
             if is_demo_boundary
             else future_stage_numbers[0]

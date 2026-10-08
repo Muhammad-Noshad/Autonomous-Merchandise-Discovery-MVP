@@ -107,6 +107,59 @@ class RunRepository:
         )
         return from_document(WorkflowRun, document)
 
+    def resume_paused_run(self, run_id: str, worker_id: str) -> WorkflowRun | None:
+        """Resume a manually gated social run without resetting its current stage."""
+
+        document = self._collection.find_one_and_update(
+            {
+                "run_id": run_id,
+                "status": RunStatus.PAUSED.value,
+                "config.social_manual_artwork_selection": True,
+                "config.social_selected_candidate_indices.0": {"$exists": True},
+            },
+            {
+                "$set": {
+                    "status": RunStatus.RUNNING.value,
+                    "claimed_by": worker_id,
+                    "updated_at": utc_now(),
+                },
+                "$inc": {"version": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return from_document(WorkflowRun, document)
+
+    def save_social_artwork_selection(
+        self,
+        run_id: str,
+        expected_version: int,
+        candidate_indices: list[int],
+    ) -> WorkflowRun:
+        """Persist a user's candidate choices only while the run is paused at its review gate."""
+
+        document = self._collection.find_one_and_update(
+            {
+                "run_id": run_id,
+                "version": expected_version,
+                "status": RunStatus.PAUSED.value,
+                "current_stage_number": 2,
+                "config.social_manual_artwork_selection": True,
+            },
+            {
+                "$set": {
+                    "config.social_selected_candidate_indices": candidate_indices,
+                    "updated_at": utc_now(),
+                },
+                "$inc": {"version": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if document is None:
+            raise ConcurrencyError(
+                f"Run is no longer waiting for artwork selection: {run_id}"
+            )
+        return WorkflowRun.model_validate(document)
+
     def claim_next_available(self, worker_id: str) -> WorkflowRun | None:
         """Claim the oldest pending or failed run so failed work can be resumed safely."""
 

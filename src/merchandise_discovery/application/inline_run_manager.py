@@ -61,6 +61,46 @@ class InlineRunManager:
             )
             return claimed_run
 
+    def resume_manual_artwork_run(self, run_id: str) -> WorkflowRun:
+        """Resume a run paused for text review and launch its persisted Stage 2 selection."""
+
+        with self._lock:
+            active_thread = self._active_runs.get(run_id)
+        if active_thread is not None and active_thread.is_alive():
+            current = self._runtime.discovery_service.get_run(run_id)
+            if current is None:
+                raise RuntimeError(f"Inline run disappeared before it could continue: {run_id}")
+            if current.status == RunStatus.RUNNING:
+                return current
+            # Stage 1 may have persisted its pause just before its thread reaches cleanup. Wait
+            # outside the lock so the worker can remove itself from the active-thread map.
+            active_thread.join()
+
+        with self._lock:
+            current_thread = self._active_runs.get(run_id)
+            if current_thread is not None and current_thread.is_alive():
+                current = self._runtime.discovery_service.get_run(run_id)
+                if current is None:
+                    raise RuntimeError(f"Inline run disappeared before it could continue: {run_id}")
+                if current.status == RunStatus.RUNNING:
+                    return current
+            claimed_run = self._runtime.workflow_orchestrator.resume_paused_run(
+                run_id,
+                worker_id=self.WORKER_ID,
+            )
+            if claimed_run is None:
+                raise RuntimeError(f"Run is no longer ready to resume: {run_id}")
+            thread = threading.Thread(
+                target=self._run_until_boundary,
+                args=(claimed_run,),
+                name=f"inline-resume-{run_id[:8]}",
+                daemon=True,
+            )
+            self._active_runs[run_id] = thread
+            thread.start()
+            print(f"RUN {run_id} | BACKGROUND | resumed for Stage 2 artwork", flush=True)
+            return claimed_run
+
     def resume_active_runs(self) -> None:
         """Reattach threads to active UI-owned runs after a Streamlit process restart."""
 

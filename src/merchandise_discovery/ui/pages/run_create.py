@@ -36,6 +36,7 @@ def build_run_config(
     social_identity: str = "",
     social_identity_type: IdentityType | None = None,
     social_auto_identity: bool = False,
+    social_manual_artwork_selection: bool = False,
 ) -> RunConfig:
     """Convert form primitives into the typed service contract used to create a run."""
 
@@ -54,6 +55,7 @@ def build_run_config(
         social_identity=social_identity.strip(),
         social_identity_type=social_identity_type,
         social_auto_identity=social_auto_identity,
+        social_manual_artwork_selection=social_manual_artwork_selection,
     )
 
 
@@ -143,6 +145,7 @@ def render_run_create(
         )
     auto_topic = False
     auto_identity = False
+    manual_artwork_selection = False
     if is_social_pipeline:
         auto_topic = st.checkbox(
             "Let AI choose the behavior or topic",
@@ -228,6 +231,16 @@ def render_run_create(
                 value=5,
                 help="Maximum number of distinct source-backed merchandise lines to generate.",
             )
+            manual_artwork_selection = st.checkbox(
+                "Let me choose which texts get artwork",
+                value=False,
+                disabled=runtime is not None and runtime.stop_after_stage < 2,
+                help=(
+                    "After Stage 1, pause the run so you can review the generated text candidates. "
+                    "Stage 2 will generate artwork only for the candidates you select. This requires "
+                    "MVP_STOP_AFTER_STAGE to be at least 2."
+                ),
+            )
         else:
             st.markdown("### Funnel limits")
             seed_source_label = st.selectbox("Seed library", list(seed_library_options))
@@ -278,6 +291,7 @@ def render_run_create(
                 social_identity=social_identity,
                 social_identity_type=social_identity_type,
                 social_auto_identity=auto_identity,
+                social_manual_artwork_selection=manual_artwork_selection,
             ),
             triggered_by="manual",
         )

@@ -2,10 +2,11 @@
 
 from unittest.mock import Mock
 
+import pytest
 from pydantic import BaseModel
 
 from merchandise_discovery.application.discovery_service import DiscoveryService
-from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus
+from merchandise_discovery.domain.models.common import PipelineVariant, RunStatus, StageStatus
 from merchandise_discovery.domain.models.workflow import RunConfig, StageExecution, WorkflowRun
 
 
@@ -77,6 +78,66 @@ def test_get_run_snapshot_combines_run_and_stage_reads() -> None:
     assert snapshot is not None
     assert snapshot.run == run
     assert snapshot.stages == stages
+
+
+def test_save_social_artwork_selection_validates_and_persists_stage_one_indices() -> None:
+    run = WorkflowRun(
+        title="Review candidate texts",
+        status=RunStatus.PAUSED,
+        current_stage_number=2,
+        config=RunConfig(
+            pipeline_variant=PipelineVariant.SOCIAL_IDENTITY_V2,
+            social_manual_artwork_selection=True,
+        ),
+    )
+    stage_one = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Generate social merchandise texts",
+        status=StageStatus.COMPLETED,
+        output_data={"candidates": [{"artwork_text": "First"}, {"artwork_text": "Second"}]},
+    )
+    run_repository = Mock()
+    run_repository.get_by_id.return_value = run
+    stage_repository = Mock()
+    stage_repository.get_latest.return_value = stage_one
+    run_repository.save_social_artwork_selection.return_value = run.model_copy(
+        update={
+            "config": run.config.model_copy(update={"social_selected_candidate_indices": [1]})
+        }
+    )
+
+    result = DiscoveryService(run_repository, stage_repository).save_social_artwork_selection(
+        run.run_id,
+        [1],
+    )
+
+    assert result.config.social_selected_candidate_indices == [1]
+    run_repository.save_social_artwork_selection.assert_called_once_with(
+        run.run_id,
+        expected_version=run.version,
+        candidate_indices=[1],
+    )
+
+
+def test_save_social_artwork_selection_rejects_empty_selection() -> None:
+    run = WorkflowRun(
+        title="Review candidate texts",
+        status=RunStatus.PAUSED,
+        current_stage_number=2,
+        config=RunConfig(
+            pipeline_variant=PipelineVariant.SOCIAL_IDENTITY_V2,
+            social_manual_artwork_selection=True,
+        ),
+    )
+    run_repository = Mock()
+    run_repository.get_by_id.return_value = run
+    service = DiscoveryService(run_repository, Mock())
+
+    with pytest.raises(ValueError, match="Select at least one"):
+        service.save_social_artwork_selection(run.run_id, [])
+
+    run_repository.save_social_artwork_selection.assert_not_called()
 
 
 def test_delete_run_cascades_through_all_run_owned_repositories() -> None:

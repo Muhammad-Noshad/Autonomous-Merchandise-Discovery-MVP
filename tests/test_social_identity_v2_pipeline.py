@@ -76,6 +76,73 @@ def test_identity_v2_fixture_uses_the_shared_identity_contract() -> None:
     assert result.usage.request_count == 0
 
 
+def test_stage_two_receives_only_manually_selected_text_candidates() -> None:
+    """Stage 2's typed input is restricted to indices persisted after client review."""
+
+    run = _run()
+    run.config.social_manual_artwork_selection = True
+    run.config.social_selected_candidate_indices = [1]
+    stage_one_output = pipeline.execute(
+        pipeline.SocialIdentityV2Input(
+            sources=[SocialSource.REDDIT],
+            identity="bedside nurses",
+            identity_type=IdentityType.OCCUPATION,
+            query=run.config.social_query,
+            candidate_count=2,
+        )
+    )
+    stage_repository = Mock()
+    stage_repository.get_latest.return_value = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Identity V2 text generation",
+        output_data=stage_one_output.model_dump(mode="python"),
+    )
+    executor = _executor(stage_repository)
+    stage_two = StageExecution(
+        run_id=run.run_id,
+        stage_number=2,
+        stage_name="Identity V2 artwork generation",
+    )
+
+    input_data = executor.prepare(run, stage_two)
+
+    assert len(input_data["candidates"]) == 1
+    assert input_data["candidates"][0]["artwork_text"] == stage_one_output.candidates[1].artwork_text
+
+
+def test_stage_two_keeps_all_texts_when_manual_review_is_disabled() -> None:
+    run = _run()
+    stage_one_output = pipeline.execute(
+        pipeline.SocialIdentityV2Input(
+            sources=[SocialSource.REDDIT],
+            identity="bedside nurses",
+            identity_type=IdentityType.OCCUPATION,
+            query=run.config.social_query,
+            candidate_count=2,
+        )
+    )
+    stage_repository = Mock()
+    stage_repository.get_latest.return_value = StageExecution(
+        run_id=run.run_id,
+        stage_number=1,
+        stage_name="Identity V2 text generation",
+        output_data=stage_one_output.model_dump(mode="python"),
+    )
+    executor = _executor(stage_repository)
+
+    input_data = executor.prepare(
+        run,
+        StageExecution(
+            run_id=run.run_id,
+            stage_number=2,
+            stage_name="Identity V2 artwork generation",
+        ),
+    )
+
+    assert len(input_data["candidates"]) == 2
+
+
 def test_identity_v2_uses_one_prompt_focused_provider_call() -> None:
     """Live Stage 1 makes one attributable call, matching the control pipeline's cost shape."""
 

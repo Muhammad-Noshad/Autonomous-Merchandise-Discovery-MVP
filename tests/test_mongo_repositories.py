@@ -135,6 +135,51 @@ def test_run_repository_can_claim_specific_run() -> None:
     assert collection.find_one_and_update.call_args.args[1]["$set"]["current_stage_number"] == 1
 
 
+def test_run_repository_can_resume_paused_manual_artwork_run() -> None:
+    """Resume claims only a paused run with a durable manual selection and keeps its stage."""
+
+    collection = Mock()
+    run = WorkflowRun(
+        title="Manual artwork",
+        status=RunStatus.RUNNING,
+        current_stage_number=2,
+        claimed_by="ui-inline-runner",
+    )
+    collection.find_one_and_update.return_value = run.model_dump(mode="python")
+
+    claimed = RunRepository(collection).resume_paused_run(run.run_id, "ui-inline-runner")
+
+    assert claimed == run
+    query, update = collection.find_one_and_update.call_args.args
+    assert query["status"] == "paused"
+    assert query["config.social_manual_artwork_selection"] is True
+    assert query["config.social_selected_candidate_indices.0"] == {"$exists": True}
+    assert "current_stage_number" not in update["$set"]
+
+
+def test_run_repository_persists_manual_artwork_selection_with_version_guard() -> None:
+    collection = Mock()
+    run = WorkflowRun(title="Manual artwork", version=5)
+    collection.find_one_and_update.return_value = run.model_dump(mode="python")
+
+    saved = RunRepository(collection).save_social_artwork_selection(
+        run.run_id,
+        expected_version=5,
+        candidate_indices=[0, 2],
+    )
+
+    assert saved == run
+    query, update = collection.find_one_and_update.call_args.args
+    assert query == {
+        "run_id": run.run_id,
+        "version": 5,
+        "status": "paused",
+        "current_stage_number": 2,
+        "config.social_manual_artwork_selection": True,
+    }
+    assert update["$set"]["config.social_selected_candidate_indices"] == [0, 2]
+
+
 def test_run_repository_rejects_lost_optimistic_lock() -> None:
     """A stale worker must not overwrite a newer run state."""
 
